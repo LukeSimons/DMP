@@ -7,13 +7,13 @@
 #include "threevector.h"
 
 threevector CoulombField(threevector Position){
-	double Charge=2000*echarge;//2000*echarge;
+	double Charge=200000*echarge;//2000*echarge;
 	threevector Efield = (Charge/(4*PI*epsilon0*Position.square()))*Position.getunit();
 	return Efield;
 }
 
 threevector DebyeHuckelField(threevector Position, double Radius){
-	double Charge=2000*echarge;
+	double Charge=200000*echarge;
 	if(Charge==0.0) return threevector(0.0,0.0,0.0);
 	double ElectronTemp=1;		// eV
 	double ElectronDensity=1e18;	// m^(-3)
@@ -25,102 +25,92 @@ threevector DebyeHuckelField(threevector Position, double Radius){
 
 int main(){
 	clock_t begin = clock();
-
-	std::ofstream DataFile;		// Output data file
-	// ***** DEFINE DUST PARAMETERS ***** //
-	// Define the behaviour of the models for the temperature dependant constants, the time step and the 'Name' variable.
-/*
-	char EmissivityModel = 'c'; 	// Possible values 'c', 'v' and 'f': Corresponding to (c)onstant, (v)ariable and from (f)ile
-	char ExpansionModel = 'c'; 	// Possible values 'c', 'v' and 's': Corresponding to (c)onstant, (v)ariable, (s)et 
-													// and (z)ero expansion
-	char HeatCapacityModel = 'c'; 	// Possible values 'c', 'v' and 's': Corresponding to (c)onstant, (v)ariable and (s)et
-	char BoilingModel = 'y'; 	// Possible values 'y', 'n', 's' and 't': Corresponding to (y)es, (n)o, (s)uper 
-	double DustRadius=1e-6;
-	double DustTemperature=300;
-	std::array<char,4> ConstModels  = {EmissivityModel,ExpansionModel,HeatCapacityModel,BoilingModel};
-
-	Matter* Dust = new Tungsten(DustRadius,DustTemperature,ConstModels);
-	Dust->update_motion(Position,Velocity,Rotation);
-*/
+//	std::ofstream DataFile;		// Output data file
 
 	// ***** DEFINE SIMULATIO SPACE ***** //
-	double zmax = 10;
+	double zmax = 10.0;
+	double zmin = -2.0;
+	double ElectronTemp = 1.0;	// Electron Temperature, eV
+	double IonTemp = 1.0;		// Ion Temperature, eV
+
 	
 	// ***** DEFINE DUST PARAMETERS ***** //
 	double Radius = 100e-6;
-	double Charge=2000*echarge;
-	double ElectronTemp=1;		// eV
-	double IonTemp=1;		// eV
-	double ElectronDensity=1e18;	// m^(-3)
-	double DebyeLength = sqrt((epsilon0*Charge*ElectronTemp)/(ElectronDensity*pow(echarge,2)));
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
-	double BMag = 1e-2;
+	double BMag = 1e-1;
 	threevector Bhat(0.0,0.0,1.0);
 
 	// ***** DEFINE RANDOM INITIAL CONDITIONS ***** //
 	std::random_device rd;
 	std::mt19937 mt(rd());
 
-
+	// ***** BEGIN LOOP OVER MAXWELLIAN PARTICLES ***** //
 	std::string filename = "Data/MagPlasData";
-	for( unsigned int i(0); i < 100; i ++){
+
+	threevector TotalTorque(0.0,0.0,0.0);
+	unsigned int j(0);
+	for( unsigned int i(0); i < 10e10; i ++){
 
 		// VELOCITY
-		DataFile.open(filename + std::to_string(i) + ".txt");
-		double StandardDeve=(ElectronTemp*echarge)/Me;	// FOR ELECTRONS
-		double StandardDevi=(IonTemp*echarge)/Mp;	// FOR IONS
-		std::normal_distribution<double> Gaussdist(0.0,sqrt(StandardDeve));
+//		DataFile.open(filename + std::to_string(i) + ".txt");
+//		double StandardDev=(ElectronTemp*echarge)/Me;	// FOR ELECTRONS
+		double StandardDev=(IonTemp*echarge)/Mp;	// FOR IONS
+		std::normal_distribution<double> Gaussdist(0.0,sqrt(StandardDev));
 		threevector Velocity(Gaussdist(mt),Gaussdist(mt),-abs(Gaussdist(mt)));	// Start with negative z-velocity
 		Velocity = Velocity*(1/Radius);			// Normalise speed to dust grain radius
 		threevector OldVelocity(0.0,0.0,0.0);
 
 		// POSITION
 		double Vperp = sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2));
-		double RhoPerp = Me*Vperp/(echarge*BMag);// FOR ELECTRONS
-		std::uniform_real_distribution<double> dist(-(1.0+RhoPerp), 1.0+RhoPerp);
+//		double RhoPerp = Me*Vperp/(echarge*BMag);// FOR ELECTRONS
+		double RhoPerp = Mp*Vperp/(echarge*BMag);// FOR IONS
+//		std::uniform_real_distribution<double> dist(-(1.0+RhoPerp), 1.0+RhoPerp); // FOR ELECTRONS
+		std::uniform_real_distribution<double> dist(-(1.0+1.5*RhoPerp), 1.0+1.5*RhoPerp); // FOR IONS
 		threevector Position(dist(mt),dist(mt),zmax);	// Distance normalised to dust grain size, Start 10 Radii above dust
 
 
 		double Rotation = 0;
 
-		double TimeStep = 1e-15;
-		double TimeStepTemp = 2*PI*Me/(echarge*BMag*10000);
+		double TimeStep = 1e-12;
+//		double TimeStepTemp = 2*PI*Me/(echarge*BMag*10000);	// FOR ELECTRONS
+		double TimeStepTemp = 2*PI*Mp/(echarge*BMag*10000);	// FOR IONS
 //		std::cout << "TimeStepTemp = " << TimeStepTemp; std::cin.get();
 		TimeStep = TimeStepTemp;
 
-		// ***** DO INTEGRATION ***** //
+		// ***** DO PARTICLE PATH INTEGRATION ***** //
 
-//		std::cout << "\n" << Position << "\t\t" << Velocity; // << "\t\t" << CoulombField(MeanPosition)*(1/pow(Radius,3)) << "\t\t" << (BMag*MeanVelocity^Bhat) <<  "\n";
-		DataFile << "\n" << Position << "\t" << Velocity;
+//		DataFile << "\n" << Position << "\t" << Velocity;
 
+		// TAKE INITIAL EULARIAN STEP
 		threevector OldPosition = Position;
 		Position+=TimeStep*Velocity;
 		threevector MeanPosition = 0.5*(Position+OldPosition);
 		threevector MeanVelocity = ((Position-OldPosition)*(1/TimeStep));
-		threevector DeltaV=TimeStep*(echarge/Me)*(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+BMag*MeanVelocity^Bhat); // FOR ELECTRONS
-
+//		threevector DeltaV=TimeStep*(echarge/Me)*(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+BMag*MeanVelocity^Bhat); // FOR ELECTRONS
+		threevector DeltaV=TimeStep*(echarge/Mp)*(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+BMag*MeanVelocity^Bhat); // FOR IONS
 		Velocity += DeltaV;
 
-		DataFile << "\n" << Position << "\t" << Velocity;
+//		DataFile << "\n" << Position << "\t" << Velocity;
 
-		while(Position.mag3() > 1.0 && Position.getz() > 0.0 && Position.getz() < zmax ){
+		// While we're not inside the sphere and we're not outside the simulation domain
+		while(Position.mag3() > 1.0 && Position.getz() > zmin && Position.getz() < zmax ){
 			OldPosition = Position;
 			Position+=TimeStep*Velocity;
 			MeanPosition = 0.5*(Position+OldPosition);
 			MeanVelocity = ((Position-OldPosition)*(1/TimeStep));
+			// ONLY ONE OF THE FOLLOWING SHOULD BE UNCOMMENTED
 //			DeltaV=(TimeStep*echarge/Me)*(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+ BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat)); // FOR ELECTRONS
-			DeltaV=(TimeStep*echarge/Me)*(CoulombField(MeanPosition)*(1/pow(Radius,3))+ BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat)); // FOR ELECTRONS
-		//	std::cout << "\nCoeff : " << TimeStep*(echarge/Me)*BMag;
-		//	std::cout << "\nVxB : " << (MeanVelocity^Bhat);
-
+//			DeltaV=(TimeStep*echarge/Me)*(CoulombField(MeanPosition)*(1/pow(Radius,3))+ BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat)); // FOR ELECTRONS
+			DeltaV=-(TimeStep*echarge/Mp)*(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+ BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat)); // FOR IONS
+//			DeltaV=-(TimeStep*echarge/Mp)*(CoulombField(MeanPosition)*(1/pow(Radius,3))+ BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat)); // FOR IONS
 
 			OldVelocity = Velocity;
 			Velocity += DeltaV;
 //			threevector DeltaV=(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+BMag*MeanVelocity^Bhat)*(echarge/Mp); // FOR IONS
 //			threevector DeltaV=(CoulombField(MeanPosition)*(1/pow(Radius,3))+BMag*MeanVelocity^Bhat)*(echarge/Me);
 
-			DataFile << "\n" << Position << "\t" << Velocity;// << "\t\t" << (TimeStep*(echarge/Me)*BMag*MeanVelocity^Bhat); // << "\t\t" << CoulombField(MeanPosition)*(1/pow(Radius,3)) << "\t\t" << (BMag*MeanVelocity^Bhat) <<  "\n";
+//			DataFile << "\n" << Position << "\t" << Velocity;// << "\t\t" << (TimeStep*(echarge/Me)*BMag*MeanVelocity^Bhat); // << "\t\t" << CoulombField(MeanPosition)*(1/pow(Radius,3)) << "\t\t" << (BMag*MeanVelocity^Bhat) <<  "\n";
 		}
 
 
@@ -129,12 +119,22 @@ int main(){
 			threevector FinalPosition = MeanPosition;
 			threevector CylindricalRadius(FinalPosition.getx(),FinalPosition.gety(),0.0);
 			double DistanceFromAxis = CylindricalRadius.mag3();
-			threevector Torque = Me*DistanceFromAxis*pow(Radius,2)*(CylindricalRadius^FinalVelocity); // FOR ELECTRONS
-//			threevector Torque = Mp*DistanceFromAxis*pow(Radius,2)*(CylindricalRadius^FinalVelocity); // FOR IONS
-			std::cout << "\nTorque = " << Torque;
+//			threevector Torque = Me*DistanceFromAxis*pow(Radius,2)*(CylindricalRadius^FinalVelocity); // FOR ELECTRONS
+			threevector Torque = Mp*DistanceFromAxis*pow(Radius,2)*(CylindricalRadius.getunit()^FinalVelocity); // FOR IONS
+			TotalTorque += Torque;
+//			std::cout << "\nTorque = " << Torque;
+			j ++;
+			std::cout << "\nj :\t" << j << "\tTotalTorque = " << TotalTorque;
+
 		}
-		DataFile.close();
+//		DataFile.close();
+//		std::cout << "\ni :\t" << i;
 	}
+	std::cout << "\nTotalTorque = " << TotalTorque;
+
+//	double Charge=2000*echarge;
+//	double ElectronDensity=1e18;	// m^(-3)
+//	double DebyeLength = sqrt((epsilon0*Charge*ElectronTemp)/(ElectronDensity*pow(echarge,2)));
 //	std::cout << "\nTimeStep = " << TimeStep;
 //	std::cout << "\nPosition.mag3() = " << Position.mag3();
 //	std::cout << "\nPosition.getz() = " << Position.getz();
