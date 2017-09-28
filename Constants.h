@@ -2,82 +2,16 @@
 #define __CONSTANTS_H_INCLUDED__
 
 
-#ifdef MODEL_DEBUG
-#define Mo_Debug(x) std::cout << x
+#ifdef STORE_TRACKS 
+#define DECLARE_TRACK()	std::ofstream TrackDataFiles	
+#define OPEN_TRACK(x)	TrackDataFiles.open(x)
+#define RECORD_TRACK(x)	TrackDataFiles << x
+#define CLOSE_TRACK()	TrackDataFiles.close()
 #else
-#define Mo_Debug(x) 
-#endif 
-
-#ifdef PLASMAGRID_DEBUG
-#define P_Debug(x) std::cout << x
-#else
-#define P_Debug(x) 
-#endif 
-
-#ifdef CHARGING_DEBUG
-#define C_Debug(x) std::cout << x
-#else
-#define C_Debug(x) 
-#endif 
-
-#ifdef HEATING_DEBUG
-#define H_Debug(x) std::cout << x
-#else
-#define H_Debug(x) 
-#endif 
-
-#ifdef HEATING_DEEP_DEBUG
-#define H1_Debug(x) std::cout << x
-#else
-#define H1_Debug(x) 
-#endif 
-
-#ifdef FORCE_DEBUG
-#define F_Debug(x) std::cout << x
-#else
-#define F_Debug(x) 
-#endif 
-
-#ifdef FORCE_DEEP_DEBUG
-#define F1_Debug(x) std::cout << x
-#else
-#define F1_Debug(x) 
-#endif 
-
-#ifdef MATTER_DEBUG
-#define M_Debug(x) std::cout << x
-#else
-#define M_Debug(x) 
-#endif 
-
-#ifdef MATTER_DEEP_DEBUG
-#define M2_Debug(x) std::cout << x
-#else
-#define M2_Debug(x) 
-#endif 
-
-#ifdef ELEMENT_DEEP_DEBUG
-#define E1_Debug(x) std::cout << x
-#else
-#define E1_Debug(x) 
-#endif 
-
-#ifdef ELEMENT_DEBUG
-#define E_Debug(x) std::cout << x
-#else
-#define E_Debug(x) 
-#endif 
-
-#ifdef DTOKSU_DEBUG
-#define D_Debug(x) std::cout << x
-#else
-#define D_Debug(x) 
-#endif 
-
-#ifdef DTOKSU_DEEP_DEBUG
-#define D1_Debug(x) std::cout << x
-#else
-#define D1_Debug(x) 
+#define DECLARE_TRACK()
+#define OPEN_TRACK(x)
+#define RECORD_TRACK(x)
+#define CLOSE_TRACK()
 #endif 
 
 #ifdef PAUSE

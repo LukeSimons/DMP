@@ -1,116 +1,133 @@
+//#define STORE_TRACKS 
+
 #include <iostream>
 #include <array>
 #include <random>
 #include <fstream>
+#include <ctime>
 
 #include "Constants.h"
 #include "threevector.h"
 
-threevector CoulombField(threevector Position){
-	double Charge=200000*echarge;//2000*echarge;
+threevector CoulombField(threevector Position, double Charge){
 	threevector Efield = (Charge/(4*PI*epsilon0*Position.square()))*Position.getunit();
 	return Efield;
 }
 
-threevector DebyeHuckelField(threevector Position, double Radius){
-	double Charge=200000*echarge;
+threevector DebyeHuckelField(threevector Position, double Charge, double Radius, double ElectronDensity, double ElectronTemp){
 	if(Charge==0.0) return threevector(0.0,0.0,0.0);
-	double ElectronTemp=1;		// eV
-	double ElectronDensity=1e18;	// m^(-3)
-	double DebyeLength = sqrt((epsilon0*Charge*ElectronTemp)/(ElectronDensity*pow(echarge,2)));
-	threevector Efield = Charge*(1/(4*PI*epsilon0*Position.mag3()))*exp(-(Position.mag3()*Radius)/DebyeLength )*(1/Position.mag3()+Radius/DebyeLength)*Position.getunit();
+	double DebyeLength = sqrt((epsilon0*echarge*ElectronTemp)/(ElectronDensity*pow(echarge,2)));
+	threevector Efield = Charge*(1/(4*PI*epsilon0*Position.mag3()))*exp(-(Position.mag3()*Radius)/DebyeLength)
+				*(1/Position.mag3()+Radius/DebyeLength)*Position.getunit();
 
 	return Efield;
 }
 
 int main(){
 	clock_t begin = clock();
-//	std::ofstream DataFile;		// Output data file
+	std::string filename = "Data/MagPlasData";
+	DECLARE_TRACK();
+	std::ofstream AngularMomentumDataFile;	// Data file for angular momentum information
 
-	// ***** DEFINE SIMULATIO SPACE ***** //
-	double zmax = 10.0;
-	double zmin = -2.0;
-	double ElectronTemp = 1.0;	// Electron Temperature, eV
-	double IonTemp = 1.0;		// Ion Temperature, eV
+	// ***** DEFINE PLASMA PARAMETERS ***** //
+	double eTemp 	= 1.0;	// Electron Temperature, eV
+	double eDensity	= 1e18;	// m^(-3), Electron density
+	double TEMP 	= 1.0;	// eV, This is the Temperature of the species being considered
+	int SPEC_CHARGE	= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
+	double MASS;		// kg, This is the mass of the Species being considered
 
+	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
+	if( SPEC_CHARGE > 0 )	MASS 	= Mp;
+	else			MASS	= Me;
 	
 	// ***** DEFINE DUST PARAMETERS ***** //
-	double Radius = 100e-6;
+	double Radius 		= 100e-6;		// m, Radius of dust
+	double Density 		= 19600;		// kg m^(-3), for Tungsten
+	double Potential	= -2.6;			// Coulombs, Charge in 
+	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)));
+	double Charge 		= eTemp*Potential*(4*PI*epsilon0*Radius);//*exp(-Radius/DebyeLength)); // Coulombs, Charge in 
+//	std::cout << "\nCharge = " << Charge << "C\nElectrons = " << Charge/echarge;
+//	std::cout << "e-\nDebyeLength = " << DebyeLength/Radius << "arb\nRadius = " << Radius;
+//	std::cout << "m\nPotential = " << Potential << "arb\neTemp = " << eTemp << "ev\n"; std::cin.get();
+
+	// ***** DEFINE SIMULATION SPACE ***** //
+	double zmax 	= 1.0+10.0*DebyeLength/Radius;	// Top of Simulation Domain, in Dust Radii
+	double zmin 	= -1.0-5.0*DebyeLength/Radius;	// Bottom of Simulation Domain, in Dust Radii
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
-	double BMag = 1e-1;
-	threevector Bhat(0.0,0.0,1.0);
+	double BMag = 1e-1;		// Tesla, Magnitude of magnetic field
+	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
 
 	// ***** DEFINE RANDOM INITIAL CONDITIONS ***** //
-	std::random_device rd;
-	std::mt19937 mt(rd());
+	std::random_device rd;		// Create Random Device
+	std::mt19937 mt(rd());		// Get Random Method
 
-	// ***** BEGIN LOOP OVER MAXWELLIAN PARTICLES ***** //
-	std::string filename = "Data/MagPlasData";
+	// ***** OPEN DATA FILE WITH HEADER ***** //
+	time_t now = time(0);		// Get the time of simulation
+	char * dt = ctime(&now);
+	AngularMomentumDataFile.open(filename + "_AngMom.txt");	
+	AngularMomentumDataFile << "## Angular Momentum Data File ##\n";
+	AngularMomentumDataFile << "#Date: " << dt;
+	AngularMomentumDataFile << "#Input:\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\t\tBMag\tDebye\n";
+	AngularMomentumDataFile << "#\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
+					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\t"<<BMag << "\t" << DebyeLength/Radius << "\n\n";
 
-	threevector TotalTorque(0.0,0.0,0.0);
+	// ***** BEGIN LOOP OVER PARTICLE ORBITS ***** //
+	threevector TotalAngularVel(0.0,0.0,0.0);
 	unsigned int j(0);
-	for( unsigned int i(0); i < 10e10; i ++){
+	for( unsigned int i(0); i < 100; i ++){
 
 		// VELOCITY
-//		DataFile.open(filename + std::to_string(i) + ".txt");
-//		double StandardDev=(ElectronTemp*echarge)/Me;	// FOR ELECTRONS
-		double StandardDev=(IonTemp*echarge)/Mp;	// FOR IONS
+		OPEN_TRACK(filename + std::to_string(i) + ".txt");
+		double StandardDev=(TEMP*echarge)/MASS;	// FOR IONS
 		std::normal_distribution<double> Gaussdist(0.0,sqrt(StandardDev));
 		threevector Velocity(Gaussdist(mt),Gaussdist(mt),-abs(Gaussdist(mt)));	// Start with negative z-velocity
 		Velocity = Velocity*(1/Radius);			// Normalise speed to dust grain radius
+		threevector MeanPosition(0.0,0.0,0.0);
+		threevector MeanVelocity(0.0,0.0,0.0);
 		threevector OldVelocity(0.0,0.0,0.0);
 
 		// POSITION
 		double Vperp = sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2));
-//		double RhoPerp = Me*Vperp/(echarge*BMag);// FOR ELECTRONS
-		double RhoPerp = Mp*Vperp/(echarge*BMag);// FOR IONS
-//		std::uniform_real_distribution<double> dist(-(1.0+RhoPerp), 1.0+RhoPerp); // FOR ELECTRONS
-		std::uniform_real_distribution<double> dist(-(1.0+1.5*RhoPerp), 1.0+1.5*RhoPerp); // FOR IONS
-		threevector Position(dist(mt),dist(mt),zmax);	// Distance normalised to dust grain size, Start 10 Radii above dust
-
-
-		double Rotation = 0;
+		double RhoPerp = (MASS*Vperp)/(echarge*BMag);
+		threevector Position(0.0,0.0,zmax);
+		if(SPEC_CHARGE > 0.0){
+			std::uniform_real_distribution<double> dist(-(1.0+RhoPerp+4*DebyeLength), 1.0+RhoPerp+4*DebyeLength); // FOR IONS
+			Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
+		}else{
+			std::uniform_real_distribution<double> dist(-(1.0+RhoPerp), 1.0+RhoPerp); // FOR ELECTRONS
+			Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
+		}
 
 		double TimeStep = 1e-12;
-//		double TimeStepTemp = 2*PI*Me/(echarge*BMag*10000);	// FOR ELECTRONS
-		double TimeStepTemp = 2*PI*Mp/(echarge*BMag*10000);	// FOR IONS
-//		std::cout << "TimeStepTemp = " << TimeStepTemp; std::cin.get();
+		double TimeStepTemp = 2*PI*MASS/(echarge*BMag*10000);
 		TimeStep = TimeStepTemp;
 
 		// ***** DO PARTICLE PATH INTEGRATION ***** //
 
-//		DataFile << "\n" << Position << "\t" << Velocity;
-
-		// TAKE INITIAL EULARIAN STEP
-		threevector OldPosition = Position;
-		Position+=TimeStep*Velocity;
-		threevector MeanPosition = 0.5*(Position+OldPosition);
-		threevector MeanVelocity = ((Position-OldPosition)*(1/TimeStep));
-//		threevector DeltaV=TimeStep*(echarge/Me)*(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+BMag*MeanVelocity^Bhat); // FOR ELECTRONS
-		threevector DeltaV=TimeStep*(echarge/Mp)*(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+BMag*MeanVelocity^Bhat); // FOR IONS
-		Velocity += DeltaV;
-
-//		DataFile << "\n" << Position << "\t" << Velocity;
-
+		RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
 		// While we're not inside the sphere and we're not outside the simulation domain
-		while(Position.mag3() > 1.0 && Position.getz() > zmin && Position.getz() < zmax ){
-			OldPosition = Position;
+		while(Position.mag3() > 1.0 && Position.getz() > zmin && Position.getz() <= zmax ){
+			threevector OldPosition = Position;
 			Position+=TimeStep*Velocity;
 			MeanPosition = 0.5*(Position+OldPosition);
 			MeanVelocity = ((Position-OldPosition)*(1/TimeStep));
 			// ONLY ONE OF THE FOLLOWING SHOULD BE UNCOMMENTED
-//			DeltaV=(TimeStep*echarge/Me)*(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+ BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat)); // FOR ELECTRONS
-//			DeltaV=(TimeStep*echarge/Me)*(CoulombField(MeanPosition)*(1/pow(Radius,3))+ BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat)); // FOR ELECTRONS
-			DeltaV=-(TimeStep*echarge/Mp)*(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+ BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat)); // FOR IONS
-//			DeltaV=-(TimeStep*echarge/Mp)*(CoulombField(MeanPosition)*(1/pow(Radius,3))+ BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat)); // FOR IONS
+//			DebyeHuckel Potential
+			threevector DeltaV=((SPEC_CHARGE*TimeStep*echarge)/MASS)
+					*(DebyeHuckelField(MeanPosition,Charge,Radius,eDensity,eTemp)*(1/pow(Radius,3))
+					+BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat));
+
+// 			Coulomb Potential - MAKE SURE TO CHECK POSITION DISTRIBUTION
+//			threevector DeltaV=((SPEC_CHARGE*TimeStep*echarge)/MASS)
+//					*(CoulombField(MeanPosition,Charge)*(1/pow(Radius,3))
+//					+BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat));
 
 			OldVelocity = Velocity;
 			Velocity += DeltaV;
-//			threevector DeltaV=(DebyeHuckelField(MeanPosition,Radius)*(1/pow(Radius,3))+BMag*MeanVelocity^Bhat)*(echarge/Mp); // FOR IONS
-//			threevector DeltaV=(CoulombField(MeanPosition)*(1/pow(Radius,3))+BMag*MeanVelocity^Bhat)*(echarge/Me);
 
-//			DataFile << "\n" << Position << "\t" << Velocity;// << "\t\t" << (TimeStep*(echarge/Me)*BMag*MeanVelocity^Bhat); // << "\t\t" << CoulombField(MeanPosition)*(1/pow(Radius,3)) << "\t\t" << (BMag*MeanVelocity^Bhat) <<  "\n";
+			RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+//			std::cout << "\n" << Position << "\t" << Velocity;
 		}
 
 
@@ -119,30 +136,26 @@ int main(){
 			threevector FinalPosition = MeanPosition;
 			threevector CylindricalRadius(FinalPosition.getx(),FinalPosition.gety(),0.0);
 			double DistanceFromAxis = CylindricalRadius.mag3();
-//			threevector Torque = Me*DistanceFromAxis*pow(Radius,2)*(CylindricalRadius^FinalVelocity); // FOR ELECTRONS
-			threevector Torque = Mp*DistanceFromAxis*pow(Radius,2)*(CylindricalRadius.getunit()^FinalVelocity); // FOR IONS
-			TotalTorque += Torque;
-//			std::cout << "\nTorque = " << Torque;
+//			threevector AngularMom = MASS*DistanceFromAxis*pow(Radius,2)*(CylindricalRadius^FinalVelocity); 
+			// Moment of Inertia for solid sphere
+			threevector AngularVel = (15*MASS)/(8*PI*Density*pow(Radius,3))*	
+				(CylindricalRadius^(FinalVelocity-AngularVel.mag3()*DistanceFromAxis*AngularVel.getunit()));
+
+			TotalAngularVel += AngularVel;
 			j ++;
-			std::cout << "\nj :\t" << j << "\tTotalTorque = " << TotalTorque;
+			std::cout << "\nAngularVel = " << AngularVel << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
+			AngularMomentumDataFile << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
 
 		}
-//		DataFile.close();
+		CLOSE_TRACK();
 //		std::cout << "\ni :\t" << i;
 	}
-	std::cout << "\nTotalTorque = " << TotalTorque;
-
-//	double Charge=2000*echarge;
-//	double ElectronDensity=1e18;	// m^(-3)
-//	double DebyeLength = sqrt((epsilon0*Charge*ElectronTemp)/(ElectronDensity*pow(echarge,2)));
-//	std::cout << "\nTimeStep = " << TimeStep;
-//	std::cout << "\nPosition.mag3() = " << Position.mag3();
-//	std::cout << "\nPosition.getz() = " << Position.getz();
-//	std::cout << "\nDebyeLength/Radius = " << DebyeLength/Radius;
+	std::cout << "\n\nTotalAngularVel = " << TotalAngularVel;
 
 	clock_t end = clock();
 	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
 
+	AngularMomentumDataFile.close();
 	std::cout << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n";
 	return 0;
 }
