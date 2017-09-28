@@ -1,0 +1,4 @@
+DIMP - Dust In Magnetised Plasma
+
+Simulates trajectories of ions and electrons in a magnetised plasma around a charged dust grain.
+Rate of collection of ions and electrons is calculated with a focus on calculating the torque on the sphere.
