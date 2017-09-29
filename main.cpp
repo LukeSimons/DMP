@@ -9,6 +9,31 @@
 #include "Constants.h"
 #include "threevector.h"
 
+/*updates velocity using the Boris method, Birdsall, Plasma Physics via Computer Simulation, p.62*/
+static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BField, double dt, threevector &Velocity){
+
+	/*t vector*/
+	threevector t = echarge*BField*0.5*dt*(1/MASS);
+	
+	/*magnitude of t, squared*/
+	double t_mag2 = t.square();
+	
+	/*s vector*/
+	threevector s = 2.0*t*(1/(1+t_mag2));
+	
+	/*v minus*/
+	threevector v_minus = Velocity + echarge*Efield*0.5*dt*(1/MASS); 
+	
+	/*v prime*/
+	threevector v_prime = v_minus + (v_minus^t);
+	
+	/*v prime*/
+	threevector v_plus = v_minus + (v_prime^s);
+	
+	/*v n+1/2*/
+	Velocity = v_plus + echarge*Efield*0.5*dt*(1/MASS);
+}
+
 threevector CoulombField(threevector Position, double Charge){
 	threevector Efield = (Charge/(4*PI*epsilon0*Position.square()))*Position.getunit();
 	return Efield;
@@ -30,15 +55,17 @@ int main(){
 	std::ofstream AngularMomentumDataFile;	// Data file for angular momentum information
 
 	// ***** DEFINE PLASMA PARAMETERS ***** //
-	double eTemp 	= 1.0;	// Electron Temperature, eV
-	double eDensity	= 1e18;	// m^(-3), Electron density
+	double eTemp 	= 10.0;	// Electron Temperature, eV
+	double eDensity	= 1e14;	// m^(-3), Electron density
 	double TEMP 	= 1.0;	// eV, This is the Temperature of the species being considered
 	int SPEC_CHARGE	= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
 	double MASS;		// kg, This is the mass of the Species being considered
-
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
 	if( SPEC_CHARGE > 0 )	MASS 	= Mp;
-	else			MASS	= Me;
+	else{
+		MASS	= Me;
+		eTemp	= TEMP;
+	}
 	
 	// ***** DEFINE DUST PARAMETERS ***** //
 	double Radius 		= 100e-6;		// m, Radius of dust
@@ -46,18 +73,16 @@ int main(){
 	double Potential	= -2.6;			// Coulombs, Charge in 
 	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)));
 	double Charge 		= eTemp*Potential*(4*PI*epsilon0*Radius)*exp(-Radius/DebyeLength); // Coulombs, Charge in 
-//	std::cout << "\nCharge = " << Charge << "C\nElectrons = " << Charge/echarge;
-//	std::cout << "e-\nDebyeLength = " << DebyeLength/Radius << "arb\nRadius = " << Radius;
-//	std::cout << "m\nPotential = " << Potential << "arb\neTemp = " << eTemp << "ev\n"; std::cin.get();
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
 	double BMag = 1e-1;		// Tesla, Magnitude of magnetic field
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
+	threevector BField = BMag*Bhat;
 
 	// ***** DEFINE SIMULATION SPACE ***** //
 	double zmax 	= 1.0+10.0*DebyeLength/Radius;				// Top of Simulation Domain, in Dust Radii
 	double zmin 	= -1.0-5.0*DebyeLength/Radius;				// Bottom of Simulation Domain, in Dust Radii
-	double vMin	= (Radius*(zmax-zmin)*echarge*BMag)/(MASS*100);		// THIS MAY NEED TO BE CHANGED FOR DIFFERENT FIELDS
+	double vMin	= (Radius*(zmax-zmin)*echarge*BMag)/(MASS*1000);		// THIS MAY NEED TO BE CHANGED FOR DIFFERENT FIELDS
 
 	// ***** DEFINE RANDOM INITIAL CONDITIONS ***** //
 	std::random_device rd;		// Create Random Device
@@ -78,15 +103,15 @@ int main(){
 	unsigned int j(0);
 
 	// ***** ENERGY LOSS MEASUREMENTS ***** //
-	for( unsigned int i(0); i < 10e9; i ++){
+	for( unsigned int i(0); i < 10e6; i ++){
 
 		// VELOCITY
 		OPEN_TRACK(filename + std::to_string(i) + ".txt");
 		double StandardDev=(TEMP*echarge)/MASS;	// FOR IONS
-
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
 		std::normal_distribution<double> GaussdistXY(0,sqrt(StandardDev));
-		std::normal_distribution<double> GaussdistZ(vMin,sqrt(StandardDev));
+//		std::normal_distribution<double> GaussdistZ(vMin,sqrt(StandardDev));
+		std::normal_distribution<double> GaussdistZ(0,sqrt(StandardDev));
 		threevector Velocity(GaussdistXY(mt),GaussdistXY(mt),-abs(GaussdistZ(mt)));	// Start with negative z-velocity
 		Velocity = Velocity*(1/Radius);			// Normalise speed to dust grain radius
 		
@@ -94,6 +119,7 @@ int main(){
 		threevector MeanPosition(0.0,0.0,0.0);
 		threevector MeanVelocity(0.0,0.0,0.0);
 		threevector OldVelocity(0.0,0.0,0.0);
+		threevector OldPosition(0.0,0.0,0.0);
 
 		// POSITION
 		double Vperp = sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2));
@@ -108,36 +134,35 @@ int main(){
 		}
 
 		double TimeStep = 1e-12;
-		double TimeStepTemp = 2*PI*MASS/(echarge*BMag*10000);
+		double TimeStepTemp = 2*PI*MASS/(echarge*BMag*1000);
 		TimeStep = TimeStepTemp;
 
 		// ***** DO PARTICLE PATH INTEGRATION ***** //
 
+		// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
+		threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp)*(1/pow(Radius,3));
+//		threevector EField = CoulombField(Position,Charge)*(1/pow(Radius,3));
 		RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+
+//		std::cout << "\n" << Position << "\t" << Velocity;
+		UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
+
 		// While the particle is not inside the sphere, not outside the simulation domain
 		// And not over a specified number of iterations to catch trapped orbits
 		int p(0);
-		while( Position.mag3() > 1.0 && p < abs(round(5*(zmax-zmin)/(Velocity.getz()*TimeStep)))
-			 && Position.getz() > zmin && Position.getz() <= zmax ){
-			threevector OldPosition = Position;
+		while( Position.mag3() > 1.0  && Position.getz() > zmin && Position.getz() <= zmax ){
+// && p < abs(round(5*(zmax-zmin)/(Velocity.getz()*TimeStep)))
+
+			EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp)*(1/pow(Radius,3));
+//			EField = CoulombField(Position,Charge)*(1/pow(Radius,3));
+			OldVelocity = Velocity;	// For Angular Momentum Calculations
+			OldPosition = Position; // For Angular Momentum Calculations
+			UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity);
 			Position+=TimeStep*Velocity;
-			MeanPosition = 0.5*(Position+OldPosition);
-			MeanVelocity = ((Position-OldPosition)*(1/TimeStep));
-			// ONLY ONE OF THE FOLLOWING SHOULD BE UNCOMMENTED
-//			DebyeHuckel Potential
-			threevector DeltaV=((SPEC_CHARGE*TimeStep*echarge)/MASS)
-					*(DebyeHuckelField(MeanPosition,Charge,Radius,eDensity,eTemp)*(1/pow(Radius,3))
-					+BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat));
 
-// 			Coulomb Potential - MAKE SURE TO CHECK POSITION DISTRIBUTION
-//			threevector DeltaV=((SPEC_CHARGE*TimeStep*echarge)/MASS)
-//					*(CoulombField(MeanPosition,Charge)*(1/pow(Radius,3))
-//					+BMag*Velocity.mag3()*(MeanVelocity.getunit()^Bhat));
-
-			OldVelocity = Velocity;
-			Velocity += DeltaV;
-
-			RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+			if( p%2==0 ){
+				RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+			}
 			p ++;
 //			std::cout << "\n" << Position << "\t" << Velocity;
 		}
@@ -145,7 +170,7 @@ int main(){
 
 		if(Position.mag3() < 1.0){ // In this case it was captured!
 			threevector FinalVelocity = 0.5*(OldVelocity+Velocity);
-			threevector FinalPosition = MeanPosition;
+			threevector FinalPosition = 0.5*(OldPosition+Position);
 			threevector CylindricalRadius(FinalPosition.getx(),FinalPosition.gety(),0.0);
 			double DistanceFromAxis = CylindricalRadius.mag3();
 //			threevector AngularMom = MASS*DistanceFromAxis*pow(Radius,2)*(CylindricalRadius^FinalVelocity); 
