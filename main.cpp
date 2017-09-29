@@ -45,18 +45,19 @@ int main(){
 	double Density 		= 19600;		// kg m^(-3), for Tungsten
 	double Potential	= -2.6;			// Coulombs, Charge in 
 	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)));
-	double Charge 		= eTemp*Potential*(4*PI*epsilon0*Radius);//*exp(-Radius/DebyeLength)); // Coulombs, Charge in 
+	double Charge 		= eTemp*Potential*(4*PI*epsilon0*Radius)*exp(-Radius/DebyeLength); // Coulombs, Charge in 
 //	std::cout << "\nCharge = " << Charge << "C\nElectrons = " << Charge/echarge;
 //	std::cout << "e-\nDebyeLength = " << DebyeLength/Radius << "arb\nRadius = " << Radius;
 //	std::cout << "m\nPotential = " << Potential << "arb\neTemp = " << eTemp << "ev\n"; std::cin.get();
 
-	// ***** DEFINE SIMULATION SPACE ***** //
-	double zmax 	= 1.0+10.0*DebyeLength/Radius;	// Top of Simulation Domain, in Dust Radii
-	double zmin 	= -1.0-5.0*DebyeLength/Radius;	// Bottom of Simulation Domain, in Dust Radii
-
 	// ***** DEFINE FIELD PARAMETERS ***** //
 	double BMag = 1e-1;		// Tesla, Magnitude of magnetic field
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
+
+	// ***** DEFINE SIMULATION SPACE ***** //
+	double zmax 	= 1.0+10.0*DebyeLength/Radius;				// Top of Simulation Domain, in Dust Radii
+	double zmin 	= -1.0-5.0*DebyeLength/Radius;				// Bottom of Simulation Domain, in Dust Radii
+	double vMin	= (Radius*(zmax-zmin)*echarge*BMag)/(MASS*100);		// THIS MAY NEED TO BE CHANGED FOR DIFFERENT FIELDS
 
 	// ***** DEFINE RANDOM INITIAL CONDITIONS ***** //
 	std::random_device rd;		// Create Random Device
@@ -75,14 +76,21 @@ int main(){
 	// ***** BEGIN LOOP OVER PARTICLE ORBITS ***** //
 	threevector TotalAngularVel(0.0,0.0,0.0);
 	unsigned int j(0);
-	for( unsigned int i(0); i < 100; i ++){
+
+	// ***** ENERGY LOSS MEASUREMENTS ***** //
+	for( unsigned int i(0); i < 10e9; i ++){
 
 		// VELOCITY
 		OPEN_TRACK(filename + std::to_string(i) + ".txt");
 		double StandardDev=(TEMP*echarge)/MASS;	// FOR IONS
-		std::normal_distribution<double> Gaussdist(0.0,sqrt(StandardDev));
-		threevector Velocity(Gaussdist(mt),Gaussdist(mt),-abs(Gaussdist(mt)));	// Start with negative z-velocity
+
+		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
+		std::normal_distribution<double> GaussdistXY(0,sqrt(StandardDev));
+		std::normal_distribution<double> GaussdistZ(vMin,sqrt(StandardDev));
+		threevector Velocity(GaussdistXY(mt),GaussdistXY(mt),-abs(GaussdistZ(mt)));	// Start with negative z-velocity
 		Velocity = Velocity*(1/Radius);			// Normalise speed to dust grain radius
+		
+//		double InitialVelMag = Velocity.square();
 		threevector MeanPosition(0.0,0.0,0.0);
 		threevector MeanVelocity(0.0,0.0,0.0);
 		threevector OldVelocity(0.0,0.0,0.0);
@@ -106,8 +114,11 @@ int main(){
 		// ***** DO PARTICLE PATH INTEGRATION ***** //
 
 		RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-		// While we're not inside the sphere and we're not outside the simulation domain
-		while(Position.mag3() > 1.0 && Position.getz() > zmin && Position.getz() <= zmax ){
+		// While the particle is not inside the sphere, not outside the simulation domain
+		// And not over a specified number of iterations to catch trapped orbits
+		int p(0);
+		while( Position.mag3() > 1.0 && p < abs(round(5*(zmax-zmin)/(Velocity.getz()*TimeStep)))
+			 && Position.getz() > zmin && Position.getz() <= zmax ){
 			threevector OldPosition = Position;
 			Position+=TimeStep*Velocity;
 			MeanPosition = 0.5*(Position+OldPosition);
@@ -127,6 +138,7 @@ int main(){
 			Velocity += DeltaV;
 
 			RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+			p ++;
 //			std::cout << "\n" << Position << "\t" << Velocity;
 		}
 
@@ -145,10 +157,11 @@ int main(){
 			j ++;
 			std::cout << "\nAngularVel = " << AngularVel << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
 			AngularMomentumDataFile << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
-
 		}
+
 		CLOSE_TRACK();
-//		std::cout << "\ni :\t" << i;
+		std::cout << "\ni :\t" << i;
+//		double FinalVelMag = Velocity.square();	std::cout << "\nEnergyLoss Percent = " << (FinalVelMag/InitialVelMag-1);
 	}
 	std::cout << "\n\nTotalAngularVel = " << TotalAngularVel;
 
