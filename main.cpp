@@ -55,7 +55,7 @@ int main(){
 	std::ofstream AngularMomentumDataFile;	// Data file for angular momentum information
 
 	// ***** DEFINE PLASMA PARAMETERS ***** //
-	double eTemp 	= 10.0;	// Electron Temperature, eV
+	double eTemp 	= 1.0;	// Electron Temperature, eV
 	double eDensity	= 1e14;	// m^(-3), Electron density
 	double TEMP 	= 1.0;	// eV, This is the Temperature of the species being considered
 	int SPEC_CHARGE	= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
@@ -68,14 +68,14 @@ int main(){
 	}
 	
 	// ***** DEFINE DUST PARAMETERS ***** //
-	double Radius 		= 100e-6;		// m, Radius of dust
-	double Density 		= 19600;		// kg m^(-3), for Tungsten
-	double Potential	= -2.6;			// Coulombs, Charge in 
+	double Radius 		= 20e-6;		// m, Radius of dust
+	double Density 		= 200;		// kg m^(-3), for Tungsten
+	double Potential	= -2.5;			// Coulombs, Charge in 
 	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)));
 	double Charge 		= eTemp*Potential*(4*PI*epsilon0*Radius)*exp(-Radius/DebyeLength); // Coulombs, Charge in 
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
-	double BMag = 1e-1;		// Tesla, Magnitude of magnetic field
+	double BMag = 1e-2;		// Tesla, Magnitude of magnetic field
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
 	threevector BField = BMag*Bhat;
 
@@ -97,12 +97,13 @@ int main(){
 	AngularMomentumDataFile << "#Input:\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\t\tBMag\tDebye\n";
 	AngularMomentumDataFile << "#\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
 					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\t"<<BMag << "\t" << DebyeLength/Radius << "\n\n";
+	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
 
 	// ***** BEGIN LOOP OVER PARTICLE ORBITS ***** //
 	threevector TotalAngularVel(0.0,0.0,0.0);
+	threevector TotalAngularMom(0.0,0.0,0.0);
 	unsigned int j(0);
 
-	// ***** ENERGY LOSS MEASUREMENTS ***** //
 	for( unsigned int i(0); i < 10e6; i ++){
 
 		// VELOCITY
@@ -173,27 +174,31 @@ int main(){
 			threevector FinalPosition = 0.5*(OldPosition+Position);
 			threevector CylindricalRadius(FinalPosition.getx(),FinalPosition.gety(),0.0);
 			double DistanceFromAxis = CylindricalRadius.mag3();
-//			threevector AngularMom = MASS*DistanceFromAxis*pow(Radius,2)*(CylindricalRadius^FinalVelocity); 
-			// Moment of Inertia for solid sphere
-			threevector AngularVel = (15*MASS)/(8*PI*Density*pow(Radius,3))*	
+			threevector AngularMom = MASS*pow(Radius,2)*(CylindricalRadius^FinalVelocity); 
+			// Moment of Inertia for Hollow Sphere
+			threevector AngularVel = (9*MASS)/(8*PI*Density*pow(Radius,3))*	
 				(CylindricalRadius^(FinalVelocity-AngularVel.mag3()*DistanceFromAxis*AngularVel.getunit()));
+			// Moment of Inertia for solid sphere
+//			threevector AngularVel = (15*MASS)/(8*PI*Density*pow(Radius,3))*	
+//				(CylindricalRadius^(FinalVelocity-AngularVel.mag3()*DistanceFromAxis*AngularVel.getunit()));
 
 			TotalAngularVel += AngularVel;
+			TotalAngularMom += AngularMom;
 			j ++;
-			std::cout << "\nAngularVel = " << AngularVel << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
-			AngularMomentumDataFile << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
+//			std::cout << "\nAngularVel = " << AngularVel << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
+			AngularMomentumDataFile << "\n" << i << "\t" << j << TotalAngularVel << "\t" << AngularMom;
 		}
 
 		CLOSE_TRACK();
-		std::cout << "\ni :\t" << i;
+//		std::cout << "\ni :\t" << i;
 //		double FinalVelMag = Velocity.square();	std::cout << "\nEnergyLoss Percent = " << (FinalVelMag/InitialVelMag-1);
 	}
-	std::cout << "\n\nTotalAngularVel = " << TotalAngularVel;
+//	std::cout << "\n\nTotalAngularVel = " << TotalAngularVel;
 
 	clock_t end = clock();
 	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
 
 	AngularMomentumDataFile.close();
-	std::cout << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n";
+//	std::cout << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n";
 	return 0;
 }
