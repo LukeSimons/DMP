@@ -14,6 +14,29 @@
 #define CLOSE_TRACK()
 #endif 
 
+
+
+#if defined CALCULATE_ENERGY || defined CALCULATE_LINMOM
+#define INITIAL_VEL()	threevector InitialVelMag = Velocity;
+#define FINAL_VEL()	threevector FinalVelMag = Velocity;
+#else
+#define INITIAL_VEL()
+#define FINAL_VEL()
+#endif
+
+#ifdef CALCULATE_ENERGY
+#define OUTPUT_VEL(x)	std::cout << x
+#else
+#define OUTPUT_VEL(x)
+#endif 
+
+#ifdef CALCULATE_LINMOM
+#define OUTPUT_MOM(x)	std::cout << x
+#else
+#define OUTPUT_MOM(x)
+#endif 
+
+
 #ifdef PAUSE
 #define Pause(); std::cin.get();
 #else

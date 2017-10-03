@@ -1,13 +1,48 @@
-//#define STORE_TRACKS 
+#define STORE_TRACKS 
+//#define CALCULATE_ENERGY
+#define CALCULATE_LINMOM
 
 #include <iostream>
 #include <array>
 #include <random>
 #include <fstream>
 #include <ctime>
-
+#include <math.h> 	// For fabs()
+#include <sstream>	// for std::stringstream
+	
 #include "Constants.h"
 #include "threevector.h"
+
+static void show_usage(std::string name){
+	std::cerr << "Usage: int main(int argc, char* argv[]) <option(s)> SOURCES"
+	<< "\n\nOptions:\n"
+	<< "\t-h,--help\t\tShow this help message\n\n"
+	<< "\t-r,--radius RADIUS\t\t(m), Specify radius of Dust grain\n\n"
+	<< "\t-d,--density DENSITY\t\t(m^-^3), Specify density of Dust grain\n\n"
+	<< "\t-p,--potential POTENTIAL\t(arb), Specify the potential of Dust grain normalised to electron temperature\n\n"
+	<< "\t-b,--bfield BFIELD\t\t(T), Specify the magnetic field (z direction)\n\n"
+	<< "\t-e,--etemp ETEMP\t\t(eV), Specify the temperature of plasma electrons\n\n"
+	<< "\t-n,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron density\n\n"
+	<< "\t-t,--temp TEMP\t\t\t(eV), Specify the temperature of species of interest\n\n"
+	<< "\t-s,--spec_charge SPEC_CHARGE\t(arb), Specify the charge of the species of interest\n\n"
+	<< "\t-u,--zmaxdebye ZMAXDEBYE\t(arb), Specify the upper limit of simulation domain as number of distances\n\n"
+	<< "\t-l,--zmindebye ZMINDEBYE\t(arb), Specify the lower limit of simulation domain as number of distances\n\n"
+	<< std::endl;
+}
+
+template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::stringstream &ss0, T &Temp){
+	if (i + 1 < argc) { // Make sure we aren't at the end of argv!
+		i+=1;
+		ss0 << argv[i]; // Increment 'i' so we don't get the argument as the next argv[i].
+		ss0 >> Temp;
+		ss0.clear(); ss0.str("");
+		return 0;
+	}else{ // Uh-oh, there was no argument to the destination option.
+		std::cerr << "\noption requires argument." << std::endl;
+		return 1;
+	}
+
+}
 
 /*updates velocity using the Boris method, Birdsall, Plasma Physics via Computer Simulation, p.62*/
 static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BField, double dt, threevector &Velocity){
@@ -48,11 +83,20 @@ threevector DebyeHuckelField(threevector Position, double Charge, double Radius,
 	return Efield;
 }
 
-int main(){
+int main(int argc, char* argv[]){
+	
+	// ***** TIMER AND FILE DECLERATIONS ***** //
 	clock_t begin = clock();
 	std::string filename = "Data/MagPlasData";
 	DECLARE_TRACK();
 	std::ofstream AngularMomentumDataFile;	// Data file for angular momentum information
+
+
+	// ***** DEFINE DUST PARAMETERS ***** //
+	double Radius 		= 20e-6;		// m, Radius of dust
+	double Density 		= 200;			// kg m^(-3), for Tungsten
+	double Potential	= -2.5;			// Coulombs, Charge in 
+	double BMag 		= 1e-2;			// Tesla, Magnitude of magnetic field
 
 	// ***** DEFINE PLASMA PARAMETERS ***** //
 	double eTemp 	= 1.0;	// Electron Temperature, eV
@@ -60,33 +104,54 @@ int main(){
 	double TEMP 	= 1.0;	// eV, This is the Temperature of the species being considered
 	int SPEC_CHARGE	= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
 	double MASS;		// kg, This is the mass of the Species being considered
+	double zMaxDebye	= 2.0;			// Arb, Number of debye distances max of simulation is
+	double zMinDebye	= 2.0;			// Arb, Number of debye distances max of simulation is
+
+
+	// ***** DETERMINE USER INPUT ***** //
+	std::vector <std::string> sources;
+	std::stringstream ss0;
+	for (int i = 1; i < argc; ++i){ // Read command line input
+		std::string arg = argv[i];
+		if     ( arg == "--help" 	|| arg == "-h" ){	show_usage( argv[0]); return 0; 		}
+		else if( arg == "--radius" 	|| arg == "-r" ) 	InputFunction(argc,argv,i,ss0,Radius);
+		else if( arg == "--density" 	|| arg == "-d" )	InputFunction(argc,argv,i,ss0,Density);
+		else if( arg == "--potential" 	|| arg == "-p" )	InputFunction(argc,argv,i,ss0,Potential);
+		else if( arg == "--bfield" 	|| arg == "-b" )	InputFunction(argc,argv,i,ss0,BMag);
+		else if( arg == "--etemp" 	|| arg == "-e" )	InputFunction(argc,argv,i,ss0,eTemp);
+		else if( arg == "--edensity" 	|| arg == "-n" )	InputFunction(argc,argv,i,ss0,eDensity);
+		else if( arg == "--temp" 	|| arg == "-t" )	InputFunction(argc,argv,i,ss0,TEMP);
+		else if( arg == "--spec_charge" || arg == "-s" )	InputFunction(argc,argv,i,ss0,SPEC_CHARGE);
+		else if( arg == "--zmaxdebye" 	|| arg == "-u" )	InputFunction(argc,argv,i,ss0,zMaxDebye);
+		else if( arg == "--zmindebye" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinDebye);
+                else{
+			sources.push_back(argv[i]);
+		}
+	}
+
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
 	if( SPEC_CHARGE > 0 )	MASS 	= Mp;
 	else{
 		MASS	= Me;
 		eTemp	= TEMP;
 	}
-	
-	// ***** DEFINE DUST PARAMETERS ***** //
-	double Radius 		= 20e-6;		// m, Radius of dust
-	double Density 		= 200;		// kg m^(-3), for Tungsten
-	double Potential	= -2.5;			// Coulombs, Charge in 
-	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)));
-	double Charge 		= eTemp*Potential*(4*PI*epsilon0*Radius)*exp(-Radius/DebyeLength); // Coulombs, Charge in 
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
-	double BMag = 1e-2;		// Tesla, Magnitude of magnetic field
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
 	threevector BField = BMag*Bhat;
+	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)));		// m, Debye Length
+	double Charge 		= eTemp*Potential*(4*PI*epsilon0*Radius)*exp(-Radius/DebyeLength); 	// Coulombs, Charge
+
 
 	// ***** DEFINE SIMULATION SPACE ***** //
-	double zmax 	= 1.0+10.0*DebyeLength/Radius;				// Top of Simulation Domain, in Dust Radii
-	double zmin 	= -1.0-5.0*DebyeLength/Radius;				// Bottom of Simulation Domain, in Dust Radii
-	double vMin	= (Radius*(zmax-zmin)*echarge*BMag)/(MASS*1000);		// THIS MAY NEED TO BE CHANGED FOR DIFFERENT FIELDS
+	double zmax 	= 1.0+zMaxDebye*DebyeLength/Radius;	// Top of Simulation Domain, in Dust Radii
+	double zmin 	= -1.0-zMinDebye*DebyeLength/Radius;	// Bottom of Simulation Domain, in Dust Radii
 
-	// ***** DEFINE RANDOM INITIAL CONDITIONS ***** //
+
+	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
 	std::random_device rd;		// Create Random Device
-	std::mt19937 mt(rd());		// Get Random Method
+	std::mt19937 mt(10);		// Get Random Method
+
 
 	// ***** OPEN DATA FILE WITH HEADER ***** //
 	time_t now = time(0);		// Get the time of simulation
@@ -99,40 +164,46 @@ int main(){
 					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\t"<<BMag << "\t" << DebyeLength/Radius << "\n\n";
 	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
 
+
 	// ***** BEGIN LOOP OVER PARTICLE ORBITS ***** //
 	threevector TotalAngularVel(0.0,0.0,0.0);
 	threevector TotalAngularMom(0.0,0.0,0.0);
 	unsigned int j(0);
+	for( unsigned int i(0); i < 100; i ++){
 
-	for( unsigned int i(0); i < 10; i ++){
-
-		// VELOCITY
-		OPEN_TRACK(filename + std::to_string(i) + ".txt");
-		double StandardDev=(TEMP*echarge)/MASS;	// FOR IONS
+		// ***** RANDOMISE VELOCITY ***** //
+		double StandardDev=(TEMP*echarge)/MASS;
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
 		std::normal_distribution<double> GaussdistXY(0,sqrt(StandardDev));
-//		std::normal_distribution<double> GaussdistZ(vMin,sqrt(StandardDev));
 		std::normal_distribution<double> GaussdistZ(0,sqrt(StandardDev));
 		threevector Velocity(GaussdistXY(mt),GaussdistXY(mt),-abs(GaussdistZ(mt)));	// Start with negative z-velocity
 		Velocity = Velocity*(1/Radius);			// Normalise speed to dust grain radius
 		
-//		double InitialVelMag = Velocity.square();
+		INITIAL_VEL();		// For energy calculations
+
 		threevector MeanPosition(0.0,0.0,0.0);
 		threevector MeanVelocity(0.0,0.0,0.0);
 		threevector OldVelocity(0.0,0.0,0.0);
 		threevector OldPosition(0.0,0.0,0.0);
 
-		// POSITION
+		// ***** RANDOMISE POSITION ***** //
 		double Vperp = sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2));
 		double RhoPerp = (MASS*Vperp)/(echarge*BMag);
 		threevector Position(0.0,0.0,zmax);
 		if(SPEC_CHARGE > 0.0){
-			std::uniform_real_distribution<double> dist(-(1.0+RhoPerp+4*DebyeLength), 1.0+RhoPerp+4*DebyeLength); // FOR IONS
+			std::uniform_real_distribution<double> dist(-(1.0+RhoPerp+1.5*DebyeLength/Radius), 1.0+RhoPerp+1.5*DebyeLength/Radius); // FOR IONS
 			Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
 		}else{
 			std::uniform_real_distribution<double> dist(-(1.0+RhoPerp), 1.0+RhoPerp); // FOR ELECTRONS
 			Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
 		}
+//		double TimeInMagField = (zmax-zmin)/Velocity.getz();
+//		if( (fabs(Position.gety()) - TimeInMagField*Vperp*2*PI) > DebyeLength/Radius ){
+//			std::cout << "\ni = " << i;
+//			continue;
+//		}
+
+		OPEN_TRACK(filename + std::to_string(i) + ".txt");
 
 		double TimeStep = 1e-12;
 		double TimeStepTemp = 2*PI*MASS/(echarge*BMag*1000);
@@ -187,11 +258,18 @@ int main(){
 			j ++;
 //			std::cout << "\nAngularVel = " << AngularVel << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
 			AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
+		}else{
+			FINAL_VEL(); 
+			OUTPUT_VEL(i); OUTPUT_VEL("\t"); 
+			OUTPUT_VEL(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  OUTPUT_VEL("\n");
+
+			OUTPUT_MOM(i); OUTPUT_MOM("\t");
+			OUTPUT_MOM( (FinalVelMag-InitialVelMag)*(1.0/InitialVelMag.mag3()) ); OUTPUT_MOM("\n");
 		}
 
 		CLOSE_TRACK();
 //		std::cout << "\ni :\t" << i;
-//		double FinalVelMag = Velocity.square();	std::cout << "\nEnergyLoss Percent = " << (FinalVelMag/InitialVelMag-1);
+
 	}
 //	std::cout << "\n\nTotalAngularVel = " << TotalAngularVel;
 
