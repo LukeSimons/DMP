@@ -104,7 +104,7 @@ int main(){
 	threevector TotalAngularMom(0.0,0.0,0.0);
 	unsigned int j(0);
 
-	for( unsigned int i(0); i < 10e6; i ++){
+	for( unsigned int i(0); i < 10; i ++){
 
 		// VELOCITY
 		OPEN_TRACK(filename + std::to_string(i) + ".txt");
@@ -186,7 +186,7 @@ int main(){
 			TotalAngularMom += AngularMom;
 			j ++;
 //			std::cout << "\nAngularVel = " << AngularVel << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
-			AngularMomentumDataFile << "\n" << i << "\t" << j << TotalAngularVel << "\t" << AngularMom;
+			AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
 		}
 
 		CLOSE_TRACK();
