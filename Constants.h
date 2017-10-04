@@ -16,7 +16,7 @@
 
 
 
-#if defined CALCULATE_ENERGY || defined CALCULATE_LINMOM
+#if defined CALCULATE_ENERGY || defined CALCULATE_MOM
 #define INITIAL_VEL()	threevector InitialVelMag = Velocity;
 #define FINAL_VEL()	threevector FinalVelMag = Velocity;
 #else
@@ -30,9 +30,13 @@
 #define OUTPUT_VEL(x)
 #endif 
 
-#ifdef CALCULATE_LINMOM
+#ifdef CALCULATE_MOM
+#define DECLARE_LMSUM()	threevector LinearMomentumSum(0.0,0.0,0.0);
+#define DECLARE_AMSUM()	threevector AngularMomentumSum(0.0,0.0,0.0);
 #define OUTPUT_MOM(x)	std::cout << x
 #else
+#define DECLARE_LMSUM()
+#define DECLARE_AMSUM()
 #define OUTPUT_MOM(x)
 #endif 
 

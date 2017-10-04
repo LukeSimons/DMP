@@ -1,6 +1,6 @@
 #define STORE_TRACKS 
 //#define CALCULATE_ENERGY
-#define CALCULATE_LINMOM
+#define CALCULATE_MOM
 
 #include <iostream>
 #include <array>
@@ -74,9 +74,8 @@ threevector CoulombField(threevector Position, double Charge){
 	return Efield;
 }
 
-threevector DebyeHuckelField(threevector Position, double Charge, double Radius, double ElectronDensity, double ElectronTemp){
+threevector DebyeHuckelField(threevector Position, double Charge, double Radius, double ElectronDensity, double ElectronTemp, double DebyeLength){
 	if(Charge==0.0) return threevector(0.0,0.0,0.0);
-	double DebyeLength = sqrt((epsilon0*echarge*ElectronTemp)/(ElectronDensity*pow(echarge,2)));
 	threevector Efield = Charge*(1/(4*PI*epsilon0*Position.mag3()))*exp(-(Position.mag3()*Radius)/DebyeLength)
 				*(1/Position.mag3()+Radius/DebyeLength)*Position.getunit();
 
@@ -93,18 +92,18 @@ int main(int argc, char* argv[]){
 
 
 	// ***** DEFINE DUST PARAMETERS ***** //
-	double Radius 		= 20e-6;		// m, Radius of dust
-	double Density 		= 200;			// kg m^(-3), for Tungsten
+	double Radius 		= 100e-6;//20e-6;		// m, Radius of dust
+	double Density 		= 19600;//200;			// kg m^(-3), for Tungsten
 	double Potential	= -2.5;			// Coulombs, Charge in 
-	double BMag 		= 1e-2;			// Tesla, Magnitude of magnetic field
+	double BMag 		= 1e-1;//1e-2;			// Tesla, Magnitude of magnetic field
 
 	// ***** DEFINE PLASMA PARAMETERS ***** //
-	double eTemp 	= 1.0;	// Electron Temperature, eV
-	double eDensity	= 1e14;	// m^(-3), Electron density
-	double TEMP 	= 1.0;	// eV, This is the Temperature of the species being considered
+	double eTemp 	= 10.0;//1.0;	// Electron Temperature, eV
+	double eDensity	= 1e17;//1e14;	// m^(-3), Electron density
+	double TEMP 	= 0.1;//1.0;	// eV, This is the Temperature of the species being considered
 	int SPEC_CHARGE	= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
 	double MASS;		// kg, This is the mass of the Species being considered
-	double zMaxDebye	= 2.0;			// Arb, Number of debye distances max of simulation is
+	double zMaxDebye	= 6.0;			// Arb, Number of debye distances max of simulation is
 	double zMinDebye	= 2.0;			// Arb, Number of debye distances max of simulation is
 
 
@@ -139,8 +138,8 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE FIELD PARAMETERS ***** //
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
 	threevector BField = BMag*Bhat;
-	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)));		// m, Debye Length
-	double Charge 		= eTemp*Potential*(4*PI*epsilon0*Radius)*exp(-Radius/DebyeLength); 	// Coulombs, Charge
+	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)));			// m, Debye Length
+	double Charge 		= SPEC_CHARGE*eTemp*Potential*(4*PI*epsilon0*Radius)*exp(-Radius/DebyeLength); 	// Coulombs, Charge
 
 
 	// ***** DEFINE SIMULATION SPACE ***** //
@@ -150,7 +149,7 @@ int main(int argc, char* argv[]){
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
 	std::random_device rd;		// Create Random Device
-	std::mt19937 mt(10);		// Get Random Method
+	std::mt19937 mt(rd());		// Get Random Method
 
 
 	// ***** OPEN DATA FILE WITH HEADER ***** //
@@ -168,15 +167,16 @@ int main(int argc, char* argv[]){
 	// ***** BEGIN LOOP OVER PARTICLE ORBITS ***** //
 	threevector TotalAngularVel(0.0,0.0,0.0);
 	threevector TotalAngularMom(0.0,0.0,0.0);
-	unsigned int j(0);
-	for( unsigned int i(0); i < 100; i ++){
+	DECLARE_LMSUM();
+	DECLARE_AMSUM();
+	unsigned int j(0), i(0);
+	for( i; i < 10e6; i ++){
 
 		// ***** RANDOMISE VELOCITY ***** //
 		double StandardDev=(TEMP*echarge)/MASS;
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
-		std::normal_distribution<double> GaussdistXY(0,sqrt(StandardDev));
-		std::normal_distribution<double> GaussdistZ(0,sqrt(StandardDev));
-		threevector Velocity(GaussdistXY(mt),GaussdistXY(mt),-abs(GaussdistZ(mt)));	// Start with negative z-velocity
+		std::normal_distribution<double> Gaussdist(0,sqrt(StandardDev));
+		threevector Velocity(Gaussdist(mt),Gaussdist(mt),-abs(Gaussdist(mt)));	// Start with negative z-velocity
 		Velocity = Velocity*(1/Radius);			// Normalise speed to dust grain radius
 		
 		INITIAL_VEL();		// For energy calculations
@@ -190,13 +190,14 @@ int main(int argc, char* argv[]){
 		double Vperp = sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2));
 		double RhoPerp = (MASS*Vperp)/(echarge*BMag);
 		threevector Position(0.0,0.0,zmax);
-		if(SPEC_CHARGE > 0.0){
-			std::uniform_real_distribution<double> dist(-(1.0+RhoPerp+1.5*DebyeLength/Radius), 1.0+RhoPerp+1.5*DebyeLength/Radius); // FOR IONS
-			Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
-		}else{
-			std::uniform_real_distribution<double> dist(-(1.0+RhoPerp), 1.0+RhoPerp); // FOR ELECTRONS
-			Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
-		}
+//		if(SPEC_CHARGE > 0.0){
+		std::uniform_real_distribution<double> dist(-(1.0+RhoPerp+1.5*DebyeLength/Radius), 1.0+RhoPerp+1.5*DebyeLength/Radius); // FOR IONS
+		Position.setx(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
+		Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
+//		}else{
+//			std::uniform_real_distribution<double> dist(-(1.0+RhoPerp), 1.0+RhoPerp); // FOR ELECTRONS
+//			Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
+//		}
 //		double TimeInMagField = (zmax-zmin)/Velocity.getz();
 //		if( (fabs(Position.gety()) - TimeInMagField*Vperp*2*PI) > DebyeLength/Radius ){
 //			std::cout << "\ni = " << i;
@@ -212,7 +213,7 @@ int main(int argc, char* argv[]){
 		// ***** DO PARTICLE PATH INTEGRATION ***** //
 
 		// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
-		threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp)*(1/pow(Radius,3));
+		threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength)*(1/pow(Radius,3));
 //		threevector EField = CoulombField(Position,Charge)*(1/pow(Radius,3));
 		RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
 
@@ -225,7 +226,7 @@ int main(int argc, char* argv[]){
 		while( Position.mag3() > 1.0  && Position.getz() > zmin && Position.getz() <= zmax ){
 // && p < abs(round(5*(zmax-zmin)/(Velocity.getz()*TimeStep)))
 
-			EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp)*(1/pow(Radius,3));
+			EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength)*(1/pow(Radius,3));
 //			EField = CoulombField(Position,Charge)*(1/pow(Radius,3));
 			OldVelocity = Velocity;	// For Angular Momentum Calculations
 			OldPosition = Position; // For Angular Momentum Calculations
@@ -259,18 +260,29 @@ int main(int argc, char* argv[]){
 //			std::cout << "\nAngularVel = " << AngularVel << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
 			AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
 		}else{
+			// Calculate momentum changes to determine momentum given to dust grain
 			FINAL_VEL(); 
 			OUTPUT_VEL(i); OUTPUT_VEL("\t"); 
 			OUTPUT_VEL(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  OUTPUT_VEL("\n");
-
-			OUTPUT_MOM(i); OUTPUT_MOM("\t");
-			OUTPUT_MOM( (FinalVelMag-InitialVelMag)*(1.0/InitialVelMag.mag3()) ); OUTPUT_MOM("\n");
+			
+			threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
+			LinearMomentumSum += MASS*(FinalVelMag-InitialVelMag);
+			AngularMomentumSum += MASS*(CylindricalRadius^(FinalVelMag-InitialVelMag));
+//			OUTPUT_MOM(i); OUTPUT_MOM("\t");
+//			OUTPUT_MOM( MASS*(FinalVelMag-InitialVelMag) ); OUTPUT_MOM("\t");
+//			OUTPUT_MOM( MASS*(CylindricalRadius^(FinalVelMag-InitialVelMag)) ); OUTPUT_MOM("\t");
+//			OUTPUT_MOM( LinearMomentumSum ); OUTPUT_MOM("\n");
+//			OUTPUT_MOM( AngularMomentumSum ); OUTPUT_MOM("\n");
 		}
 
 		CLOSE_TRACK();
 //		std::cout << "\ni :\t" << i;
-
 	}
+	OUTPUT_MOM(i); OUTPUT_MOM("\t");
+        OUTPUT_MOM( LinearMomentumSum ); OUTPUT_MOM("\t");
+        OUTPUT_MOM( LinearMomentumSum*(1.0/i) ); OUTPUT_MOM("\t");
+        OUTPUT_MOM( AngularMomentumSum ); OUTPUT_MOM("\t");
+        OUTPUT_MOM( AngularMomentumSum*(1.0/i) ); OUTPUT_MOM("\n");
 //	std::cout << "\n\nTotalAngularVel = " << TotalAngularVel;
 
 	clock_t end = clock();
