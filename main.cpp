@@ -160,7 +160,7 @@ int main(int argc, char* argv[]){
 	AngularMomentumDataFile << "#Date: " << dt;
 	AngularMomentumDataFile << "#Input:\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\t\tBMag\tDebye\n";
 	AngularMomentumDataFile << "#\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
-					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\t"<<BMag << "\t" << DebyeLength/Radius << "\n\n";
+					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\t"<<BMag << "\t" << DebyeLength/Radius << "\n";
 	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
 
 
@@ -170,7 +170,7 @@ int main(int argc, char* argv[]){
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	unsigned int j(0), i(0);
-	for( i; i < 10e3; i ++){
+	for( i; i < 10e6; i ++){
 
 		// ***** RANDOMISE VELOCITY ***** //
 		double StandardDev=(TEMP*echarge)/MASS;
