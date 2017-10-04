@@ -2,3 +2,29 @@ DIMP - Dust In Magnetised Plasma
 
 Simulates trajectories of ions and electrons in a magnetised plasma around a charged dust grain.
 Rate of collection of ions and electrons is calculated with a focus on calculating the torque on the sphere.
+
+This code calculates the angular and linear momentum transfer to a charged sphere with either a Debye-Huckel or Coulomb electric potential in a constant magnetic field. Output is in files in subdirectory Data. Optional full tracking of particles, including their change in energy and net linear and angular momentum can be calculated by defining the relevant pre-processor directives. Command line input is available with the following options:
+
+Options:
+-h,--help Show this help message
+
+-r,--radius RADIUS		(m), Specify radius of Dust grain
+
+-d,--density DENSITY		(m^-^3), Specify density of Dust grain
+
+-p,--potential POTENTIAL	(arb), Specify the potential of Dust grain normalised to electron temperature
+
+-b,--bfield BFIELD		(T), Specify the magnetic field (z direction)
+
+-e,--etemp ETEMP		(eV), Specify the temperature of plasma electrons
+
+-n,--edensity EDENSITY		(m^-^3), Specify the plasma electron density
+
+-t,--temp TEMP			(eV), Specify the temperature of species of interest
+
+-s,--spec_charge SPEC_CHARGE	(arb), Specify the charge of the species of interest
+
+-u,--zmaxdebye ZMAXDEBYE	(arb), Specify the upper limit of simulation domain as number of distances
+
+-l,--zmindebye ZMINDEBYE	(arb), Specify the lower limit of simulation domain as number of distances
+
