@@ -147,7 +147,6 @@ int main(int argc, char* argv[]){
 	double zmax 	= 1.0+zMaxDebye*DebyeLength/Radius;	// Top of Simulation Domain, in Dust Radii
 	double zmin 	= -1.0-zMinDebye*DebyeLength/Radius;	// Bottom of Simulation Domain, in Dust Radii
 	double ImpactParameter = (DebyeLength/Radius)*LambertW((Radius*pow(naturale,2))/DebyeLength);
-	std::cout << "\nIP = " << ImpactParameter; std::cin.get();
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
 	std::random_device rd;		// Create Random Device
