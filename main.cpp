@@ -170,7 +170,7 @@ int main(int argc, char* argv[]){
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	unsigned int j(0), i(0);
-	for( i; i < 10e6; i ++){
+	for( i; i < 10e3; i ++){
 
 		// ***** RANDOMISE VELOCITY ***** //
 		double StandardDev=(TEMP*echarge)/MASS;
@@ -268,21 +268,22 @@ int main(int argc, char* argv[]){
 			threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
 			LinearMomentumSum += MASS*(FinalVelMag-InitialVelMag);
 			AngularMomentumSum += MASS*(CylindricalRadius^(FinalVelMag-InitialVelMag));
-			OUTPUT_MOM(i); OUTPUT_MOM("\t");
-			OUTPUT_MOM( MASS*(FinalVelMag-InitialVelMag) ); OUTPUT_MOM("\t");
-			OUTPUT_MOM( MASS*(CylindricalRadius^(FinalVelMag-InitialVelMag)) ); OUTPUT_MOM("\t");
-			OUTPUT_MOM( LinearMomentumSum*(1.0/i) ); OUTPUT_MOM("\t");
-			OUTPUT_MOM( AngularMomentumSum*(1.0/i) ); OUTPUT_MOM("\n");
+//			OUTPUT_MOM(i); OUTPUT_MOM("\t");
+//			OUTPUT_MOM( MASS*(FinalVelMag-InitialVelMag) ); OUTPUT_MOM("\t");
+//			OUTPUT_MOM( MASS*(CylindricalRadius^(FinalVelMag-InitialVelMag)) ); OUTPUT_MOM("\t");
+//			OUTPUT_MOM( LinearMomentumSum*(1.0/i) ); OUTPUT_MOM("\t");
+//			OUTPUT_MOM( AngularMomentumSum*(1.0/i) ); OUTPUT_MOM("\n");
 		}
 
 		CLOSE_TRACK();
 //		std::cout << "\ni :\t" << i;
 	}
-	OUTPUT_MOM(i); OUTPUT_MOM("\t");
-        OUTPUT_MOM( LinearMomentumSum ); OUTPUT_MOM("\t");
-        OUTPUT_MOM( LinearMomentumSum*(1.0/i) ); OUTPUT_MOM("\t");
-        OUTPUT_MOM( AngularMomentumSum ); OUTPUT_MOM("\t");
-        OUTPUT_MOM( AngularMomentumSum*(1.0/i) ); OUTPUT_MOM("\n");
+	AngularMomentumDataFile << "\n\n" << i << "\t" << LinearMomentumSum << "\t" << AngularMomentumSum;
+//	OUTPUT_MOM(i); OUTPUT_MOM("\t");
+//	OUTPUT_MOM( LinearMomentumSum ); OUTPUT_MOM("\t");
+//	OUTPUT_MOM( LinearMomentumSum*(1.0/i) ); OUTPUT_MOM("\t");
+//	OUTPUT_MOM( AngularMomentumSum ); OUTPUT_MOM("\t");
+//	OUTPUT_MOM( AngularMomentumSum*(1.0/i) ); OUTPUT_MOM("\n");
 //	std::cout << "\n\nTotalAngularVel = " << TotalAngularVel;
 
 	clock_t end = clock();
