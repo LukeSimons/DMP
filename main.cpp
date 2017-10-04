@@ -9,7 +9,8 @@
 #include <ctime>
 #include <math.h> 	// For fabs()
 #include <sstream>	// for std::stringstream
-	
+
+#include "Functions.h"	
 #include "Constants.h"
 #include "threevector.h"
 
@@ -145,7 +146,8 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE SIMULATION SPACE ***** //
 	double zmax 	= 1.0+zMaxDebye*DebyeLength/Radius;	// Top of Simulation Domain, in Dust Radii
 	double zmin 	= -1.0-zMinDebye*DebyeLength/Radius;	// Bottom of Simulation Domain, in Dust Radii
-
+	double ImpactParameter = (DebyeLength/Radius)*LambertW((Radius*pow(naturale,2))/DebyeLength);
+	std::cout << "\nIP = " << ImpactParameter; std::cin.get();
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
 	std::random_device rd;		// Create Random Device
@@ -191,7 +193,10 @@ int main(int argc, char* argv[]){
 		double RhoPerp = (MASS*Vperp)/(echarge*BMag);
 		threevector Position(0.0,0.0,zmax);
 //		if(SPEC_CHARGE > 0.0){
-		std::uniform_real_distribution<double> dist(-(1.0+RhoPerp+1.5*DebyeLength/Radius), 1.0+RhoPerp+1.5*DebyeLength/Radius); // FOR IONS
+
+
+		std::uniform_real_distribution<double> dist(-(1.0+RhoPerp+ImpactParameter), 1.0+RhoPerp+ImpactParameter); // IONS
+
 		Position.setx(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
 		Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
 //		}else{

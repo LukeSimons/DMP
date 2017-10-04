@@ -60,5 +60,6 @@ extern double c; 		// m/s, Speed of light
 extern double h; 		// m^2 kg / s, Planck's Constant
 extern double epsilon0; 	// F/m, vacuum permittivity
 extern double Sigma;		// Boltsmann constant: W/(m^2 K^4) 
+extern double naturale;		// Mathematical constant
 
 #endif
