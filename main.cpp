@@ -1,4 +1,4 @@
-#define STORE_TRACKS 
+//#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
 
@@ -104,7 +104,7 @@ int main(int argc, char* argv[]){
 	int SPEC_CHARGE	= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
 	double MASS;		// kg, This is the mass of the Species being considered
 	double zMaxDebye	= 6.0;			// Arb, Number of debye distances max of simulation is
-	double zMinDebye	= 2.0;			// Arb, Number of debye distances max of simulation is
+	double zMinDebye	= 6.0;			// Arb, Number of debye distances max of simulation is
 
 
 	// ***** DETERMINE USER INPUT ***** //
@@ -268,11 +268,11 @@ int main(int argc, char* argv[]){
 			threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
 			LinearMomentumSum += MASS*(FinalVelMag-InitialVelMag);
 			AngularMomentumSum += MASS*(CylindricalRadius^(FinalVelMag-InitialVelMag));
-//			OUTPUT_MOM(i); OUTPUT_MOM("\t");
-//			OUTPUT_MOM( MASS*(FinalVelMag-InitialVelMag) ); OUTPUT_MOM("\t");
-//			OUTPUT_MOM( MASS*(CylindricalRadius^(FinalVelMag-InitialVelMag)) ); OUTPUT_MOM("\t");
-//			OUTPUT_MOM( LinearMomentumSum ); OUTPUT_MOM("\n");
-//			OUTPUT_MOM( AngularMomentumSum ); OUTPUT_MOM("\n");
+			OUTPUT_MOM(i); OUTPUT_MOM("\t");
+			OUTPUT_MOM( MASS*(FinalVelMag-InitialVelMag) ); OUTPUT_MOM("\t");
+			OUTPUT_MOM( MASS*(CylindricalRadius^(FinalVelMag-InitialVelMag)) ); OUTPUT_MOM("\t");
+			OUTPUT_MOM( LinearMomentumSum*(1.0/i) ); OUTPUT_MOM("\t");
+			OUTPUT_MOM( AngularMomentumSum*(1.0/i) ); OUTPUT_MOM("\n");
 		}
 
 		CLOSE_TRACK();
