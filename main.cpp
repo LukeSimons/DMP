@@ -1,4 +1,4 @@
-//#define STORE_TRACKS 
+#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
 
@@ -13,6 +13,19 @@
 #include "Functions.h"	
 #include "Constants.h"
 #include "threevector.h"
+
+bool DontKeepTrack(threevector Pos, threevector Vel, double MASS, double BMag){
+	threevector Bhat(0.0,0.0,1.0);
+	threevector AccelDir = (Vel.getunit()^Bhat);
+	double AngleWithOrigin = asin(Pos.getunit()*AccelDir);
+	double VPerp = sqrt(pow(Vel.getx(),2)+pow(Vel.gety(),2));
+	double RhoPerp = (MASS*VPerp)/(echarge*BMag);
+
+	if( sqrt(pow(Pos.getx(),2) + pow(Pos.gety(),2)) > 2.0*RhoPerp + 10.0 ){
+		return true;
+	}
+	return false;
+}
 
 static void show_usage(std::string name){
 	std::cerr << "Usage: int main(int argc, char* argv[]) <option(s)> SOURCES"
@@ -93,15 +106,15 @@ int main(int argc, char* argv[]){
 
 
 	// ***** DEFINE DUST PARAMETERS ***** //
-	double Radius 		= 100e-6;//20e-6;		// m, Radius of dust
-	double Density 		= 19600;//200;			// kg m^(-3), for Tungsten
+	double Radius 		= 1e-8;//20e-6;		// m, Radius of dust
+	double Density 		= 1850;//19600;//200;			// Be, W, Glass, kg m^(-3), for Tungsten
 	double Potential	= -2.5;			// Coulombs, Charge in 
 	double BMag 		= 1e-1;//1e-2;			// Tesla, Magnitude of magnetic field
 
 	// ***** DEFINE PLASMA PARAMETERS ***** //
-	double eTemp 	= 10.0;//1.0;	// Electron Temperature, eV
-	double eDensity	= 1e17;//1e14;	// m^(-3), Electron density
-	double TEMP 	= 0.1;//1.0;	// eV, This is the Temperature of the species being considered
+	double eTemp 	= 1.0;	// Electron Temperature, eV
+	double eDensity	= 1e18;//1e14;	// m^(-3), Electron density
+	double TEMP 	= 1.0;	// eV, This is the Temperature of the species being considered
 	int SPEC_CHARGE	= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
 	double MASS;		// kg, This is the mass of the Species being considered
 	double zMaxDebye	= 6.0;			// Arb, Number of debye distances max of simulation is
@@ -140,13 +153,28 @@ int main(int argc, char* argv[]){
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
 	threevector BField = BMag*Bhat;
 	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)));			// m, Debye Length
-	double Charge 		= SPEC_CHARGE*eTemp*Potential*(4*PI*epsilon0*Radius)*exp(-Radius/DebyeLength); 	// Coulombs, Charge
+//	double Charge 		= SPEC_CHARGE*eTemp*Potential*(4*PI*epsilon0*Radius)*exp(-Radius/DebyeLength); 	// Coulombs, Charge
+	double Charge 		= SPEC_CHARGE*eTemp*Potential*(4*PI*epsilon0*Radius); 	// Coulombs, Charge
+	double StandardDev=(TEMP*echarge)/(MASS*Radius);	// Thermal Velocity normalised to Dust Grain radii
+	double RhoTherm = (MASS*sqrt(StandardDev))/(echarge*BMag);	// Thermal GyroRadius normalised to dust grain radii
 
 
 	// ***** DEFINE SIMULATION SPACE ***** //
-	double zmax 	= 1.0+zMaxDebye*DebyeLength/Radius;	// Top of Simulation Domain, in Dust Radii
-	double zmin 	= -1.0-zMinDebye*DebyeLength/Radius;	// Bottom of Simulation Domain, in Dust Radii
-	double ImpactParameter = (DebyeLength/Radius)*LambertW((Radius*pow(naturale,2))/DebyeLength);
+//	double zmax 	= 1.0+zMaxDebye*DebyeLength/Radius;	// Top of Simulation Domain, in Dust Radii
+//	double zmin 	= -1.0-zMinDebye*DebyeLength/Radius;	// Bottom of Simulation Domain, in Dust Radii
+	double DebyeHuckelImpactParameter = (DebyeLength/Radius)*LambertW((Radius*pow(naturale,2))/DebyeLength);
+//	double CoulombImpactParameter	= sqrt(fabs(Charge/(4*PI*epsilon0*BMag)))/Radius;
+//	double CoulombImpactParameter	= sqrt(fabs(Charge/(4*PI*epsilon0*StandardDev*Radius)))*pow(epsilon0/MASS,0.25)/Radius;
+	double CoulombImpactParameter	= 24.0;
+	double zmax 	= 1.0+CoulombImpactParameter;	// Top of Simulation Domain, in Dust Radii
+	double zmin 	= -1.0-CoulombImpactParameter;	// Bottom of Simulation Domain, in Dust Radii
+	std::cout << "\nRhoTherm = " << RhoTherm;
+	std::cout << "\nDHIP = " << DebyeHuckelImpactParameter;
+	std::cout << "\nCIP = " << CoulombImpactParameter; std::cin.get();
+	double TimeStep = 1e-12;
+	double TimeStepTemp = 2*PI*MASS/(echarge*BMag*1000);
+	TimeStep = TimeStepTemp;
+
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
 	std::random_device rd;		// Create Random Device
@@ -171,14 +199,12 @@ int main(int argc, char* argv[]){
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	unsigned int j(0), i(0);
-	for( i; i < 10e6; i ++){
+	for( i; i < 1000; i ++){
 
 		// ***** RANDOMISE VELOCITY ***** //
-		double StandardDev=(TEMP*echarge)/MASS;
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
 		std::normal_distribution<double> Gaussdist(0,sqrt(StandardDev));
 		threevector Velocity(Gaussdist(mt),Gaussdist(mt),-abs(Gaussdist(mt)));	// Start with negative z-velocity
-		Velocity = Velocity*(1/Radius);			// Normalise speed to dust grain radius
 		
 		INITIAL_VEL();		// For energy calculations
 
@@ -188,37 +214,19 @@ int main(int argc, char* argv[]){
 		threevector OldPosition(0.0,0.0,0.0);
 
 		// ***** RANDOMISE POSITION ***** //
-		double Vperp = sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2));
-		double RhoPerp = (MASS*Vperp)/(echarge*BMag);
-		threevector Position(0.0,0.0,zmax);
-//		if(SPEC_CHARGE > 0.0){
-
-
-		std::uniform_real_distribution<double> dist(-(1.0+RhoPerp+ImpactParameter), 1.0+RhoPerp+ImpactParameter); // IONS
-
-		Position.setx(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
-		Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
-//		}else{
-//			std::uniform_real_distribution<double> dist(-(1.0+RhoPerp), 1.0+RhoPerp); // FOR ELECTRONS
-//			Position.sety(dist(mt));  // Distance normalised to dust grain size, Start 10 Radii above dust
-//		}
-//		double TimeInMagField = (zmax-zmin)/Velocity.getz();
-//		if( (fabs(Position.gety()) - TimeInMagField*Vperp*2*PI) > DebyeLength/Radius ){
-//			std::cout << "\ni = " << i;
-//			continue;
-//		}
+		double ImpactParameter = (1.0+2.0*RhoTherm+CoulombImpactParameter);
+		std::uniform_real_distribution<double> dist(-ImpactParameter, ImpactParameter); // IONS
+		threevector Position(dist(mt),dist(mt),zmax);
+		if( DontKeepTrack(Position,Velocity,MASS,BMag) )
+			continue;
 
 		OPEN_TRACK(filename + std::to_string(i) + ".txt");
-
-		double TimeStep = 1e-12;
-		double TimeStepTemp = 2*PI*MASS/(echarge*BMag*1000);
-		TimeStep = TimeStepTemp;
 
 		// ***** DO PARTICLE PATH INTEGRATION ***** //
 
 		// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
-		threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength)*(1/pow(Radius,3));
-//		threevector EField = CoulombField(Position,Charge)*(1/pow(Radius,3));
+//		threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength)*(1/pow(Radius,2));
+		threevector EField = CoulombField(Position,Charge)*(1/pow(Radius,2));
 		RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
 
 //		std::cout << "\n" << Position << "\t" << Velocity;
@@ -228,10 +236,8 @@ int main(int argc, char* argv[]){
 		// And not over a specified number of iterations to catch trapped orbits
 		int p(0);
 		while( Position.mag3() > 1.0  && Position.getz() > zmin && Position.getz() <= zmax ){
-// && p < abs(round(5*(zmax-zmin)/(Velocity.getz()*TimeStep)))
-
-			EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength)*(1/pow(Radius,3));
-//			EField = CoulombField(Position,Charge)*(1/pow(Radius,3));
+//			EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength)*(1/pow(Radius,2));
+			EField = CoulombField(Position,Charge)*(1/pow(Radius,2));
 			OldVelocity = Velocity;	// For Angular Momentum Calculations
 			OldPosition = Position; // For Angular Momentum Calculations
 			UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity);
