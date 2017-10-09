@@ -209,7 +209,7 @@ int main(int argc, char* argv[]){
 //	std::cout << "\nDHIP = " << DebyeHuckelImpactParameter;
 //	std::cout << "\nRhoTherm = " << RhoTherm;
 //	std::cout << "\nCIP = " << CoulombImpactParameter;
-	std::cout << "\nIP = " << ImpactParameter; std::cin.get();
+//	std::cout << "\nIP = " << ImpactParameter; std::cin.get();
 
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
@@ -224,8 +224,8 @@ int main(int argc, char* argv[]){
 	AngularMomentumDataFile.open(filename + "_AngMom.txt");	
 	AngularMomentumDataFile << "## Angular Momentum Data File ##\n";
 	AngularMomentumDataFile << "#Date: " << dt;
-	AngularMomentumDataFile << "#Input:\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\t\tBMag\tDebye\n";
-	AngularMomentumDataFile << "#\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
+	AngularMomentumDataFile << "#Input:\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\t\tBMag\tDebye\n";
+	AngularMomentumDataFile << "#\t"<<ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
 					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\t"<<BMag << "\t" << DebyeLength/Radius << "\n";
 	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
 
