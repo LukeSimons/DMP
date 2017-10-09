@@ -2,17 +2,17 @@
 
 ## This tells the batch manager to limit the walltime for the job to XX hours, YY minutes and ZZ seconds
 ## and use PP gb of memory.
-#PBS -l walltime=10:00:00 
+#PBS -l walltime=5:00:00 
 
 ## This tells the batch manager how many cores and how many nodes to use
-#PBS -l select=2:ncpus=24:mem=43200mb:ompthreads=92
+#PBS -l select=2:ncpus=24:mem=4320mb:ompthreads=24
 
 ## This tells the batch manager the name of the job
 #PBS -N testDMP
 
 ## This tells the batch manager to re-run job with parameter varying from 1 to N in steps on step-size
 ## step-size can be omitted in which case a default value of 1 is taken
-#PBS -J 1-24
+#PBS -J 1-10
 
 #PBS -q pqplasma2
 

@@ -240,7 +240,7 @@ int main(int argc, char* argv[]){
 	unsigned int j(0), i(0);
 	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel)
 	for( i=0; i < 10000; i ++){
-		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
+//		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 		// ***** RANDOMISE VELOCITY ***** //
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
 		threevector Velocity(Gaussdist(mt),Gaussdist(mt),-fabs(Gaussdist(mt)));	// Start with negative z-velocity
@@ -311,6 +311,7 @@ int main(int argc, char* argv[]){
 			TotalAngularMom += AngularMom;
 			j ++;
 //			std::cout << "\nAngularVel = " << AngularVel << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
+			#pragma omp critical
 			AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
 		}else{
 
