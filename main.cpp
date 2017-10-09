@@ -306,13 +306,13 @@ int main(int argc, char* argv[]){
 			threevector AngularVel = (15)/(8*PI*NormDens)*	
 				(CylindricalRadius^(FinalVelocity-FixAVNorm*DistanceFromAxis*FinalVelocity.getunit()));
 
-
-			TotalAngularVel += AngularVel;
-			TotalAngularMom += AngularMom;
-			j ++;
-//			std::cout << "\nAngularVel = " << AngularVel << "\nj :\t" << j << "\tTotalAngularVel = " << TotalAngularVel;
 			#pragma omp critical
-			AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
+			{
+				TotalAngularVel += AngularVel;
+				TotalAngularMom += AngularMom;
+				j ++;
+				AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
+			}
 		}else{
 
 			FINAL_VEL(); 
