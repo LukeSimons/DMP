@@ -2,6 +2,8 @@
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
 
+#include <omp.h>	// For parallelisation
+
 #include <iostream>
 #include <array>
 #include <random>
@@ -236,8 +238,9 @@ int main(int argc, char* argv[]){
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	unsigned int j(0), i(0);
-	for( i; i < 10; i ++){
-
+	#pragma omp parallel for private(TimeStep)
+	for( i=0; i < 10000; i ++){
+		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 		// ***** RANDOMISE VELOCITY ***** //
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
 		threevector Velocity(Gaussdist(mt),Gaussdist(mt),-fabs(Gaussdist(mt)));	// Start with negative z-velocity
