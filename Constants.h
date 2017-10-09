@@ -18,10 +18,14 @@
 
 #if defined CALCULATE_ENERGY || defined CALCULATE_MOM
 #define INITIAL_VEL()	threevector InitialVelMag = Velocity;
+#define INITIAL_POT()	double InitialPot = Charge/(4*PI*e0norm*Position.mag3());
 #define FINAL_VEL()	threevector FinalVelMag = Velocity;
+#define FINAL_POT()	double FinalPot = Charge/(4*PI*e0norm*Position.mag3());
 #else
 #define INITIAL_VEL()
+#define INITIAL_POT()
 #define FINAL_VEL()
+#define FINAL_POT()
 #endif
 
 #ifdef CALCULATE_ENERGY
