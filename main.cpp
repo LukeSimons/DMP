@@ -238,7 +238,7 @@ int main(int argc, char* argv[]){
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	unsigned int j(0), i(0);
-	#pragma omp parallel for private(TimeStep)
+	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel)
 	for( i=0; i < 10000; i ++){
 		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 		// ***** RANDOMISE VELOCITY ***** //
