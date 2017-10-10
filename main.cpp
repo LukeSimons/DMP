@@ -268,6 +268,7 @@ int main(int argc, char* argv[]){
 			threevector FinalVelocity = 0.5*(OldVelocity+Velocity);
 			threevector FinalPosition = 0.5*(OldPosition+Position);
 			threevector CylindricalRadius(FinalPosition.getx(),FinalPosition.gety(),0.0);
+			threevector CylindricalVelocity(FinalVelocity.getx(),FinalVelocity.gety(),0.0);
 			double DistanceFromAxis = CylindricalRadius.mag3();
 			threevector AngularMom = (CylindricalRadius^FinalVelocity); 
 			// Moment of Inertia for Hollow Sphere
@@ -279,8 +280,7 @@ int main(int argc, char* argv[]){
 
 			// SHOULD IT NOT BE:
 //			threevector AngularVel = (15)/(8*PI*NormDens)*	
-//				((RadialPosition^FinalVelocity)-(RadialPosition^(TotalAngularVel^FinalPosition)));
-		
+//				((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
 			// Moment of Inertia for Solid Sphere, Just Z-Component
 			threevector AngularVel = (15)/(8*PI*NormDens)*
                                 ((CylindricalRadius^CylindricalVelocity)-(CylindricalRadius^(TotalAngularVel^CylindricalRadius)));
