@@ -16,25 +16,6 @@
 #include "Constants.h"
 #include "threevector.h"
 
-bool DontKeepTrack(const threevector &Pos, const threevector &Vel,
-			const double &MASS, const double &BMag, const double &CIP,
-			const double &zmin, const double &zmax){
-	threevector Bhat(0.0,0.0,1.0);
-	threevector AccelDir = (Vel.getunit()^Bhat);
-
-	double VPerp = sqrt(pow(Vel.getx(),2)+pow(Vel.gety(),2));
-	double RhoPerp = VPerp/BMag;
-
-	threevector GyroCentre = Pos + (AccelDir*RhoPerp);
-
-	double GyroCentreDist = sqrt(pow(GyroCentre.getx(),2) + pow(GyroCentre.gety(),2));
-	
-	if( (GyroCentreDist - RhoPerp) > 10*CIP )
-		return true;
-	
-	return false;
-}
-
 static void show_usage(std::string name){
 	std::cerr << "Usage: int main(int argc, char* argv[]) <option(s)> SOURCES"
 	<< "\n\nOptions:\n"
@@ -117,7 +98,7 @@ int main(int argc, char* argv[]){
 
 	// ***** DEFINE DUST PARAMETERS ***** //
 	double Radius 		= 1e-6;	// m, Radius of dust
-	double Density 		= 1e-10;// kg m^-^3, made to be small so rotation is easier
+	double Density 		= 19600;// kg m^-^3, Tungsten
 	double Potential	= -2.5;	// Coulombs, Charge in 
 	double BMag 		= 1.0; // Tesla, Magnitude of magnetic field
 
@@ -239,7 +220,7 @@ int main(int argc, char* argv[]){
 	DECLARE_AMSUM();
 	unsigned int j(0), i(0);
 	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel)
-	for( i=0; i < 10000; i ++){
+	for( i=0; i < 10000000; i ++){
 //		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 		// ***** RANDOMISE VELOCITY ***** //
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
@@ -252,12 +233,6 @@ int main(int argc, char* argv[]){
 		threevector Position(0.0,dist(mt),zmax);
 		INITIAL_VEL();		// For energy calculations
 		INITIAL_POT();		// For energy calculations
-
-		// ***** DISCARD MISSING ORBITS ***** //
-//		if( DontKeepTrack(Position, Velocity, MASS, BMagNorm, CoulombImpactParameter, zmin, zmax) ){
-//			std::cout << "\nDiscarding i = " << i;
-//			continue;
-//		}
 
 
 		// ***** DO PARTICLE PATH INTEGRATION ***** //
@@ -301,10 +276,19 @@ int main(int argc, char* argv[]){
 			// Moment of Inertia for solid sphere
 //			threevector AngularVel = (15)/(8*PI*NormDens)*	
 //				(CylindricalRadius^(FinalVelocity-TotalAngularVel.mag3()*DistanceFromAxis*FinalVelocity.getunit()));
+
+			// SHOULD IT NOT BE:
+//			threevector AngularVel = (15)/(8*PI*NormDens)*	
+//				((RadialPosition^FinalVelocity)-(RadialPosition^(TotalAngularVel^FinalPosition)));
+		
+			// Moment of Inertia for Solid Sphere, Just Z-Component
+			threevector AngularVel = (15)/(8*PI*NormDens)*
+                                ((CylindricalRadius^CylindricalVelocity)-(CylindricalRadius^(TotalAngularVel^CylindricalRadius)));
+
 			// THIS MODE IS FOR CONSTANT SPHERE VELOCITY
 			// Calculate momentum changes to determine momentum given to dust grain
-			threevector AngularVel = (15)/(8*PI*NormDens)*	
-				(CylindricalRadius^(FinalVelocity-FixAVNorm*DistanceFromAxis*FinalVelocity.getunit()));
+//			threevector AngularVel = (15)/(8*PI*NormDens)*	
+//				(CylindricalRadius^(FinalVelocity-FixAVNorm*DistanceFromAxis*FinalVelocity.getunit()));
 
 			#pragma omp critical
 			{
@@ -325,23 +309,11 @@ int main(int argc, char* argv[]){
 			threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
 			LinearMomentumSum += (FinalVelMag-InitialVelMag);
 			AngularMomentumSum += (CylindricalRadius^(FinalVelMag-InitialVelMag));
-//			OUTPUT_MOM(i); OUTPUT_MOM("\t");
-//			OUTPUT_MOM( MASS*(FinalVelMag-InitialVelMag) ); OUTPUT_MOM("\t");
-//			OUTPUT_MOM( MASS*(CylindricalRadius^(FinalVelMag-InitialVelMag)) ); OUTPUT_MOM("\t");
-//			OUTPUT_MOM( LinearMomentumSum*(1.0/i) ); OUTPUT_MOM("\t");
-//			OUTPUT_MOM( AngularMomentumSum*(1.0/i) ); OUTPUT_MOM("\n");
 		}
 
 		CLOSE_TRACK();
-//		std::cout << "\ni :\t" << i;
 	}
 	AngularMomentumDataFile << "\n\n" << i << "\t" << LinearMomentumSum << "\t" << AngularMomentumSum;
-//	OUTPUT_MOM(i); OUTPUT_MOM("\t");
-//	OUTPUT_MOM( LinearMomentumSum ); OUTPUT_MOM("\t");
-//	OUTPUT_MOM( LinearMomentumSum*(1.0/i) ); OUTPUT_MOM("\t");
-//	OUTPUT_MOM( AngularMomentumSum ); OUTPUT_MOM("\t");
-//	OUTPUT_MOM( AngularMomentumSum*(1.0/i) ); OUTPUT_MOM("\n");
-//	std::cout << "\n\nTotalAngularVel = " << TotalAngularVel;
 
 	clock_t end = clock();
 	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
