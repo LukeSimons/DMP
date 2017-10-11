@@ -1,7 +1,7 @@
 //#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
-#define DUST_GRAIN
+//#define DUST_GRAIN
 
 #include <omp.h>	// For parallelisation
 
@@ -224,7 +224,7 @@ int main(int argc, char* argv[]){
 	AngularMomentumDataFile << "## Angular Momentum Data File ##\n";
 	AngularMomentumDataFile << "#Date: " << dt;
 	AngularMomentumDataFile << "#Input:\timax\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\t\tBMag\tDebye\n";
-	AngularMomentumDataFile << "#\t"<<imax<<"\t"ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
+	AngularMomentumDataFile << "#\t"<<imax<<"\t"<<ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
 					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\t"<<BMag << "\t" << DebyeLength/Radius << "\n";
 	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
 
