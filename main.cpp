@@ -31,7 +31,6 @@ static void show_usage(std::string name){
 	<< "\t-u,--zmaxdebye ZMAXDEBYE\t(arb), Specify the upper limit of simulation domain as number of distances\n\n"
 	<< "\t-l,--zmindebye ZMINDEBYE\t(arb), Specify the lower limit of simulation domain as number of distances\n\n"
 	<< "\t-b,--impactpar IMPACTPAR\t(arb), Specify the radial limit of simulation domain as number of distances\n\n"
-	<< "\t-f,--fixedangvel FIXEDANGVEL\t(s^-^1), Specify a fixed value for the rotational velocity of a dust grain\n\n"
 	<< std::endl;
 }
 
@@ -109,8 +108,7 @@ int main(int argc, char* argv[]){
 	int SPEC_CHARGE		= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
 	double zMaxDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
 	double zMinDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
-	double ImpactPar	= 1.0;	// Arb, Multiplicative factor for the Impact Parameter
-	double FixedAngularVel	= 1.0;	// Arb, Multiplicative factor for the Impact Parameter
+	double ImpactPar	= 5.0;	// Arb, Multiplicative factor for the Impact Parameter
 
 	// ***** DETERMINE USER INPUT ***** //
 	std::vector <std::string> sources;
@@ -129,7 +127,6 @@ int main(int argc, char* argv[]){
 		else if( arg == "--zmaxdebye" 	|| arg == "-u" )	InputFunction(argc,argv,i,ss0,zMaxDebye);
 		else if( arg == "--zmindebye" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinDebye);
 		else if( arg == "--impactpar"	|| arg == "-b" )	InputFunction(argc,argv,i,ss0,ImpactPar);
-		else if( arg == "--fixedangvel"	|| arg == "-a" )	InputFunction(argc,argv,i,ss0,FixedAngularVel);
                 else{
 			sources.push_back(argv[i]);
 		}
@@ -158,7 +155,6 @@ int main(int argc, char* argv[]){
 	double TEMPnorm	= TEMP*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
 	double eDensNorm= eDensity*pow(Radius,3);
 	double eTempNorm= eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
-	double FixAVNorm= FixedAngularVel*Tau;
 
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
@@ -230,7 +226,7 @@ int main(int argc, char* argv[]){
 
 		// ***** RANDOMISE POSITION ***** //
 //		threevector Position(dist(mt),dist(mt),zmax);
-		threevector Position(0.0,dist(mt),zmax);
+		threevector Position(dist(mt),dist(mt),zmax);
 		INITIAL_VEL();		// For energy calculations
 		INITIAL_POT();		// For energy calculations
 
@@ -279,16 +275,11 @@ int main(int argc, char* argv[]){
 //				(CylindricalRadius^(FinalVelocity-TotalAngularVel.mag3()*DistanceFromAxis*FinalVelocity.getunit()));
 
 			// SHOULD IT NOT BE:
-//			threevector AngularVel = (15)/(8*PI*NormDens)*	
-//				((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
+			threevector AngularVel = (15)/(8*PI*NormDens)*	
+				((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
 			// Moment of Inertia for Solid Sphere, Just Z-Component
-			threevector AngularVel = (15)/(8*PI*NormDens)*
-                                ((CylindricalRadius^CylindricalVelocity)-(CylindricalRadius^(TotalAngularVel^CylindricalRadius)));
-
-			// THIS MODE IS FOR CONSTANT SPHERE VELOCITY
-			// Calculate momentum changes to determine momentum given to dust grain
-//			threevector AngularVel = (15)/(8*PI*NormDens)*	
-//				(CylindricalRadius^(FinalVelocity-FixAVNorm*DistanceFromAxis*FinalVelocity.getunit()));
+//			threevector AngularVel = (15)/(8*PI*NormDens)*
+//				((CylindricalRadius^CylindricalVelocity)-(CylindricalRadius^(TotalAngularVel^CylindricalRadius)));
 
 			#pragma omp critical
 			{
