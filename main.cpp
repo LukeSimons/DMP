@@ -165,7 +165,12 @@ int main(int argc, char* argv[]){
 	// Normalise MASS to Species Mass
 	// Normalise DISTANCE to Dust Radius
 	// Normalise CHARGE to fundamental charge
-	double Tau 	= MASS/(echarge*BMag);
+	double Tau;
+	if( BMag <= 0.0 ){
+		Tau	= Radius*sqrt(MASS/(echarge*TEMP));
+	}else{
+		Tau 	= MASS/(echarge*BMag);
+	}
 	double e0norm 	= epsilon0*MASS*pow(Radius,3)/(pow(echarge*Tau,2));
 	double u0norm 	= (4.0*PI*10e-7)/(pow(echarge,2)*MASS*Radius);
 	double NormDens = Density*pow(Radius,3)/MASS;
@@ -186,7 +191,11 @@ int main(int argc, char* argv[]){
 	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm); 	// Normalised Charge,
 	double ThermalVel	= sqrt(TEMPnorm);			// Normalised Temperature
 	double RhoTherm 	= ThermalVel/BMagNorm;			// Thermal GyroRadius normalised to dust grain radii
-
+	if( BMag <= 0.0 ){
+		RhoTherm	= 0.0;
+	}else{
+		RhoTherm 	= ThermalVel/BMagNorm;
+	}
 //	double VelSIUnits 	= ThermalVel*Radius/(Tau);
 //	std::cout << "\nTimeStep = " << TimeStep;
 //	std::cout << "\nTEMPnorm = " << TEMPnorm << "\nVelSIUnits = " << VelSIUnits;
@@ -201,7 +210,12 @@ int main(int argc, char* argv[]){
 //	double CoulombImpactParameter	= pow(pow(Charge/(4.0*PI*e0norm),2)/(pow(ThermalVel,2)+BMagNorm/u0norm),0.25);
 	double CoulombImpactParameter	= fabs(Charge/(2*PI*e0norm*pow(ThermalVel,2))); // Balance Coulomb to kinetic energy
 //	double ImpactParameter = (1.0+2.0*RhoPerp+CoulombImpactParameter);
-	double ImpactParameter = 1.0+ImpactPar*RhoTherm;;
+	double ImpactParameter;
+	if( BMag <= 0.0 ){
+		ImpactParameter = 1.0+zMaxDebye*CoulombImpactParameter;
+	}else{
+		ImpactParameter = 1.0+ImpactPar*RhoTherm;
+	}
 	double zmax 	= 1.0+zMaxDebye*CoulombImpactParameter;	// Top of Simulation Domain, in Dust Radii
 	double zmin 	= -1.0-zMinDebye*CoulombImpactParameter;	// Bottom of Simulation Domain, in Dust Radii
 //	double zmax 	= 1.0+zMaxDebye*DebyeLength;	// Top of Simulation Domain, in Dust Radii
