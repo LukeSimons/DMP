@@ -1,7 +1,7 @@
 //#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
-//#define DUST_GRAIN
+#define DUST_GRAIN
 
 #include <omp.h>	// For parallelisation
 
@@ -109,7 +109,7 @@ int main(int argc, char* argv[]){
 	int SPEC_CHARGE		= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
 	double zMaxDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
 	double zMinDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
-	double ImpactPar	= 5.0;	// Arb, Multiplicative factor for the Impact Parameter
+	double ImpactPar	= 1.0;	// Arb, Multiplicative factor for the Impact Parameter
 
 	// ***** DETERMINE USER INPUT ***** //
 	std::vector <std::string> sources;
