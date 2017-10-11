@@ -32,6 +32,7 @@ static void show_usage(std::string name){
 	<< "\t-u,--zmaxdebye ZMAXDEBYE\t(arb), Specify the upper limit of simulation domain as number of distances\n\n"
 	<< "\t-l,--zmindebye ZMINDEBYE\t(arb), Specify the lower limit of simulation domain as number of distances\n\n"
 	<< "\t-b,--impactpar IMPACTPAR\t(arb), Specify the radial limit of simulation domain as number of distances\n\n"
+	<< "\t-i,--imax IMAX\t(arb), Specify the number of particles to be launched\n\n"
 	<< std::endl;
 }
 
@@ -102,6 +103,7 @@ int main(int argc, char* argv[]){
 	double Potential	= -2.5;	// Coulombs, Charge in 
 	double BMag 		= 1.0; // Tesla, Magnitude of magnetic field
 
+
 	// ***** DEFINE PLASMA PARAMETERS ***** //
 	double eTemp 		= 1.0;	// Electron Temperature, eV
 	double eDensity		= 1e18;	//1e14;	// m^(-3), Electron density
@@ -110,6 +112,7 @@ int main(int argc, char* argv[]){
 	double zMaxDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
 	double zMinDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
 	double ImpactPar	= 1.0;	// Arb, Multiplicative factor for the Impact Parameter
+	unsigned int imax	= 100;
 
 	// ***** DETERMINE USER INPUT ***** //
 	std::vector <std::string> sources;
@@ -128,6 +131,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--zmaxdebye" 	|| arg == "-u" )	InputFunction(argc,argv,i,ss0,zMaxDebye);
 		else if( arg == "--zmindebye" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinDebye);
 		else if( arg == "--impactpar"	|| arg == "-b" )	InputFunction(argc,argv,i,ss0,ImpactPar);
+		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
                 else{
 			sources.push_back(argv[i]);
 		}
@@ -219,8 +223,8 @@ int main(int argc, char* argv[]){
 	AngularMomentumDataFile.open(filename + "_AngMom.txt");	
 	AngularMomentumDataFile << "## Angular Momentum Data File ##\n";
 	AngularMomentumDataFile << "#Date: " << dt;
-	AngularMomentumDataFile << "#Input:\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\t\tBMag\tDebye\n";
-	AngularMomentumDataFile << "#\t"<<ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
+	AngularMomentumDataFile << "#Input:\timax\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\t\tBMag\tDebye\n";
+	AngularMomentumDataFile << "#\t"<<imax<<"\t"ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
 					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\t"<<BMag << "\t" << DebyeLength/Radius << "\n";
 	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
 
@@ -232,8 +236,8 @@ int main(int argc, char* argv[]){
 	DECLARE_AMSUM();
 	unsigned int j(0), i(0);
 	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel)
-	for( i=0; i < 10000000; i ++){
-//		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
+	for( i=0; i < imax; i ++){
+		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 		// ***** RANDOMISE VELOCITY ***** //
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
 		threevector Velocity(Gaussdist(mt),Gaussdist(mt),-fabs(Gaussdist(mt)));	// Start with negative z-velocity
@@ -320,7 +324,7 @@ int main(int argc, char* argv[]){
 
 		CLOSE_TRACK();
 	}
-	AngularMomentumDataFile << "\n\n" << i << "\t" << LinearMomentumSum << "\t" << AngularMomentumSum;
+	AngularMomentumDataFile << "\n\n" << LinearMomentumSum << "\t" << AngularMomentumSum;
 
 	clock_t end = clock();
 	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
