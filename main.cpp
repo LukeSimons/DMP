@@ -190,7 +190,7 @@ int main(int argc, char* argv[]){
 //	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm)*exp(-1.0/DebyeLength); 	// Normalised Charge
 	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm); 	// Normalised Charge,
 	double ThermalVel	= sqrt(TEMPnorm);			// Normalised Temperature
-	double RhoTherm 	= ThermalVel/BMagNorm;			// Thermal GyroRadius normalised to dust grain radii
+	double RhoTherm;						// Thermal GyroRadius normalised to dust grain radii
 	if( BMag <= 0.0 ){
 		RhoTherm	= 0.0;
 	}else{
