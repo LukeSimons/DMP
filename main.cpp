@@ -1,6 +1,7 @@
 //#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
+//#define DUST_GRAIN
 
 #include <omp.h>	// For parallelisation
 
@@ -275,7 +276,7 @@ int main(int argc, char* argv[]){
 		}
 
 
-		if(Position.mag3() < 1.0){ // In this case it was captured!
+		if( Position.mag3() < 1.0 DUST_ON ){ // In this case it was captured!
 			threevector FinalVelocity = 0.5*(OldVelocity+Velocity);
 			threevector FinalPosition = 0.5*(OldPosition+Position);
 			threevector CylindricalRadius(FinalPosition.getx(),FinalPosition.gety(),0.0);

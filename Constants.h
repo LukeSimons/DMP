@@ -15,6 +15,11 @@
 #endif 
 
 
+#ifdef DUST_GRAIN
+#define DUST_ON		
+#else
+#define DUST_ON		&& false
+#endif
 
 #if defined CALCULATE_ENERGY || defined CALCULATE_MOM
 #define INITIAL_VEL()	threevector InitialVelMag = Velocity;
