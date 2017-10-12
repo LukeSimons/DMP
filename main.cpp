@@ -1,4 +1,4 @@
-//#define STORE_TRACKS 
+#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
 //#define DUST_GRAIN
@@ -235,7 +235,7 @@ int main(int argc, char* argv[]){
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	unsigned int j(0), i(0);
-	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel)
+	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel) PRIVATE_FILES()
 	for( i=0; i < imax; i ++){
 		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 		// ***** RANDOMISE VELOCITY ***** //

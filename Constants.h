@@ -4,11 +4,13 @@
 
 #ifdef STORE_TRACKS 
 #define DECLARE_TRACK()	std::ofstream TrackDataFiles	
+#define PRIVATE_FILES()	private(TrackDataFiles)
 #define OPEN_TRACK(x)	TrackDataFiles.open(x)
 #define RECORD_TRACK(x)	TrackDataFiles << x
 #define CLOSE_TRACK()	TrackDataFiles.close()
 #else
 #define DECLARE_TRACK()
+#define PRIVATE_FILES()
 #define OPEN_TRACK(x)
 #define RECORD_TRACK(x)
 #define CLOSE_TRACK()
