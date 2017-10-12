@@ -264,7 +264,8 @@ int main(int argc, char* argv[]){
 		// While the particle is not inside the sphere, not outside the simulation domain
 		// And not over a specified number of iterations to catch trapped orbits
 		int p(0);
-		while( Position.mag3() > 1.0 && Position.getz() > zmin && Position.getz() <= zmax && p < 5e5 ){
+//		while( Position.mag3() > 1.0 && Position.getz() > zmin && Position.getz() <= zmax && p < 5e5 ){
+		while( Position.getz() > zmin && Position.getz() <= zmax && p < 5e5 ){
 //			EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
 			EField = CoulombField(Position,Charge,e0norm);
 			OldVelocity = Velocity;	// For Angular Momentum Calculations
@@ -279,7 +280,8 @@ int main(int argc, char* argv[]){
 		}
 
 
-		if( Position.mag3() < 1.0 ){ // In this case it was captured!
+//		if( Position.mag3() < 1.0 ){ // In this case it was captured!
+		if( false ){ // In this case it was captured!
 			threevector FinalVelocity = 0.5*(OldVelocity+Velocity);
 			threevector FinalPosition = 0.5*(OldPosition+Position);
 			threevector CylindricalRadius(FinalPosition.getx(),FinalPosition.gety(),0.0);
@@ -317,8 +319,8 @@ int main(int argc, char* argv[]){
 //			OUTPUT_VEL(FinalVelMag.square()-InitialVelMag.square()+FinalPot-InitialPot);  OUTPUT_VEL("\n");
 			
 			threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
-			LinearMomentumSum += (FinalVelMag-InitialVelMag);
-			AngularMomentumSum += (CylindricalRadius^(FinalVelMag-InitialVelMag));
+			LinearMomentumSum += FinalVelMag;
+			AngularMomentumSum += CylindricalRadius^FinalVelMag;
 		}
 
 		CLOSE_TRACK();
