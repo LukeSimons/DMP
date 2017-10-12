@@ -26,7 +26,7 @@ dx=0.1
 DX=$(echo "$dx*${PBS_ARRAY_INDEX}"|bc -l)
 
 ## Run the DMP executable code
-pbsexec -grace 5 $WORK/DMP/DMP -m ${DX} -l -10.0 -u 10.0 -i 5000000
+pbsexec -grace 5 $WORK/DMP/DMP -m ${DX} -l 10.0 -u 10.0 -i 10000000
 ##$WORK/DMP/DMP 
 
 #mkdir -p $WORK/DMP/Output/output.${PBS_ARRAY_INDEX}

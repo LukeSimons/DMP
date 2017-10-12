@@ -27,7 +27,7 @@ mkdir -p Data
 
 ## Run the DMP executable code
 ##pbsexec -grace 5 $WORK/DMP/DMP -d ${DX}
-pbsexec -grace 5 $WORK/DMP/DMP -m 0.0 -p 0.0 -i 1000000
+pbsexec -grace 5 $WORK/DMP/DMP -m 0.0 -p 0.0 -i 5000000
 ##$WORK/DMP/DMP 
 
 #mkdir -p $WORK/DMP/Output/output.${PBS_ARRAY_INDEX}
