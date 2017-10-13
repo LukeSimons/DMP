@@ -1,4 +1,4 @@
-//#define STORE_TRACKS 
+#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
 
@@ -32,6 +32,7 @@ static void show_usage(std::string name){
 	<< "\t-l,--zmindebye ZMINDEBYE\t(arb), Specify the lower limit of simulation domain as number of distances\n\n"
 	<< "\t-b,--impactpar IMPACTPAR\t(arb), Specify the radial limit of simulation domain as number of distances\n\n"
 	<< "\t-i,--imax IMAX\t(arb), Specify the number of particles to be launched\n\n"
+	<< "\t-v,--driftvel DRIFTVEL\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
 	<< std::endl;
 }
 
@@ -107,6 +108,7 @@ int main(int argc, char* argv[]){
 	double eTemp 		= 1.0;	// Electron Temperature, eV
 	double eDensity		= 1e18;	//1e14;	// m^(-3), Electron density
 	double TEMP 		= 1.0;	// eV, This is the Temperature of the species being considered
+	double DriftVel 	= 0.0;	// m s^-1, This is the Temperature of the species being considered
 	int SPEC_CHARGE		= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
 	double zMaxDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
 	double zMinDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
@@ -131,6 +133,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--zmindebye" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinDebye);
 		else if( arg == "--impactpar"	|| arg == "-b" )	InputFunction(argc,argv,i,ss0,ImpactPar);
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
+		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
                 else{
 			sources.push_back(argv[i]);
 		}
@@ -164,7 +167,7 @@ int main(int argc, char* argv[]){
 	double TEMPnorm	= TEMP*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
 	double eDensNorm= eDensity*pow(Radius,3);
 	double eTempNorm= eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
-
+	double DriftNorm= DriftVel*Tau/(Radius);
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
@@ -213,7 +216,7 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
 	std::random_device rd;		// Create Random Device
 	std::mt19937 mt(rd());		// Get Random Method
-	std::normal_distribution<double> Gaussdist(0,sqrt(ThermalVel));
+	std::normal_distribution<double> Gaussdist(DriftNorm,sqrt(ThermalVel));
 	std::uniform_real_distribution<double> dist(-ImpactParameter, ImpactParameter); // IONS
 
 	// ***** OPEN DATA FILE WITH HEADER ***** //
@@ -239,7 +242,12 @@ int main(int argc, char* argv[]){
 		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 		// ***** RANDOMISE VELOCITY ***** //
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
-		threevector Velocity(Gaussdist(mt),Gaussdist(mt),-fabs(Gaussdist(mt)));	// Start with negative z-velocity
+		double zvel = Gaussdist(mt);
+//		while( zvel >= 0 ){
+//			zvel = Gaussdist(mt);
+//		}
+		threevector Velocity(Gaussdist(mt),Gaussdist(mt),zvel);	// Start with negative z-velocity
+
 		threevector OldVelocity(0.0,0.0,0.0);
 		threevector OldPosition(0.0,0.0,0.0);
 
