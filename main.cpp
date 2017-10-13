@@ -50,6 +50,34 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 
 }
 
+// THIS HAS BEEN VALIDATED VISUALLY AND WORKS WELL
+static void RegenerateMissingOrbits(double BMagNorm, const threevector &Bhat, threevector &Position, threevector &Velocity){
+
+
+		threevector VPerp(Velocity.getx(),Velocity.gety(),0.0);
+		threevector PosXY(Position.getx(),Position.gety(),0.0);
+		threevector AccelDir = (Velocity.getunit()^Bhat);
+		double RhoPerp = VPerp.mag3()/BMagNorm;
+		threevector GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+		while( fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0 ){ // Orbit won't intersect! re-generate orbit
+			Velocity.setx(Gaussdist(mt));
+                        Velocity.sety(Gaussdist(mt));
+                        Velocity.setz(zvel); // Start with negative z-velocity
+                        Position.setx(dist(mt));
+                        Position.sety(dist(mt));
+                        Position.setz(zmax);				
+			VPerp.setx(Velocity.getx());
+			VPerp.sety(Velocity.gety());
+			PosXY.setx(Position.getx());
+			PosXY.sety(Position.gety());
+			AccelDir = (Velocity.getunit()^Bhat);
+			RhoPerp = VPerp.mag3()/BMagNorm;
+			GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+	}
+	
+
+}
+
 /*updates velocity using the Boris method, Birdsall, Plasma Physics via Computer Simulation, p.62*/
 static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BField, double dt, threevector &Velocity){
 
@@ -196,7 +224,6 @@ int main(int argc, char* argv[]){
 //	double CoulombImpactParameter	= pow(pow(Charge,2)/(pow(4*PI,2)*e0norm*pow(ThermalVel,2)),0.25);
 //	double CoulombImpactParameter	= pow(pow(Charge/(4.0*PI*e0norm),2)/(pow(ThermalVel,2)+BMagNorm/u0norm),0.25);
 	double CoulombImpactParameter	= fabs(Charge/(2*PI*e0norm*pow(ThermalVel,2))); // Balance Coulomb to kinetic energy
-//	double ImpactParameter = (1.0+2.0*RhoPerp+CoulombImpactParameter);
         double ImpactParameter;
         if( BMag <= 0.0 ){
                 ImpactParameter = 1.0+zMaxDebye*CoulombImpactParameter;
@@ -241,7 +268,7 @@ int main(int argc, char* argv[]){
 	for( i=0; i < imax; i ++){
 //		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 		// ***** RANDOMISE VELOCITY ***** //
-		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
+		// Only include orbits for which they are proceeding in the negative z direction
 		double zvel = Gaussdist(mt);
 		while( zvel >= 0 ){
 			zvel = Gaussdist(mt);
@@ -252,11 +279,12 @@ int main(int argc, char* argv[]){
 		threevector OldPosition(0.0,0.0,0.0);
 
 		// ***** RANDOMISE POSITION ***** //
-//		threevector Position(dist(mt),dist(mt),zmax);
 		threevector Position(dist(mt),dist(mt),zmax);
+		// For eliminating orbits that will definitely miss
+		if( Charge == 0 && BMag > 0 )  RegenerateMissingOrbits(BMagNorm,Bhat,Position,Velocity); 
+
 		INITIAL_VEL();		// For energy calculations
 		INITIAL_POT();		// For energy calculations
-
 
 		// ***** DO PARTICLE PATH INTEGRATION ***** //
 		OPEN_TRACK(filename + std::to_string(i) + ".txt");
@@ -266,7 +294,6 @@ int main(int argc, char* argv[]){
 		threevector EField = CoulombField(Position,Charge,e0norm);
 		RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
 
-//		std::cout << "\n" << Position << "\t" << Velocity;
 		UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
 
 
@@ -291,7 +318,6 @@ int main(int argc, char* argv[]){
 			if( p < 5e5 ){
 				Repeat = false;
 			}else{
-				std::cout << "\n\n ***** WE HERE ***** \n\n";
 				CLOSE_TRACK();
 				zvel = Gaussdist(mt);
 				while( zvel >= 0 ){
@@ -311,7 +337,6 @@ int main(int argc, char* argv[]){
 				UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
 				p = 0;
 				Repeat = true;
-				std::cout << "\n\n ***** WE HERE ***** \n\n";
 			}
 		}
 
