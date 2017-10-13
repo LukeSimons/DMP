@@ -203,8 +203,8 @@ int main(int argc, char* argv[]){
         }else{
                 ImpactParameter = 1.0+ImpactPar*RhoTherm;
         }
-	double zmax 	= 1.0+zMaxDebye*CoulombImpactParameter;	// Top of Simulation Domain, in Dust Radii
-	double zmin 	= -1.0-zMinDebye*CoulombImpactParameter;	// Bottom of Simulation Domain, in Dust Radii
+	double zmax 	= 1.5+zMaxDebye*CoulombImpactParameter;	// Top of Simulation Domain, in Dust Radii
+	double zmin 	= -1.5-zMinDebye*CoulombImpactParameter;	// Bottom of Simulation Domain, in Dust Radii
 //	double zmax 	= 1.0+zMaxDebye*DebyeLength;	// Top of Simulation Domain, in Dust Radii
 //	double zmin 	= -1.0-zMinDebye*DebyeLength;	// Bottom of Simulation Domain, in Dust Radii
 //	std::cout << "\nDHIP = " << DebyeHuckelImpactParameter;
@@ -315,16 +315,23 @@ int main(int argc, char* argv[]){
 				AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
 			}
 		}else{
-			FINAL_VEL(); 
-			FINAL_POT(); 
-			OUTPUT_VEL(i); OUTPUT_VEL("\t"); 
-			OUTPUT_VEL(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  OUTPUT_VEL("\t");
-			OUTPUT_VEL(100*(((FinalVelMag.square()+FinalPot)/(InitialVelMag.square()+InitialPot))-1));  OUTPUT_VEL("\n");
-//			OUTPUT_VEL(FinalVelMag.square()-InitialVelMag.square()+FinalPot-InitialPot);  OUTPUT_VEL("\n");
-			
-			threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
-			LinearMomentumSum += FinalVelMag;
-			AngularMomentumSum += CylindricalRadius^FinalVelMag;
+			if( p < 5e5 ){	// Don't add particles for which their paths were terminated early
+				FINAL_VEL(); 
+				FINAL_POT(); 
+				OUTPUT_VEL(i); OUTPUT_VEL("\t"); 
+				OUTPUT_VEL(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  OUTPUT_VEL("\t");
+				OUTPUT_VEL(100*(((FinalVelMag.square()+FinalPot)/(InitialVelMag.square()+InitialPot))-1));  
+				OUTPUT_VEL("\n");
+//				OUTPUT_VEL(FinalVelMag.square()-InitialVelMag.square()+FinalPot-InitialPot);  OUTPUT_VEL("\n");
+				
+				threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
+				LinearMomentumSum += FinalVelMag;
+				AngularMomentumSum += CylindricalRadius^FinalVelMag;
+			}else{	
+				// For controlled surface calculations, we need accurate reading of i. 
+				// For discarded paths, we want to re-run but not remember the path
+				i=i-1;
+			}
 		}
 
 		CLOSE_TRACK();
