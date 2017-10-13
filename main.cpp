@@ -239,13 +239,13 @@ int main(int argc, char* argv[]){
 	unsigned int j(0), i(0);
 	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel) PRIVATE_FILES()
 	for( i=0; i < imax; i ++){
-		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
+//		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 		// ***** RANDOMISE VELOCITY ***** //
 		// If the parallel velocity is < vmin, we lose energy which leads to orbits deviating. So we don't include these
 		double zvel = Gaussdist(mt);
-//		while( zvel >= 0 ){
-//			zvel = Gaussdist(mt);
-//		}
+		while( zvel >= 0 ){
+			zvel = Gaussdist(mt);
+		}
 		threevector Velocity(Gaussdist(mt),Gaussdist(mt),zvel);	// Start with negative z-velocity
 
 		threevector OldVelocity(0.0,0.0,0.0);
@@ -269,21 +269,50 @@ int main(int argc, char* argv[]){
 //		std::cout << "\n" << Position << "\t" << Velocity;
 		UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
 
-		// While the particle is not inside the sphere, not outside the simulation domain
-		// And not over a specified number of iterations to catch trapped orbits
+
 		int p(0);
-		while( Position.mag3() > 1.0 && Position.getz() > zmin && Position.getz() <= zmax && p < 5e5 ){
-//			EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-			EField = CoulombField(Position,Charge,e0norm);
-			OldVelocity = Velocity;	// For Angular Momentum Calculations
-			OldPosition = Position; // For Angular Momentum Calculations
+		bool Repeat(true);
+		// While we don't exceed a specified number of iterations to catch trapped orbits	
+		while( Repeat ){	
+			// While the particle is not inside the sphere and not outside the simulation domain
+			while( Position.mag3() > 1.0 && Position.getz() > zmin && Position.getz() <= zmax && p < 5e5 ){
+//				EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
+				EField = CoulombField(Position,Charge,e0norm);
+				OldVelocity = Velocity;	// For Angular Momentum Calculations
+				OldPosition = Position; // For Angular Momentum Calculations
 
-			TimeStep=(0.001*Position.mag3()/Velocity.mag3()); 	// Adaptive Time Step
-			UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity);
-			Position+=TimeStep*Velocity;
+				TimeStep=(0.001*Position.mag3()/Velocity.mag3()); 	// Adaptive Time Step
+				UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity);
+				Position+=TimeStep*Velocity;
 
-			RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-			p ++;
+				RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+				p ++;
+			}
+			if( p < 5e5 ){
+				Repeat = false;
+			}else{
+				std::cout << "\n\n ***** WE HERE ***** \n\n";
+				CLOSE_TRACK();
+				zvel = Gaussdist(mt);
+				while( zvel >= 0 ){
+					zvel = Gaussdist(mt);
+				}
+		                Velocity.setx(Gaussdist(mt));
+				Velocity.sety(Gaussdist(mt));
+				Velocity.setz(zvel); // Start with negative z-velocity
+				Position.setx(dist(mt));
+				Position.sety(dist(mt));
+				Position.setz(zmax);
+				INITIAL_VEL();          // For energy calculations
+        		        INITIAL_POT();          // For energy calculations				
+				OPEN_TRACK(filename + std::to_string(i) + "_retry.txt");
+				EField = CoulombField(Position,Charge,e0norm);
+		                RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+				UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
+				p = 0;
+				Repeat = true;
+				std::cout << "\n\n ***** WE HERE ***** \n\n";
+			}
 		}
 
 		if( Position.mag3() < 1.0 ){ // In this case it was captured!
@@ -315,23 +344,17 @@ int main(int argc, char* argv[]){
 				AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
 			}
 		}else{
-			if( p < 5e5 ){	// Don't add particles for which their paths were terminated early
-				FINAL_VEL(); 
-				FINAL_POT(); 
-				OUTPUT_VEL(i); OUTPUT_VEL("\t"); 
-				OUTPUT_VEL(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  OUTPUT_VEL("\t");
-				OUTPUT_VEL(100*(((FinalVelMag.square()+FinalPot)/(InitialVelMag.square()+InitialPot))-1));  
-				OUTPUT_VEL("\n");
-//				OUTPUT_VEL(FinalVelMag.square()-InitialVelMag.square()+FinalPot-InitialPot);  OUTPUT_VEL("\n");
-				
-				threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
-				LinearMomentumSum += FinalVelMag;
-				AngularMomentumSum += CylindricalRadius^FinalVelMag;
-			}else{	
-				// For controlled surface calculations, we need accurate reading of i. 
-				// For discarded paths, we want to re-run but not remember the path
-				i=i-1;
-			}
+			FINAL_VEL(); 
+			FINAL_POT(); 
+			OUTPUT_VEL(i); OUTPUT_VEL("\t"); 
+			OUTPUT_VEL(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  OUTPUT_VEL("\t");
+			OUTPUT_VEL(100*(((FinalVelMag.square()+FinalPot)/(InitialVelMag.square()+InitialPot))-1));  
+			OUTPUT_VEL("\n");
+//			OUTPUT_VEL(FinalVelMag.square()-InitialVelMag.square()+FinalPot-InitialPot);  OUTPUT_VEL("\n");
+			
+			threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
+			LinearMomentumSum += FinalVelMag;
+			AngularMomentumSum += CylindricalRadius^FinalVelMag;
 		}
 
 		CLOSE_TRACK();
