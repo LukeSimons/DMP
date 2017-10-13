@@ -54,32 +54,39 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 static void RegenerateMissingOrbits(double BMagNorm, const threevector &Bhat, std::normal_distribution<double> &Gaussdist, 
 					std::uniform_real_distribution<double> &dist,
                                         std::mt19937 &mt, threevector &Position, threevector &Velocity){
-
-		threevector VPerp(Velocity.getx(),Velocity.gety(),0.0);
-		threevector PosXY(Position.getx(),Position.gety(),0.0);
-		threevector AccelDir = (Velocity.getunit()^Bhat);
-		double RhoPerp = VPerp.mag3()/BMagNorm;
-		threevector GyroCentre2D = PosXY + (AccelDir*RhoPerp);
-		while( fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0 ){ // Orbit won't intersect! re-generate orbit
-			Velocity.setx(Gaussdist(mt));
-                        Velocity.sety(Gaussdist(mt));
-			double zvel = Gaussdist(mt);
-			while( zvel >= 0 ){
-				zvel = Gaussdist(mt);
-			}
-                        Velocity.setz(zvel); // Start with negative z-velocity
-                        Position.setx(dist(mt));
-                        Position.sety(dist(mt));
-			VPerp.setx(Velocity.getx());
-			VPerp.sety(Velocity.gety());
-			PosXY.setx(Position.getx());
-			PosXY.sety(Position.gety());
-			AccelDir = (Velocity.getunit()^Bhat);
-			RhoPerp = VPerp.mag3()/BMagNorm;
-			GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+	// Calculate orbit parameters
+	threevector VPerp(Velocity.getx(),Velocity.gety(),0.0);
+	threevector PosXY(Position.getx(),Position.gety(),0.0);
+	threevector AccelDir = (Velocity.getunit()^Bhat);
+	double RhoPerp = VPerp.mag3()/BMagNorm;
+	threevector GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+	// Check if orbits will intersect the sphere
+	while( fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0 ){ // Orbit won't intersect! re-generate orbit
+		Velocity.setx(Gaussdist(mt));
+                Velocity.sety(Gaussdist(mt));
+		double zvel = Gaussdist(mt);
+		while( zvel >= 0 ){
+			zvel = Gaussdist(mt);
+		}
+		Velocity.setz(zvel); // Start with negative z-velocity
+		Position.setx(dist(mt));
+		Position.sety(dist(mt));
+		VPerp.setx(Velocity.getx());
+		VPerp.sety(Velocity.gety());
+		PosXY.setx(Position.getx());
+		PosXY.sety(Position.gety());
+		AccelDir = (Velocity.getunit()^Bhat);
+		RhoPerp = VPerp.mag3()/BMagNorm;
+		GyroCentre2D = PosXY + (AccelDir*RhoPerp);
 	}
-	
+}
 
+static double Poszvel(std::normal_distribution<double> &Gaussdist, std::mt19937 &mt){
+	double zvel = Gaussdist(mt);
+	while( zvel >= 0 ){ 
+		zvel = Gaussdist(mt);
+	}
+	return zvel;
 }
 
 /*updates velocity using the Boris method, Birdsall, Plasma Physics via Computer Simulation, p.62*/
@@ -147,6 +154,7 @@ int main(int argc, char* argv[]){
 	double ImpactPar	= 1.0;	// Arb, Multiplicative factor for the Impact Parameter
 	unsigned int imax	= 100;
 
+
 	// ***** DETERMINE USER INPUT ***** //
 	std::vector <std::string> sources;
 	std::stringstream ss0;
@@ -170,7 +178,6 @@ int main(int argc, char* argv[]){
 			sources.push_back(argv[i]);
 		}
 	}
-
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
 	double MASS;			// kg, This is the mass of the Species being considered
 	if( SPEC_CHARGE > 0 )	MASS 	= Mp;
@@ -179,8 +186,9 @@ int main(int argc, char* argv[]){
 		eTemp	= TEMP;
 	}
 	
+
 	// ***** NORMALISATION ***** //
-	// Normalise TIME to Gyro period
+	// Normalise TIME to Gyro period or Radius / Thermal Velocity 
 	// Normalise MASS to Species Mass
 	// Normalise DISTANCE to Dust Radius
 	// Normalise CHARGE to fundamental charge
@@ -203,7 +211,7 @@ int main(int argc, char* argv[]){
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
-	threevector BField = BMag*Bhat;
+	threevector BField = BMagNorm*Bhat;
 	double DebyeLength 	= sqrt((e0norm*eTempNorm)/eDensNorm);	// Debye Length 
 //	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm)*exp(-1.0/DebyeLength); 	// Normalised Charge
 	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm); 	// Normalised Charge,
@@ -214,13 +222,6 @@ int main(int argc, char* argv[]){
         }else{
                 RhoTherm        = ThermalVel/BMagNorm;
         }
-
-//	double VelSIUnits 	= ThermalVel*Radius/(Tau);
-//	std::cout << "\nTimeStep = " << TimeStep;
-//	std::cout << "\nTEMPnorm = " << TEMPnorm << "\nVelSIUnits = " << VelSIUnits;
-//	std::cout << "\nDebyeLength = " << DebyeLength << "\nCharge = " << Charge;
-//	std::cout << "\nRhoTherm = " << RhoTherm << "\nRhoThermSI = " << MASS*VelSIUnits/(echarge*BMag*Radius);
-//	std::cout << "\nDebyeLength = " << sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2)))/Radius; std::cin.get();
 
 
 	// ***** DEFINE SIMULATION SPACE ***** //
@@ -238,10 +239,6 @@ int main(int argc, char* argv[]){
 	double zmin 	= -1.5-zMinDebye*CoulombImpactParameter;	// Bottom of Simulation Domain, in Dust Radii
 //	double zmax 	= 1.0+zMaxDebye*DebyeLength;	// Top of Simulation Domain, in Dust Radii
 //	double zmin 	= -1.0-zMinDebye*DebyeLength;	// Bottom of Simulation Domain, in Dust Radii
-//	std::cout << "\nDHIP = " << DebyeHuckelImpactParameter;
-//	std::cout << "\nRhoTherm = " << RhoTherm;
-//	std::cout << "\nCIP = " << CoulombImpactParameter;
-//	std::cout << "\nIP = " << ImpactParameter; std::cin.get();
 
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
