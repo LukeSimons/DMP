@@ -1,4 +1,4 @@
-#define STORE_TRACKS 
+//#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
 
@@ -256,9 +256,9 @@ int main(int argc, char* argv[]){
 	AngularMomentumDataFile.open(filename + "_AngMom.txt");	
 	AngularMomentumDataFile << "## Angular Momentum Data File ##\n";
 	AngularMomentumDataFile << "#Date: " << dt;
-	AngularMomentumDataFile << "#Input:\timax\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\t\tBMag\tDebye\n";
+	AngularMomentumDataFile << "#Input:\timax\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\n#Input:\tBMag\tDebye\tDriftNorm\n";
 	AngularMomentumDataFile << "#\t"<<imax<<"\t"<<ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
-					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\t"<<BMag << "\t" << DebyeLength/Radius << "\n";
+					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\n#\t"<<BMag << "\t" << DebyeLength/Radius << "\t" << DriftNorm "\n";
 	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
 
 

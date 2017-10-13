@@ -8,11 +8,11 @@
 #PBS -l select=2:ncpus=24:mem=4320mb:ompthreads=24
 
 ## This tells the batch manager the name of the job
-#PBS -N DMP_3D_XY_0Pot
+#PBS -N DMP_3D_XY_0Pot_
 
 ## This tells the batch manager to re-run job with parameter varying from 1 to N in steps on step-size
 ## step-size can be omitted in which case a default value of 1 is taken
-#PBS -J 1-10
+##PBS -J 1-100
 
 #PBS -q pqplasma2
 
@@ -22,17 +22,17 @@ module load intel-suite
 mkdir -p Data
 ##pwd
 
-dx=0.000005
-DX=$(echo "$dx*${PBS_ARRAY_INDEX}"|bc -l)
+#dx=0.01
+#DX=$(echo "$dx*${PBS_ARRAY_INDEX}"|bc -l)
 
 ## Run the DMP executable code
-pbsexec -grace 5 $WORK/DMP/DMP -d ${DX} -i 10000000
+pbsexec -grace 5 $WORK/DMP/DMP -b 2.0 -d 0.0001 -i 10000000 -p 0.0
 ##pbsexec -grace 5 $WORK/DMP/DMP -d 0.00001 -p 0.0
 ##$WORK/DMP/DMP 
 
 #mkdir -p $WORK/DMP/Output/output.${PBS_ARRAY_INDEX}
 
-mv $PWD/Data/MagPlasData_AngMom.txt $WORK/DMP/Output/MagPlasData_AngMom_Run_3D_XY_0Pot_${PBS_ARRAY_INDEX}.txt
+mv $PWD/Data/MagPlasData_AngMom.txt $WORK/DMP/Output/MagPlasData_AngMom_Run_3D_XY_0Pot.txt
 
 
 # Uncomment this line to delete the output information
