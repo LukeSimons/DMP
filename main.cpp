@@ -51,8 +51,9 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 }
 
 // THIS HAS BEEN VALIDATED VISUALLY AND WORKS WELL
-static void RegenerateMissingOrbits(double BMagNorm, const threevector &Bhat, threevector &Position, threevector &Velocity){
-
+static void RegenerateMissingOrbits(double BMagNorm, const threevector &Bhat, std::normal_distribution<double> &Gaussdist, 
+					std::uniform_real_distribution<double> &dist,
+                                        std::mt19937 &mt, threevector &Position, threevector &Velocity){
 
 		threevector VPerp(Velocity.getx(),Velocity.gety(),0.0);
 		threevector PosXY(Position.getx(),Position.gety(),0.0);
@@ -62,10 +63,13 @@ static void RegenerateMissingOrbits(double BMagNorm, const threevector &Bhat, th
 		while( fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0 ){ // Orbit won't intersect! re-generate orbit
 			Velocity.setx(Gaussdist(mt));
                         Velocity.sety(Gaussdist(mt));
+			double zvel = Gaussdist(mt);
+			while( zvel >= 0 ){
+				zvel = Gaussdist(mt);
+			}
                         Velocity.setz(zvel); // Start with negative z-velocity
                         Position.setx(dist(mt));
                         Position.sety(dist(mt));
-                        Position.setz(zmax);				
 			VPerp.setx(Velocity.getx());
 			VPerp.sety(Velocity.gety());
 			PosXY.setx(Position.getx());
@@ -281,7 +285,7 @@ int main(int argc, char* argv[]){
 		// ***** RANDOMISE POSITION ***** //
 		threevector Position(dist(mt),dist(mt),zmax);
 		// For eliminating orbits that will definitely miss
-		if( Charge == 0 && BMag > 0 )  RegenerateMissingOrbits(BMagNorm,Bhat,Position,Velocity); 
+		if( Charge == 0 && BMag > 0 )  RegenerateMissingOrbits(BMagNorm,Bhat,Gaussdist,dist,mt,Position,Velocity); 
 
 		INITIAL_VEL();		// For energy calculations
 		INITIAL_POT();		// For energy calculations
