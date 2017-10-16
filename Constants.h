@@ -42,6 +42,12 @@
 #define DECLARE_LMSUM()
 #define DECLARE_AMSUM()
 #define OUTPUT_MOM(x)
+#endif
+
+#ifdef SAVE_PARTICLE_MOM
+#define SAVE_MOM()	AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
+#else
+#define SAVE_MOM()
 #endif 
 
 

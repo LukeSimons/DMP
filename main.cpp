@@ -1,6 +1,7 @@
 //#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
+#define SAVE_PARTICLE_MOM
 
 #include <omp.h>	// For parallelisation
 
@@ -254,8 +255,7 @@ int main(int argc, char* argv[]){
 	AngularMomentumDataFile << "## Angular Momentum Data File ##\n";
 	AngularMomentumDataFile << "#Date: " << dt;
 	AngularMomentumDataFile << "#Input:\timax\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\n#Input:\tBMag\tDebye\tDriftNorm\n";
-	AngularMomentumDataFile << "#\t"<<imax<<"\t"<<ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"
-					<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\n#\t"<<BMag << "\t" << DebyeLength/Radius << "\t" << DriftNorm "\n";
+	AngularMomentumDataFile << "#\t"<<imax<<"\t"<<ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\n#\t"<<BMag << "\t" << DebyeLength/Radius << "\t" << DriftNorm <<"\n";
 	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
 
 
@@ -367,7 +367,7 @@ int main(int argc, char* argv[]){
 				TotalAngularVel += AngularVel;
 				TotalAngularMom += AngularMom;
 				j ++;
-				AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
+				SAVE_MOM()
 			}
 		}else{
 			FINAL_VEL(); 
