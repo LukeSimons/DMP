@@ -54,7 +54,7 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 // THIS HAS BEEN VALIDATED VISUALLY AND WORKS WELL
 static void RegenerateMissingOrbits(double BMagNorm, const threevector &Bhat, std::normal_distribution<double> &Gaussdist, 
 					std::uniform_real_distribution<double> &dist,
-                                        std::mt19937 &mt, threevector &Position, threevector &Velocity){
+                                        std::mt19937 &mt, threevector &Position, threevector &Velocity, unsigned int & RegeneratedParticles){
 	// Calculate orbit parameters
 	threevector VPerp(Velocity.getx(),Velocity.gety(),0.0);
 	threevector PosXY(Position.getx(),Position.gety(),0.0);
@@ -79,6 +79,7 @@ static void RegenerateMissingOrbits(double BMagNorm, const threevector &Bhat, st
 		AccelDir = (Velocity.getunit()^Bhat);
 		RhoPerp = VPerp.mag3()/BMagNorm;
 		GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+		RegeneratedParticles ++;
 	}
 }
 
@@ -264,7 +265,7 @@ int main(int argc, char* argv[]){
 	threevector TotalAngularMom(0.0,0.0,0.0);
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
-	unsigned int j(0), i(0);
+	unsigned int j(0), i(0), RegeneratedParticles(0), TrappedParticles(0);
 	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel) PRIVATE_FILES()
 	for( i=0; i < imax; i ++){
 //		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
@@ -282,7 +283,7 @@ int main(int argc, char* argv[]){
 		// ***** RANDOMISE POSITION ***** //
 		threevector Position(dist(mt),dist(mt),zmax);
 		// For eliminating orbits that will definitely miss
-		if( Charge == 0 && BMag > 0 )  RegenerateMissingOrbits(BMagNorm,Bhat,Gaussdist,dist,mt,Position,Velocity); 
+		if( Charge == 0 && BMag > 0 )  RegenerateMissingOrbits(BMagNorm,Bhat,Gaussdist,dist,mt,Position,Velocity,RegeneratedParticles); 
 
 		INITIAL_VEL();		// For energy calculations
 		INITIAL_POT();		// For energy calculations
@@ -338,6 +339,7 @@ int main(int argc, char* argv[]){
 				UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
 				p = 0;
 				Repeat = true;
+				TrappedParticles ++;
 			}
 		}
 
@@ -385,7 +387,7 @@ int main(int argc, char* argv[]){
 
 		CLOSE_TRACK();
 	}
-	AngularMomentumDataFile << "\n\n" << LinearMomentumSum << "\t" << AngularMomentumSum;
+	AngularMomentumDataFile << "\n\n" << LinearMomentumSum << "\t" << AngularMomentumSum << "\t" << RegeneratedParticles << "\t" << TrappedParticles;
 
 	clock_t end = clock();
 	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
