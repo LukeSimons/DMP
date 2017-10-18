@@ -190,7 +190,7 @@ int main(int argc, char* argv[]){
 
 
 	// ***** NORMALISATION ***** //
-	// Normalise TIME to Gyro period or Radius / Thermal Velocity 
+	// Normalise TIME to the ratio of the masses and the average time for a ion to hit the dust
 	// Normalise MASS to Species Mass
 	// Normalise DISTANCE to Dust Radius
 	// Normalise CHARGE to fundamental charge
