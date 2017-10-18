@@ -4,17 +4,17 @@
 
 #ifdef STORE_TRACKS 
 #define DECLARE_TRACK()	std::ofstream TrackDataFiles	
+#define PRIVATE_FILES()	private(TrackDataFiles)
 #define OPEN_TRACK(x)	TrackDataFiles.open(x)
 #define RECORD_TRACK(x)	TrackDataFiles << x
 #define CLOSE_TRACK()	TrackDataFiles.close()
 #else
 #define DECLARE_TRACK()
+#define PRIVATE_FILES()
 #define OPEN_TRACK(x)
 #define RECORD_TRACK(x)
 #define CLOSE_TRACK()
 #endif 
-
-
 
 #if defined CALCULATE_ENERGY || defined CALCULATE_MOM
 #define INITIAL_VEL()	threevector InitialVelMag = Velocity;
@@ -42,6 +42,12 @@
 #define DECLARE_LMSUM()
 #define DECLARE_AMSUM()
 #define OUTPUT_MOM(x)
+#endif
+
+#ifdef SAVE_PARTICLE_MOM
+#define SAVE_MOM()	AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
+#else
+#define SAVE_MOM()
 #endif 
 
 
