@@ -222,12 +222,9 @@ int main(int argc, char* argv[]){
 //	double CoulombImpactParameter	= pow(pow(Charge/(4.0*PI*e0norm),2)/(pow(ThermalVel,2)+BMagNorm/u0norm),0.25);
 	double CoulombImpactParameter	= fabs(Charge/(2*PI*e0norm*pow(ThermalVel,2))); // Balance Coulomb to kinetic energy
         double ImpactParameter;
-	double AngVelNorm;
         if( BMag <= 0.0 ){
-		AngVelNorm = 0.0;
                 ImpactParameter = 1.0+zMaxDebye*CoulombImpactParameter;
         }else{
-		AngVelNorm 	= MASS/(echarge*BMag);
 		double RhoTherm = ThermalVel/BMagNorm; // Thermal GyroRadius normalised to dust grain radii
                 ImpactParameter = 1.0+ImpactPar*RhoTherm;
         }
