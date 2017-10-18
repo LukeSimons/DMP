@@ -25,12 +25,12 @@ mkdir -p Data
 ## Run the DMP executable code
 dx=10.0
 DriftVel=$(echo "$dx*${PBS_ARRAY_INDEX}"|bc -l)
-
+NegDriftVel=-${DriftVel}
 
 $WORK/DMP/DMP -i 1000000 -m 0.0 -v ${DriftVel}
 mv $PWD/Data/MagPlasData_AngMom.txt $WORK/DMP/Output/MagPlasData_AngMom_Run_Shift_Down_${PBS_ARRAY_INDEX}.txt
 
-$WORK/DMP/DMP -i 1000000 -m 0.0 -v -${DriftVel}
+$WORK/DMP/DMP -i 1000000 -m 0.0 -v ${NegDriftVel}
 mv $PWD/Data/MagPlasData_AngMom.txt $WORK/DMP/Output/MagPlasData_AngMom_Run_Shift_Upward_${PBS_ARRAY_INDEX}.txt
 
 # Uncomment this line to delete the output information
