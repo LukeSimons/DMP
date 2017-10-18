@@ -187,19 +187,15 @@ int main(int argc, char* argv[]){
 		MASS	= Me;
 		eTemp	= TEMP;
 	}
-	
+
 
 	// ***** NORMALISATION ***** //
 	// Normalise TIME to Gyro period or Radius / Thermal Velocity 
 	// Normalise MASS to Species Mass
 	// Normalise DISTANCE to Dust Radius
 	// Normalise CHARGE to fundamental charge
-        double Tau;
-        if( BMag <= 0.0 ){
-                Tau     = Radius*sqrt(MASS/(echarge*TEMP));
-        }else{
-                Tau     = MASS/(echarge*BMag);
-        }
+	double InertiaNorm	= 8.0*PI*pow(Radius,3)*Density/(15.0*MASS);
+        double Tau 	= Radius*Density/(eDensity*sqrt(MASS*echarge*TEMP));
 	double e0norm 	= epsilon0*MASS*pow(Radius,3)/(pow(echarge*Tau,2));
 	double u0norm 	= (4.0*PI*10e-7)/(pow(echarge,2)*MASS*Radius);
 	double NormDens = Density*pow(Radius,3)/MASS;
@@ -218,12 +214,6 @@ int main(int argc, char* argv[]){
 //	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm)*exp(-1.0/DebyeLength); 	// Normalised Charge
 	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm); 	// Normalised Charge,
 	double ThermalVel	= sqrt(TEMPnorm);			// Normalised Temperature
-	double RhoTherm; 						// Thermal GyroRadius normalised to dust grain radii
-        if( BMag <= 0.0 ){
-                RhoTherm        = 0.0;
-        }else{
-                RhoTherm        = ThermalVel/BMagNorm;
-        }
 
 
 	// ***** DEFINE SIMULATION SPACE ***** //
@@ -232,9 +222,13 @@ int main(int argc, char* argv[]){
 //	double CoulombImpactParameter	= pow(pow(Charge/(4.0*PI*e0norm),2)/(pow(ThermalVel,2)+BMagNorm/u0norm),0.25);
 	double CoulombImpactParameter	= fabs(Charge/(2*PI*e0norm*pow(ThermalVel,2))); // Balance Coulomb to kinetic energy
         double ImpactParameter;
+	double AngVelNorm;
         if( BMag <= 0.0 ){
+		AngVelNorm = 0.0;
                 ImpactParameter = 1.0+zMaxDebye*CoulombImpactParameter;
         }else{
+		AngVelNorm 	= MASS/(echarge*BMag);
+		double RhoTherm = ThermalVel/BMagNorm; // Thermal GyroRadius normalised to dust grain radii
                 ImpactParameter = 1.0+ImpactPar*RhoTherm;
         }
 	double zmax 	= 1.5+zMaxDebye*CoulombImpactParameter;	// Top of Simulation Domain, in Dust Radii
@@ -358,11 +352,9 @@ int main(int argc, char* argv[]){
 //				(CylindricalRadius^(FinalVelocity-TotalAngularVel.mag3()*DistanceFromAxis*FinalVelocity.getunit()));
 
 			// SHOULD IT NOT BE:
-			threevector AngularVel = (15)/(8*PI*NormDens)*	
+			threevector AngularVel = (1.0)/(InertiaNorm)*
 				((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
-			// Moment of Inertia for Solid Sphere, Just Z-Component
-//			threevector AngularVel = (15)/(8*PI*NormDens)*
-//				((CylindricalRadius^CylindricalVelocity)-(CylindricalRadius^(TotalAngularVel^CylindricalRadius)));
+
 
 			#pragma omp critical
 			{
