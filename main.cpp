@@ -34,6 +34,7 @@ static void show_usage(std::string name){
 	<< "\t-b,--impactpar IMPACTPAR\t(arb), Specify the radial limit of simulation domain as number of distances\n\n"
 	<< "\t-i,--imax IMAX\t(arb), Specify the number of particles to be launched\n\n"
 	<< "\t-v,--driftvel DRIFTVEL\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
+	<< "\t-o,--output OUTPUT\t(N/A), Specify the suffix of the output file\n\n"
 	<< std::endl;
 }
 
@@ -99,7 +100,7 @@ static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BFi
 	
 	/*magnitude of t, squared*/
 	double t_mag2 = t.square();
-	
+
 	/*s vector*/
 	threevector s = 2.0*t*(1/(1+t_mag2));
 	
@@ -133,7 +134,8 @@ int main(int argc, char* argv[]){
 	
 	// ***** TIMER AND FILE DECLERATIONS ***** //
 	clock_t begin = clock();
-	std::string filename = "Data/MagPlasData";
+	std::string filename = "Data/DMP_";
+	std::string suffix	= "AngMom.txt";
 	DECLARE_TRACK();
 	std::ofstream AngularMomentumDataFile;	// Data file for angular momentum information
 
@@ -148,12 +150,13 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE PLASMA PARAMETERS ***** //
 	double eTemp 		= 1.0;	// Electron Temperature, eV
 	double eDensity		= 1e18;	//1e14;	// m^(-3), Electron density
+	double iDensity		= 1e18;	//1e14;	// m^(-3), Ion density
 	double TEMP 		= 1.0;	// eV, This is the Temperature of the species being considered
 	double DriftVel 	= 0.0;	// m s^-1, This is the Temperature of the species being considered
 	int SPEC_CHARGE		= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
 	double zMaxDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
 	double zMinDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
-	double ImpactPar	= 1.0;	// Arb, Multiplicative factor for the Impact Parameter
+	double ImpactPar	= 2.0;	// Arb, Multiplicative factor for the Impact Parameter
 	unsigned int imax	= 100;
 
 
@@ -176,6 +179,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--impactpar"	|| arg == "-b" )	InputFunction(argc,argv,i,ss0,ImpactPar);
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
+		else if( arg == "--output"	|| arg == "-o" )	InputFunction(argc,argv,i,ss0,suffix);
                 else{
 			sources.push_back(argv[i]);
 		}
@@ -187,20 +191,26 @@ int main(int argc, char* argv[]){
 		MASS	= Me;
 		eTemp	= TEMP;
 	}
-
+	double DustMass		= (4.0/3.0)*PI*pow(Radius,3)*Density;
 
 	// ***** NORMALISATION ***** //
 	// Normalise TIME to the ratio of the masses and the average time for a ion to hit the dust
 	// Normalise MASS to Species Mass
 	// Normalise DISTANCE to Dust Radius
 	// Normalise CHARGE to fundamental charge
-	double InertiaNorm	= 8.0*PI*pow(Radius,3)*Density/(15.0*MASS);
-        double Tau 	= Radius*Density/(eDensity*sqrt(MASS*echarge*TEMP));
+        double Tau;
+	double AngVelNorm;
+	if( BMag <= 0.0 ){
+		AngVelNorm = sqrt(echarge*TEMP/MASS)*iDensity*pow(Radius,2);
+		Tau = sqrt(echarge*TEMP/MASS)*5.0*MASS*iDensity*pow(Radius,2)/(2.0*DustMass);
+	}else{
+		AngVelNorm = 5.0*MASS/(2.0*DustMass);
+		Tau = MASS/(echarge*BMag);
+	}
 	double e0norm 	= epsilon0*MASS*pow(Radius,3)/(pow(echarge*Tau,2));
-	double u0norm 	= (4.0*PI*10e-7)/(pow(echarge,2)*MASS*Radius);
-	double NormDens = Density*pow(Radius,3)/MASS;
- 	double TimeStep	= 1.0/100000;
-	double PotNorm	= Potential*eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
+	double u0norm 	= (4.0*PI*10e-7*pow(echarge,2))/(MASS*Radius);
+ 	double TimeStep	= Tau/100000;
+	double PotNorm	= Potential*eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));	// NEEDS CHECKING MAYBE
 	double BMagNorm	= BMag*Tau*echarge/MASS;
 	double TEMPnorm	= TEMP*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
 	double eDensNorm= eDensity*pow(Radius,3);
@@ -228,6 +238,7 @@ int main(int argc, char* argv[]){
 		double RhoTherm = ThermalVel/BMagNorm; // Thermal GyroRadius normalised to dust grain radii
                 ImpactParameter = 1.0+ImpactPar*RhoTherm;
         }
+
 	double zmax 	= 1.5+zMaxDebye*CoulombImpactParameter;	// Top of Simulation Domain, in Dust Radii
 	double zmin 	= -1.5-zMinDebye*CoulombImpactParameter;	// Bottom of Simulation Domain, in Dust Radii
 //	double zmax 	= 1.0+zMaxDebye*DebyeLength;	// Top of Simulation Domain, in Dust Radii
@@ -243,7 +254,7 @@ int main(int argc, char* argv[]){
 	// ***** OPEN DATA FILE WITH HEADER ***** //
 	time_t now = time(0);		// Get the time of simulation
 	char * dt = ctime(&now);
-	AngularMomentumDataFile.open(filename + "_AngMom.txt");	
+	AngularMomentumDataFile.open(filename + suffix);	
 	AngularMomentumDataFile << "## Angular Momentum Data File ##\n";
 	AngularMomentumDataFile << "#Date: " << dt;
 	AngularMomentumDataFile << "#Input:\timax\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\n#Input:\tBMag\tDebye\tDriftNorm\n";
@@ -273,6 +284,9 @@ int main(int argc, char* argv[]){
 
 		// ***** RANDOMISE POSITION ***** //
 		threevector Position(dist(mt),dist(mt),zmax);
+//		#pragma omp critical	// uncomment to store the initial positions and velocities to check distribution
+//		{ AngularMomentumDataFile << Position << "\t" << Velocity << "\n"; } continue;
+
 		// For eliminating orbits that will definitely miss
 		if( Charge == 0 && BMag > 0 )  RegenerateMissingOrbits(BMagNorm,Bhat,Gaussdist,dist,mt,Position,Velocity,RegeneratedParticles); 
 
@@ -280,7 +294,7 @@ int main(int argc, char* argv[]){
 		INITIAL_POT();		// For energy calculations
 
 		// ***** DO PARTICLE PATH INTEGRATION ***** //
-		OPEN_TRACK(filename + std::to_string(i) + ".txt");
+		OPEN_TRACK(filename + "Track_" + std::to_string(i) + ".txt");
 
 		// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
 //		threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
@@ -301,7 +315,7 @@ int main(int argc, char* argv[]){
 				OldVelocity = Velocity;	// For Angular Momentum Calculations
 				OldPosition = Position; // For Angular Momentum Calculations
 
-				TimeStep=(0.001*Position.mag3()/Velocity.mag3()); 	// Adaptive Time Step
+				TimeStep=(0.001*Position.mag3()/Velocity.mag3());       // Adaptive Time Step
 				UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity);
 				Position+=TimeStep*Velocity;
 
@@ -349,7 +363,7 @@ int main(int argc, char* argv[]){
 //				(CylindricalRadius^(FinalVelocity-TotalAngularVel.mag3()*DistanceFromAxis*FinalVelocity.getunit()));
 
 			// SHOULD IT NOT BE:
-			threevector AngularVel = (1.0)/(InertiaNorm)*
+			threevector AngularVel = (AngVelNorm)*
 				((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
 
 
