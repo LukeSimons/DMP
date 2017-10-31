@@ -1,4 +1,4 @@
-//#define STORE_TRACKS 
+#define STORE_TRACKS 
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
 #define SAVE_PARTICLE_MOM
@@ -55,32 +55,56 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 // THIS HAS BEEN VALIDATED VISUALLY AND WORKS WELL
 static void RegenerateMissingOrbits(double BMagNorm, const threevector &Bhat, std::normal_distribution<double> &Gaussdist, 
 					std::uniform_real_distribution<double> &dist,
-                                        std::mt19937 &mt, threevector &Position, threevector &Velocity, unsigned int & RegeneratedParticles){
+                                        std::mt19937 &mt, threevector &Position, threevector &Velocity, 
+					unsigned int & RegeneratedParticles, const double &Charge, const double &CIP){
 	// Calculate orbit parameters
 	threevector VPerp(Velocity.getx(),Velocity.gety(),0.0);
 	threevector PosXY(Position.getx(),Position.gety(),0.0);
 	threevector AccelDir = (Velocity.getunit()^Bhat);
 	double RhoPerp = VPerp.mag3()/BMagNorm;
 	threevector GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+
 	// Check if orbits will intersect the sphere
-	while( fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0 ){ // Orbit won't intersect! re-generate orbit
-		Velocity.setx(Gaussdist(mt));
-                Velocity.sety(Gaussdist(mt));
-		double zvel = Gaussdist(mt);
-		while( zvel >= 0 ){
-			zvel = Gaussdist(mt);
+	if( Charge == 0 ){
+		while( fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0 ){ // Orbit won't intersect! re-generate orbit
+			Velocity.setx(Gaussdist(mt));
+	                Velocity.sety(Gaussdist(mt));
+			double zvel = Gaussdist(mt);
+			while( zvel >= 0 ){
+				zvel = Gaussdist(mt);
+			}
+			Velocity.setz(zvel); // Start with negative z-velocity
+			Position.setx(dist(mt));
+			Position.sety(dist(mt));
+			VPerp.setx(Velocity.getx());
+			VPerp.sety(Velocity.gety());
+			PosXY.setx(Position.getx());
+			PosXY.sety(Position.gety());
+			AccelDir = (Velocity.getunit()^Bhat);
+			RhoPerp = VPerp.mag3()/BMagNorm;
+			GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+			RegeneratedParticles ++;
 		}
-		Velocity.setz(zvel); // Start with negative z-velocity
-		Position.setx(dist(mt));
-		Position.sety(dist(mt));
-		VPerp.setx(Velocity.getx());
-		VPerp.sety(Velocity.gety());
-		PosXY.setx(Position.getx());
-		PosXY.sety(Position.gety());
-		AccelDir = (Velocity.getunit()^Bhat);
-		RhoPerp = VPerp.mag3()/BMagNorm;
-		GyroCentre2D = PosXY + (AccelDir*RhoPerp);
-		RegeneratedParticles ++;
+	}else{	// THIS WON'T WORK FOR ELECTRONS
+		while( fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + 0.5*CIP)  ){ // Orbit won't intersect! re-generate orbit
+                        Velocity.setx(Gaussdist(mt));
+                        Velocity.sety(Gaussdist(mt));
+                        double zvel = Gaussdist(mt);
+                        while( zvel >= 0 ){
+                                zvel = Gaussdist(mt);
+                        }
+                        Velocity.setz(zvel); // Start with negative z-velocity
+                        Position.setx(dist(mt));
+                        Position.sety(dist(mt));
+                        VPerp.setx(Velocity.getx());
+                        VPerp.sety(Velocity.gety());
+                        PosXY.setx(Position.getx());
+                        PosXY.sety(Position.gety());
+                        AccelDir = (Velocity.getunit()^Bhat);
+                        RhoPerp = VPerp.mag3()/BMagNorm;
+                        GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+                        RegeneratedParticles ++;
+                }
 	}
 }
 
@@ -154,8 +178,8 @@ int main(int argc, char* argv[]){
 	double TEMP 		= 1.0;	// eV, This is the Temperature of the species being considered
 	double DriftVel 	= 0.0;	// m s^-1, This is the Temperature of the species being considered
 	int SPEC_CHARGE		= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
-	double zMaxDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
-	double zMinDebye	= 50.0;	// Arb, Number of debye distances max of simulation is
+	double zMaxDebye	= 3.0;	// Arb, Number of debye distances max of simulation is
+	double zMinDebye	= 3.0;	// Arb, Number of debye distances max of simulation is
 	double ImpactPar	= 2.0;	// Arb, Multiplicative factor for the Impact Parameter
 	unsigned int imax	= 100;
 
@@ -200,7 +224,7 @@ int main(int argc, char* argv[]){
 	// Normalise CHARGE to fundamental charge
         double Tau;
 	double AngVelNorm;
-	if( BMag <= 0.0 ){
+	if( BMag <= 0.0 ){	// THIS PART NEEDS TO BE VALIDATED STILL
 		AngVelNorm = sqrt(echarge*TEMP/MASS)*iDensity*pow(Radius,2);
 		Tau = sqrt(echarge*TEMP/MASS)*5.0*MASS*iDensity*pow(Radius,2)/(2.0*DustMass);
 	}else{
@@ -236,7 +260,7 @@ int main(int argc, char* argv[]){
                 ImpactParameter = 1.0+zMaxDebye*CoulombImpactParameter;
         }else{
 		double RhoTherm = ThermalVel/BMagNorm; // Thermal GyroRadius normalised to dust grain radii
-                ImpactParameter = 1.0+ImpactPar*RhoTherm;
+                ImpactParameter = 1.0+ImpactPar*RhoTherm+CoulombImpactParameter;
         }
 
 	double zmax 	= 1.5+zMaxDebye*CoulombImpactParameter;	// Top of Simulation Domain, in Dust Radii
@@ -288,7 +312,9 @@ int main(int argc, char* argv[]){
 //		{ AngularMomentumDataFile << Position << "\t" << Velocity << "\n"; } continue;
 
 		// For eliminating orbits that will definitely miss
-		if( Charge == 0 && BMag > 0 )  RegenerateMissingOrbits(BMagNorm,Bhat,Gaussdist,dist,mt,Position,Velocity,RegeneratedParticles); 
+		if( BMag > 0 )  
+			RegenerateMissingOrbits(BMagNorm,Bhat,Gaussdist,dist,mt,Position,Velocity,
+						RegeneratedParticles,Charge,CoulombImpactParameter); 
 
 		INITIAL_VEL();		// For energy calculations
 		INITIAL_POT();		// For energy calculations
@@ -315,7 +341,9 @@ int main(int argc, char* argv[]){
 				OldVelocity = Velocity;	// For Angular Momentum Calculations
 				OldPosition = Position; // For Angular Momentum Calculations
 
-				TimeStep=(0.001*Position.mag3()/Velocity.mag3());       // Adaptive Time Step
+//				TimeStep=(0.001*Position.mag3()/Velocity.mag3());       // Adaptive Time Step
+//				TimeStep=(0.1/Velocity.mag3());       // Adaptive Time Step
+				TimeStep=0.1;       // Adaptive Time Step
 				UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity);
 				Position+=TimeStep*Velocity;
 
