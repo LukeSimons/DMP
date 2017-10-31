@@ -223,7 +223,7 @@ int main(int argc, char* argv[]){
 	double DebyeLength 	= sqrt((e0norm*eTempNorm)/eDensNorm);	// Debye Length 
 //	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm)*exp(-1.0/DebyeLength); 	// Normalised Charge
 	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm); 	// Normalised Charge,
-	double ThermalVel	= sqrt(TEMPnorm);			// Normalised Temperature
+	double ThermalVel	= sqrt(2.0*TEMPnorm/PI);			// Normalised Temperature
 
 
 	// ***** DEFINE SIMULATION SPACE ***** //
@@ -248,7 +248,7 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
 	std::random_device rd;		// Create Random Device
 	std::mt19937 mt(rd());		// Get Random Method
-	std::normal_distribution<double> Gaussdist(DriftNorm,sqrt(ThermalVel));
+	std::normal_distribution<double> Gaussdist(DriftNorm,ThermalVel);
 	std::uniform_real_distribution<double> dist(-ImpactParameter, ImpactParameter); // IONS
 
 	// ***** OPEN DATA FILE WITH HEADER ***** //
