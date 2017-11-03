@@ -28,3 +28,10 @@ Options:
 
 -l,--zmindebye ZMINDEBYE	(arb), Specify the lower limit of simulation domain as number of distances
 
+-b,--impactpar IMPACTPAR	(arb), Specify the radial limit of simulation domain as number of distances
+
+-i,--imax IMAX			(arb), Specify the number of particles to be launched
+
+-v,--driftvel DRIFTVEL		(m s^-^1), Specify the drift velocity of the plasma
+
+-o,--output OUTPUT		(N/A), Specify the suffix of the output file
