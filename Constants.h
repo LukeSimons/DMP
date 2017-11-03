@@ -1,6 +1,11 @@
 #ifndef __CONSTANTS_H_INCLUDED__   // if Constants.h hasn't been included yet...
 #define __CONSTANTS_H_INCLUDED__
 
+#ifdef VEL_POS_DIST
+#define PRINT_VP(x)	std::cout << x
+#else
+#define PRINT_VP(x)
+#endif
 
 #ifdef STORE_TRACKS 
 #define DECLARE_TRACK()	std::ofstream TrackDataFiles	
@@ -16,7 +21,7 @@
 #define CLOSE_TRACK()
 #endif 
 
-#if defined CALCULATE_ENERGY || defined CALCULATE_MOM
+#if defined CALCULATE_ENERGY || defined CALCULATE_MOM || defined VEL_POS_DIST
 #define INITIAL_VEL()	threevector InitialVelMag = Velocity;
 #define INITIAL_POT()	double InitialPot = Charge/(4*PI*e0norm*Position.mag3());
 #define FINAL_VEL()	threevector FinalVelMag = Velocity;
@@ -45,7 +50,7 @@
 #endif
 
 #ifdef SAVE_PARTICLE_MOM
-#define SAVE_MOM()	AngularMomentumDataFile << "\n" << i << "\t" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
+#define SAVE_MOM()	AngularMomentumDataFile << "\n" << j << "\t" << TotalAngularVel << "\t" << AngularMom;
 #else
 #define SAVE_MOM()
 #endif 

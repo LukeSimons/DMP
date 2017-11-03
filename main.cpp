@@ -1,4 +1,5 @@
-#define STORE_TRACKS 
+//#define STORE_TRACKS 
+#define VEL_POS_DIST
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
 #define SAVE_PARTICLE_MOM
@@ -33,6 +34,7 @@ static void show_usage(std::string name){
 	<< "\t-l,--zmindebye ZMINDEBYE\t(arb), Specify the lower limit of simulation domain as number of distances\n\n"
 	<< "\t-b,--impactpar IMPACTPAR\t(arb), Specify the radial limit of simulation domain as number of distances\n\n"
 	<< "\t-i,--imax IMAX\t(arb), Specify the number of particles to be launched\n\n"
+	<< "\t-j,--jmax JMAX\t(arb), Specify the number of particles to be collected (Over-rides imax)\n\n"
 	<< "\t-v,--driftvel DRIFTVEL\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
 	<< "\t-o,--output OUTPUT\t(N/A), Specify the suffix of the output file\n\n"
 	<< std::endl;
@@ -52,68 +54,67 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 
 }
 
-// THIS HAS BEEN VALIDATED VISUALLY AND WORKS WELL
-static void RegenerateMissingOrbits(double BMagNorm, const threevector &Bhat, std::normal_distribution<double> &Gaussdist, 
-					std::uniform_real_distribution<double> &dist,
-                                        std::mt19937 &mt, threevector &Position, threevector &Velocity, 
-					unsigned int & RegeneratedParticles, const double &Charge, const double &CIP){
-	// Calculate orbit parameters
-	threevector VPerp(Velocity.getx(),Velocity.gety(),0.0);
-	threevector PosXY(Position.getx(),Position.gety(),0.0);
-	threevector AccelDir = (Velocity.getunit()^Bhat);
-	double RhoPerp = VPerp.mag3()/BMagNorm;
-	threevector GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+void GenerateOrbit(threevector &Position, threevector &Velocity, const double &ImpactParameter, 
+			const double &zmin, const double zmax, const double DriftNorm, const double ThermalVel){
 
+	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
+	std::random_device rd;		// Create Random Device
+	std::mt19937 mt(rd());		// Get Random Method
+	std::normal_distribution<double> Gaussdist(DriftNorm,ThermalVel);
+	std::uniform_real_distribution<double> rad(0, 1); // IONS
+
+	// ***** RANDOMISE POSITION CYLINDRICALLY ***** //
+	double radial_pos=ImpactParameter*sqrt(rad(mt));
+	double theta_pos =2*PI*rad(mt);
+	Position.setx(radial_pos*cos(theta_pos));
+	Position.sety(radial_pos*sin(theta_pos));
+	double zvel = Gaussdist(mt);	// Generate z-velocity here to determine starting position 
+	if( zvel >= 0 ){
+		Position.setz(zmin);
+	}else{
+		Position.setz(zmax);
+	}
+
+	// ***** RANDOMISE VELOCITY ***** //
+	Velocity.setx(Gaussdist(mt));
+	Velocity.sety(Gaussdist(mt));
+	Velocity.setz(zvel);	
+
+}
+
+void GyroCentrePos(threevector &Position, threevector &Velocity, double BMagNorm, const threevector &Bhat,
+			threevector &GyroCentre2D, double &RhoPerp){
+	threevector VPerp(Velocity.getx(),Velocity.gety(),0.0);
+        threevector PosXY(Position.getx(),Position.gety(),0.0);
+        threevector AccelDir = (Velocity.getunit()^Bhat);
+        RhoPerp = VPerp.mag3()/BMagNorm;
+        GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+}
+
+// THIS HAS BEEN VALIDATED VISUALLY AND WORKS WELL
+static void RegenerateMissingOrbits(threevector &Position, threevector &Velocity, const double DriftNorm, const double ThermalVel,
+					const double & zmin, const double & zmax, const double &IP, const double & CIP, 
+					double BMagNorm, const threevector &Bhat, const double &Charge, 
+					unsigned long long & RegeneratedParticles){
+	// Calculate orbit parameters and get GyroCentre position
+	threevector GyroCentre2D(0.0,0.0,0.0);
+	double RhoPerp = 0.0;
+	GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp);
+	
 	// Check if orbits will intersect the sphere
 	if( Charge == 0 ){
 		while( fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0 ){ // Orbit won't intersect! re-generate orbit
-			Velocity.setx(Gaussdist(mt));
-	                Velocity.sety(Gaussdist(mt));
-			double zvel = Gaussdist(mt);
-			while( zvel >= 0 ){
-				zvel = Gaussdist(mt);
-			}
-			Velocity.setz(zvel); // Start with negative z-velocity
-			Position.setx(dist(mt));
-			Position.sety(dist(mt));
-			VPerp.setx(Velocity.getx());
-			VPerp.sety(Velocity.gety());
-			PosXY.setx(Position.getx());
-			PosXY.sety(Position.gety());
-			AccelDir = (Velocity.getunit()^Bhat);
-			RhoPerp = VPerp.mag3()/BMagNorm;
-			GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+			GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel);
+			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp);
 			RegeneratedParticles ++;
 		}
 	}else{	// THIS WON'T WORK FOR ELECTRONS
 		while( fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + 0.5*CIP)  ){ // Orbit won't intersect! re-generate orbit
-                        Velocity.setx(Gaussdist(mt));
-                        Velocity.sety(Gaussdist(mt));
-                        double zvel = Gaussdist(mt);
-                        while( zvel >= 0 ){
-                                zvel = Gaussdist(mt);
-                        }
-                        Velocity.setz(zvel); // Start with negative z-velocity
-                        Position.setx(dist(mt));
-                        Position.sety(dist(mt));
-                        VPerp.setx(Velocity.getx());
-                        VPerp.sety(Velocity.gety());
-                        PosXY.setx(Position.getx());
-                        PosXY.sety(Position.gety());
-                        AccelDir = (Velocity.getunit()^Bhat);
-                        RhoPerp = VPerp.mag3()/BMagNorm;
-                        GyroCentre2D = PosXY + (AccelDir*RhoPerp);
+                        GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel);
+			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp);
                         RegeneratedParticles ++;
                 }
 	}
-}
-
-static double Poszvel(std::normal_distribution<double> &Gaussdist, std::mt19937 &mt){
-	double zvel = Gaussdist(mt);
-	while( zvel >= 0 ){ 
-		zvel = Gaussdist(mt);
-	}
-	return zvel;
 }
 
 /*updates velocity using the Boris method, Birdsall, Plasma Physics via Computer Simulation, p.62*/
@@ -181,7 +182,8 @@ int main(int argc, char* argv[]){
 	double zMaxDebye	= 3.0;	// Arb, Number of debye distances max of simulation is
 	double zMinDebye	= 3.0;	// Arb, Number of debye distances max of simulation is
 	double ImpactPar	= 2.0;	// Arb, Multiplicative factor for the Impact Parameter
-	unsigned int imax	= 100;
+	unsigned long long imax	= 100;	// Arb, Maximum number of particles to be launched
+	unsigned long long jmax	= 0.0;// Arb, Number of particles to be collected
 
 
 	// ***** DETERMINE USER INPUT ***** //
@@ -202,6 +204,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--zmindebye" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinDebye);
 		else if( arg == "--impactpar"	|| arg == "-b" )	InputFunction(argc,argv,i,ss0,ImpactPar);
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
+		else if( arg == "--jmax"	|| arg == "-j" )	InputFunction(argc,argv,i,ss0,jmax);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
 		else if( arg == "--output"	|| arg == "-o" )	InputFunction(argc,argv,i,ss0,suffix);
                 else{
@@ -269,20 +272,14 @@ int main(int argc, char* argv[]){
 //	double zmin 	= -1.0-zMinDebye*DebyeLength;	// Bottom of Simulation Domain, in Dust Radii
 
 
-	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
-	std::random_device rd;		// Create Random Device
-	std::mt19937 mt(rd());		// Get Random Method
-	std::normal_distribution<double> Gaussdist(DriftNorm,ThermalVel);
-	std::uniform_real_distribution<double> dist(-ImpactParameter, ImpactParameter); // IONS
-
 	// ***** OPEN DATA FILE WITH HEADER ***** //
 	time_t now = time(0);		// Get the time of simulation
 	char * dt = ctime(&now);
 	AngularMomentumDataFile.open(filename + suffix);	
 	AngularMomentumDataFile << "## Angular Momentum Data File ##\n";
 	AngularMomentumDataFile << "#Date: " << dt;
-	AngularMomentumDataFile << "#Input:\timax\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\n#Input:\tBMag\tDebye\tDriftNorm\n";
-	AngularMomentumDataFile << "#\t"<<imax<<"\t"<<ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\n#\t"<<BMag << "\t" << DebyeLength/Radius << "\t" << DriftNorm <<"\n";
+	AngularMomentumDataFile << "#Input:\timax\tjmax\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\n#Input:\tBMag\tDebye\tDriftNorm\n";
+	AngularMomentumDataFile << "#\t"<<imax<<"\t"<<jmax<<"\t"<<ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\n#\t"<<BMag << "\t" << DebyeLength/Radius << "\t" << DriftNorm <<"\n";
 	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
 
 
@@ -291,139 +288,125 @@ int main(int argc, char* argv[]){
 	threevector TotalAngularMom(0.0,0.0,0.0);
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
-	unsigned int j(0), i(0), RegeneratedParticles(0), TrappedParticles(0);
+	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0);
 	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel) PRIVATE_FILES()
 	for( i=0; i < imax; i ++){
-//		std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
-		// ***** RANDOMISE VELOCITY ***** //
-		// Only include orbits for which they are proceeding in the negative z direction
-		double zvel = Gaussdist(mt);
-		while( zvel >= 0 ){
-			zvel = Gaussdist(mt);
-		}
-		threevector Velocity(Gaussdist(mt),Gaussdist(mt),zvel);	// Start with negative z-velocity
+	
+		if( j != jmax ){
+	
+//			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
+			threevector Position(0.0,0.0,0.0);
+			threevector Velocity(0.0,0.0,0.0);
 
-		threevector OldVelocity(0.0,0.0,0.0);
-		threevector OldPosition(0.0,0.0,0.0);
+			GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel);
+		
+			// For eliminating orbits that will definitely miss
+			if( BMag > 0 )  
+				RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
+							CoulombImpactParameter,BMagNorm,Bhat,Charge,RegeneratedParticles); 
 
-		// ***** RANDOMISE POSITION ***** //
-		threevector Position(dist(mt),dist(mt),zmax);
-//		#pragma omp critical	// uncomment to store the initial positions and velocities to check distribution
-//		{ AngularMomentumDataFile << Position << "\t" << Velocity << "\n"; } continue;
-
-		// For eliminating orbits that will definitely miss
-		if( BMag > 0 )  
-			RegenerateMissingOrbits(BMagNorm,Bhat,Gaussdist,dist,mt,Position,Velocity,
-						RegeneratedParticles,Charge,CoulombImpactParameter); 
-
-		INITIAL_VEL();		// For energy calculations
-		INITIAL_POT();		// For energy calculations
-
-		// ***** DO PARTICLE PATH INTEGRATION ***** //
-		OPEN_TRACK(filename + "Track_" + std::to_string(i) + ".txt");
-
-		// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
-//		threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-		threevector EField = CoulombField(Position,Charge,e0norm);
-		RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-
-		UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
-
-
-		int p(0);
-		bool Repeat(true);
-		// While we don't exceed a specified number of iterations to catch trapped orbits	
-		while( Repeat ){	
-			// While the particle is not inside the sphere and not outside the simulation domain
-			while( Position.mag3() > 1.0 && Position.getz() > zmin && Position.getz() <= zmax && p < 5e5 ){
-//				EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-				EField = CoulombField(Position,Charge,e0norm);
-				OldVelocity = Velocity;	// For Angular Momentum Calculations
-				OldPosition = Position; // For Angular Momentum Calculations
-
-//				TimeStep=(0.001*Position.mag3()/Velocity.mag3());       // Adaptive Time Step
-//				TimeStep=(0.1/Velocity.mag3());       // Adaptive Time Step
-				TimeStep=0.1;       // Adaptive Time Step
-				UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity);
-				Position+=TimeStep*Velocity;
-
-				RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-				p ++;
+			#pragma omp critical 
+			{
+				PRINT_VP(Position); PRINT_VP("\t");	// For debugging look at initial vel and positions
+				PRINT_VP(Velocity); PRINT_VP("\n");	// For debugging look at initial vel and positions
 			}
-			if( p < 5e5 ){
-				Repeat = false;
-			}else{
-				CLOSE_TRACK();
-				zvel = Gaussdist(mt);
-				while( zvel >= 0 ){
-					zvel = Gaussdist(mt);
+
+
+			INITIAL_VEL();				// For energy calculations
+			INITIAL_POT();				// For energy calculations
+
+
+			OPEN_TRACK(filename + "Track_" + std::to_string(i) + ".txt");
+
+			// ***** DO PARTICLE PATH INTEGRATION ***** //
+//			Calculate Electric Field
+//			threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
+			threevector EField = CoulombField(Position,Charge,e0norm);
+
+			RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+
+
+			// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
+			UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);	
+
+
+			unsigned int iter(0);
+			bool Repeat(true);
+			threevector OldVelocity(0.0,0.0,0.0), OldPosition(0.0,0.0,0.0);
+			// While we don't exceed a specified number of iterations to catch trapped orbits	
+			while( Repeat ){	
+				// While the particle is not inside the sphere and not outside the simulation domain
+				while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e5 ){
+//					EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
+					EField = CoulombField(Position,Charge,e0norm);
+					OldVelocity = Velocity;	// For Angular Momentum Calculations
+					OldPosition = Position; // For Angular Momentum Calculations
+
+					TimeStep=0.1;       // Adaptive Time Step
+					UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity);
+					Position+=TimeStep*Velocity;
+
+					RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+					iter ++;
 				}
-		                Velocity.setx(Gaussdist(mt));
-				Velocity.sety(Gaussdist(mt));
-				Velocity.setz(zvel); // Start with negative z-velocity
-				Position.setx(dist(mt));
-				Position.sety(dist(mt));
-				Position.setz(zmax);
-				INITIAL_VEL();          // For energy calculations
-        		        INITIAL_POT();          // For energy calculations				
-				OPEN_TRACK(filename + std::to_string(i) + "_retry.txt");
-				EField = CoulombField(Position,Charge,e0norm);
-		                RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-				UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
-				p = 0;
-				Repeat = true;
-				TrappedParticles ++;
+				if( iter < 5e5 ){
+					Repeat = false;
+				}else{	// Particle is considered trapped
+					CLOSE_TRACK();
+					GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel);
+					RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
+							CoulombImpactParameter,BMagNorm,Bhat,Charge,RegeneratedParticles);
+					INITIAL_VEL();          // For energy calculations
+        			        INITIAL_POT();          // For energy calculations				
+					OPEN_TRACK(filename + std::to_string(i) + "_retry.txt");
+					EField = CoulombField(Position,Charge,e0norm);
+		                	RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+					UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
+					iter = 0;
+					Repeat = true;
+					TrappedParticles ++;
+				}	
 			}
-		}
 
-		if( Position.mag3() < 1.0 ){ // In this case it was captured!
 			threevector FinalVelocity = 0.5*(OldVelocity+Velocity);
 			threevector FinalPosition = 0.5*(OldPosition+Position);
 			threevector CylindricalRadius(FinalPosition.getx(),FinalPosition.gety(),0.0);
-			threevector CylindricalVelocity(FinalVelocity.getx(),FinalVelocity.gety(),0.0);
-			double DistanceFromAxis = CylindricalRadius.mag3();
 			threevector AngularMom = (CylindricalRadius^FinalVelocity); 
-			// Moment of Inertia for Hollow Sphere
-//			threevector AngularVel = (9*MASS)/(8*PI*NormDens)*	
-//				(CylindricalRadius^(FinalVelocity-TotalAngularVel.mag3()*DistanceFromAxis*FinalVelocity.getunit()));
-			// Moment of Inertia for solid sphere
-//			threevector AngularVel = (15)/(8*PI*NormDens)*	
-//				(CylindricalRadius^(FinalVelocity-TotalAngularVel.mag3()*DistanceFromAxis*FinalVelocity.getunit()));
 
-			// SHOULD IT NOT BE:
-			threevector AngularVel = (AngVelNorm)*
+			if( Position.mag3() < 1.0 ){ // In this case it was captured!
+				threevector AngularVel = (AngVelNorm)*
 				((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
-
-
-			#pragma omp critical
-			{
-				TotalAngularVel += AngularVel;
-				TotalAngularMom += AngularMom;
-				j ++;
-				SAVE_MOM()
-			}
-		}else{
-			FINAL_VEL(); 
-			FINAL_POT(); 
-			OUTPUT_VEL(i); OUTPUT_VEL("\t"); 
-			OUTPUT_VEL(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  OUTPUT_VEL("\t");
-			OUTPUT_VEL(100*(((FinalVelMag.square()+FinalPot)/(InitialVelMag.square()+InitialPot))-1));  
-			OUTPUT_VEL("\n");
-//			OUTPUT_VEL(FinalVelMag.square()-InitialVelMag.square()+FinalPot-InitialPot);  OUTPUT_VEL("\n");
+				#pragma omp critical
+				{
+					if( j < jmax){
+						TotalAngularVel += AngularVel;
+						TotalAngularMom += AngularMom;
+						j ++;
+						SAVE_MOM()
+					}
+				}
+			}else{
+				FINAL_VEL(); 
+				FINAL_POT(); 
+				OUTPUT_VEL(i); OUTPUT_VEL("\t"); 
+				OUTPUT_VEL(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  OUTPUT_VEL("\t");
+				OUTPUT_VEL(100*(((FinalVelMag.square()+FinalPot)/(InitialVelMag.square()+InitialPot))-1));  
+				OUTPUT_VEL("\n");
 			
-			threevector CylindricalRadius(Position.getx(),Position.gety(),0.0);
-			LinearMomentumSum += FinalVelMag;
-			AngularMomentumSum += CylindricalRadius^FinalVelMag;
-		}
-
+				LinearMomentumSum += FinalVelocity;
+				AngularMomentumSum += AngularMom;
+				MissedParticles ++;
+			} // END OF if ( Position.mag3() < 1.0 )
+		} // END OF if (j != jmax-1)
 		CLOSE_TRACK();
-	}
-	AngularMomentumDataFile << "\n\n" << LinearMomentumSum << "\t" << AngularMomentumSum << "\t" << RegeneratedParticles << "\t" << TrappedParticles;
-
-	clock_t end = clock();
-	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
+	} // END OF PARALLELISED FOR LOOP
+	AngularMomentumDataFile << "\n\n" << LinearMomentumSum << "\t" << AngularMomentumSum << "\t" 
+		<< j << "\t" << MissedParticles << "\t" << RegeneratedParticles << "\t" << TrappedParticles;
 
 	AngularMomentumDataFile.close();
+
+//	clock_t end = clock();
+//	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
 //	std::cout << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n";
 	return 0;
 }
