@@ -1,4 +1,4 @@
-//#define STORE_TRACKS 
+#define STORE_TRACKS 
 //#define VEL_POS_DIST
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
@@ -28,10 +28,9 @@ static void show_usage(std::string name){
 	<< "\t-m,--magfield MAGFIELD\t\t(T), Specify the magnetic field (z direction)\n\n"
 	<< "\t-e,--etemp ETEMP\t\t(eV), Specify the temperature of plasma electrons\n\n"
 	<< "\t-n,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron density\n\n"
-	<< "\t-t,--temp TEMP\t\t\t(eV), Specify the temperature of species of interest\n\n"
-	<< "\t-s,--spec_charge SPEC_CHARGE\t(arb), Specify the charge of the species of interest\n\n"
-	<< "\t-u,--zmaxdebye ZMAXDEBYE\t(arb), Specify the upper limit of simulation domain as number of distances\n\n"
-	<< "\t-l,--zmindebye ZMINDEBYE\t(arb), Specify the lower limit of simulation domain as number of distances\n\n"
+	<< "\t-t,--itemp ITEMP\t\t\t(eV), Specify the temperature of Ions\n\n"
+	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(arb), Specify the upper limit of simulation domain as number of distances\n\n"
+	<< "\t-l,--zmincoeff ZMINCOEFF\t(arb), Specify the lower limit of simulation domain as number of distances\n\n"
 	<< "\t-b,--impactpar IMPACTPAR\t(arb), Specify the radial limit of simulation domain as number of distances\n\n"
 	<< "\t-i,--imax IMAX\t(arb), Specify the number of particles to be launched\n\n"
 	<< "\t-j,--jmax JMAX\t(arb), Specify the number of particles to be collected (Over-rides imax)\n\n"
@@ -131,7 +130,7 @@ static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BFi
 	threevector s = 2.0*t*(1/(1+t_mag2));
 	
 	/*v minus*/
-	threevector v_minus = Velocity + Efield*0.5*SPEC_CHARGE*dt; 
+	threevector v_minus = Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt; 
 	
 	/*v prime*/
 	threevector v_prime = v_minus + (v_minus^t);
@@ -140,7 +139,7 @@ static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BFi
 	threevector v_plus = v_minus + (v_prime^s);
 	
 	/*v n+1/2*/
-	Velocity = v_plus + Efield*0.5*SPEC_CHARGE*dt;
+	Velocity = v_plus + Efield*0.5*(SPEC_CHARGE/MASS)*dt;
 }
 
 threevector CoulombField(threevector Position, double Charge, double e0norm){
@@ -160,10 +159,11 @@ int main(int argc, char* argv[]){
 	
 	// ***** TIMER AND FILE DECLERATIONS ***** //
 	clock_t begin = clock();
-	std::string filename = "Data/DMP_";
-	std::string suffix	= "AngMom.txt";
+	std::string filename = "Data/DMP";
+	std::string suffix	= ".txt";
 	DECLARE_TRACK();
-	std::ofstream AngularMomentumDataFile;	// Data file for angular momentum information
+	std::ofstream RunDataFile;	// Data file for containing the run information
+	std::ofstream AngularDataFile;	// Data file for angular momentum information
 
 
 	// ***** DEFINE DUST PARAMETERS ***** //
@@ -178,11 +178,9 @@ int main(int argc, char* argv[]){
 	double eTemp 		= 1.0;	// Electron Temperature, eV
 	double eDensity		= 1e18;	//1e14;	// m^(-3), Electron density
 	double iDensity		= 1e18;	//1e14;	// m^(-3), Ion density
-	double TEMP 		= 1.0;	// eV, This is the Temperature of the species being considered
 	double DriftVel 	= 0.0;	// m s^-1, This is the Temperature of the species being considered
-	int SPEC_CHARGE		= 1.0;	// arb, This is the charge of the species, should be +1.0 or -1.0 normally 
-	double zMaxDebye	= 3.0;	// Arb, Number of debye distances max of simulation is
-	double zMinDebye	= 3.0;	// Arb, Number of debye distances max of simulation is
+	double zMaxCoeff	= 3.0;	// Arb, Number of debye distances max of simulation is
+	double zMinCoeff	= 3.0;	// Arb, Number of debye distances max of simulation is
 	double ImpactPar	= 2.0;	// Arb, Multiplicative factor for the Impact Parameter
 	unsigned long long imax	= 100;	// Arb, Maximum number of particles to be launched
 	unsigned long long jmax	= 2.0e6;// Arb, Number of particles to be collected
@@ -200,10 +198,9 @@ int main(int argc, char* argv[]){
 		else if( arg == "--magfield" 	|| arg == "-m" )	InputFunction(argc,argv,i,ss0,BMag);
 		else if( arg == "--etemp" 	|| arg == "-e" )	InputFunction(argc,argv,i,ss0,eTemp);
 		else if( arg == "--edensity" 	|| arg == "-n" )	InputFunction(argc,argv,i,ss0,eDensity);
-		else if( arg == "--temp" 	|| arg == "-t" )	InputFunction(argc,argv,i,ss0,TEMP);
-		else if( arg == "--spec_charge" || arg == "-s" )	InputFunction(argc,argv,i,ss0,SPEC_CHARGE);
-		else if( arg == "--zmaxdebye" 	|| arg == "-u" )	InputFunction(argc,argv,i,ss0,zMaxDebye);
-		else if( arg == "--zmindebye" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinDebye);
+		else if( arg == "--itemp" 	|| arg == "-t" )	InputFunction(argc,argv,i,ss0,iTemp);
+		else if( arg == "--zmaxcoeff" 	|| arg == "-u" )	InputFunction(argc,argv,i,ss0,zMaxCoeff);
+		else if( arg == "--zmincoeff" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinCoeff);
 		else if( arg == "--impactpar"	|| arg == "-b" )	InputFunction(argc,argv,i,ss0,ImpactPar);
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
 		else if( arg == "--jmax"	|| arg == "-j" )	InputFunction(argc,argv,i,ss0,jmax);
@@ -214,77 +211,90 @@ int main(int argc, char* argv[]){
 		}
 	}
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
-	double MASS;			// kg, This is the mass of the Species being considered
-	if( SPEC_CHARGE > 0 ){
-		MASS 	= Mp;
-		iTemp	= TEMP;
-	}else{
-		MASS	= Me;
-		eTemp	= TEMP;
-	}
+	double MASS 	= Mp;		// kg, This is the Mass to which quantities are normalised 
+	double MassRatio = sqrt(Mp/Me);
 	double DustMass		= (4.0/3.0)*PI*pow(Radius,3)*Density;
 
 	// ***** NORMALISATION ***** //
 	// Normalise TIME to the ratio of the masses and the average time for a ion to hit the dust
-	// Normalise MASS to Species Mass
+	// Normalise MASS to Ion Mass
 	// Normalise DISTANCE to Dust Radius
 	// Normalise CHARGE to fundamental charge
         double Tau;
-	double AngVelNorm;
-	if( BMag <= 0.0 ){	// THIS PART NEEDS TO BE VALIDATED STILL
-		AngVelNorm = sqrt(echarge*TEMP/MASS)*iDensity*pow(Radius,2);
-		Tau = sqrt(echarge*TEMP/MASS)*5.0*MASS*iDensity*pow(Radius,2)/(2.0*DustMass);
-	}else{
-		AngVelNorm = 5.0*MASS/(2.0*DustMass);
+	if( BMag > 0.0 ){
 		Tau = MASS/(echarge*BMag);
+	}else{
+		std::cerr << "Error! BMag <= 0.0. These values are prohibited.";
+		exit(EXIT_FAILURE);
 	}
 	double e0norm 	= epsilon0*MASS*pow(Radius,3)/(pow(echarge*Tau,2));
-	double u0norm 	= (4.0*PI*10e-7*pow(echarge,2))/(MASS*Radius);
- 	double TimeStep	= Tau/100000;
 	double PotNorm	= Potential*eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));	// NEEDS CHECKING MAYBE
-	double BMagNorm	= BMag*Tau*echarge/MASS;
-	double TEMPnorm	= TEMP*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
-	double eDensNorm= eDensity*pow(Radius,3);
-	double eTempNorm= eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
+//	double BMagNorm	= BMag*Tau*echarge/MASS;  SUBSTITUTING IN TAU, THIS EVALUATES TO 1.0 ALWAYS
 	double DriftNorm= DriftVel*Tau/(Radius);
+
+	double eDensNorm= eDensity*pow(Radius,3);
+	double iTempNorm= iTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
+	double eTempNorm= eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
+	double DebyeLength 	= sqrt((e0norm*eTempNorm)/eDensNorm);	// Debye Length, THIS WILL BE WRONG FOR ELECTRONS
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
-	threevector BField = BMagNorm*Bhat;
-	double DebyeLength 	= sqrt((e0norm*eTempNorm)/eDensNorm);	// Debye Length 
-//	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm)*exp(-1.0/DebyeLength); 	// Normalised Charge
-	double Charge 		= SPEC_CHARGE*PotNorm*(4*PI*e0norm); 	// Normalised Charge,
-	double ThermalVel	= sqrt(2.0*TEMPnorm/PI);			// Normalised Temperature
 
+	double Charge 		= PotNorm*(4*PI*e0norm); 		// Normalised Charge,
+	double iThermalVel	= sqrt(2.0*iTempNorm/PI);		// Normalised Thermal velocity
+	double eThermalVel	= sqrt(2.0*eTempNorm/PI)*MassRatio;	// Normalised Thermal velocity
+	
 
 	// ***** DEFINE SIMULATION SPACE ***** //
 //	double DebyeHuckelImpactParameter = DebyeLength*LambertW((pow(naturale,2))/DebyeLength);
 //	double CoulombImpactParameter	= pow(pow(Charge,2)/(pow(4*PI,2)*e0norm*pow(ThermalVel,2)),0.25);
+//	double u0norm 	= (4.0*PI*10e-7*pow(echarge,2))/(MASS*Radius);
 //	double CoulombImpactParameter	= pow(pow(Charge/(4.0*PI*e0norm),2)/(pow(ThermalVel,2)+BMagNorm/u0norm),0.25);
-	double CoulombImpactParameter	= fabs(Charge/(2*PI*e0norm*pow(ThermalVel,2))); // Balance Coulomb to kinetic energy
-        double ImpactParameter;
-        if( BMag <= 0.0 ){
-                ImpactParameter = 1.0+zMaxDebye*CoulombImpactParameter;
-        }else{
-		double RhoTherm = ThermalVel/BMagNorm; // Thermal GyroRadius normalised to dust grain radii
-                ImpactParameter = 1.0+ImpactPar*RhoTherm+CoulombImpactParameter;
-        }
+	double iCoulombImpactParameter	= fabs(Charge/(2*PI*e0norm*pow(iThermalVel,2))); // Balance Coulomb to kinetic energy
+	double eCoulombImpactParameter	= fabs(Charge*pow(MassRatio,2)/(2*PI*e0norm*pow(eThermalVel,2))); // Balance Coulomb to kinetic energy
+        double iImpactParameter,eImpactParameter;
 
-	double zmax 	= 1.5+zMaxDebye*CoulombImpactParameter;	// Top of Simulation Domain, in Dust Radii
-	double zmin 	= -1.5-zMinDebye*CoulombImpactParameter;	// Bottom of Simulation Domain, in Dust Radii
-//	double zmax 	= 1.0+zMaxDebye*DebyeLength;	// Top of Simulation Domain, in Dust Radii
-//	double zmin 	= -1.0-zMinDebye*DebyeLength;	// Bottom of Simulation Domain, in Dust Radii
+	double iRhoTherm(0.0), eRhoTherm(0.0);
+	if( BMag <= 0.0 ){
+                iImpactParameter = 1.0+zMaxCoeff*iCoulombImpactParameter;
+		eImpactParameter = 1.0+zMaxCoeff*eCoulombImpactParameter;
+        }else{
+		iRhoTherm = iThermalVel; // Thermal GyroRadius for ions normalised to dust grain radii
+		eRhoTherm = eThermalVel/pow(MassRatio,2); // Thermal GyroRadius for electrons normalised to dust grain radii
+                iImpactParameter = 1.0+ImpactPar*iRhoTherm+iCoulombImpactParameter;
+                eImpactParameter = 1.0+ImpactPar*eRhoTherm+eCoulombImpactParameter;
+	}
+	double ezmax = 1.05+zMaxCoeff*eCoulombImpactParameter;
+	double ezmin = -1.05-zMaxCoeff*eCoulombImpactParameter;
+	double izmax = 1.0001+zMaxCoeff*iCoulombImpactParameter;
+	double izmin = -1.0001-zMinCoeff*iCoulombImpactParameter;
+
+	// Define ratio of flux of electrons to ions
+	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(1+eImpactParameter,2)/pow(1+iImpactParameter,2));
+	double ProbabilityOfIon = 1.0/(1.0+ElecToIonRatio);
+
+	std::cout << "\nivt = " << iThermalVel;	
+	std::cout << "\nevt = " << eThermalVel;	
+	std::cout << "\neRT = " << eRhoTherm;
+	std::cout << "\neip = " << eImpactParameter;	
+	std::cout << "\niip = " << iImpactParameter;	
+	std::cout << "\nProbabilityOfIon = " << ProbabilityOfIon;	std::cin.get();
 
 
 	// ***** OPEN DATA FILE WITH HEADER ***** //
 	time_t now = time(0);		// Get the time of simulation
 	char * dt = ctime(&now);
-	AngularMomentumDataFile.open(filename + suffix);	
-	AngularMomentumDataFile << "## Angular Momentum Data File ##\n";
-	AngularMomentumDataFile << "#Date: " << dt;
-	AngularMomentumDataFile << "#Input:\timax\tjmax\tIP\tzmax\tzmin\telec_temp\telec_dens\tion_temp\tRadius\tDensity\tCharge\n#Input:\tBMag\tDebye\tDriftNorm\n";
-	AngularMomentumDataFile << "#\t"<<imax<<"\t"<<jmax<<"\t"<<ImpactParameter<<"\t"<<zmax<<"\t"<<zmin<<"\t"<<eTemp<<"\t\t"<<eDensity<<"\t\t"<<TEMP<<"\t\t"<<Radius<<"\t"<<Density<<"\t"<<Charge<<"\n#\t"<<BMag << "\t" << DebyeLength/Radius << "\t" << DriftNorm <<"\n";
-	AngularMomentumDataFile << "#Output:\tIonNumber\tCollectedIons\tAngularVelocity\tAngularMomentum\n\n";
+	RunDataFile.open(filename + suffix);	
+	AngularDataFile.open(filename + "_AngMom" + suffix);	
+	RunDataFile << "## Run Data File ##\n";
+	RunDataFile << "#Date: " << dt;
+	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<eDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<iDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n";
+
+
+	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
+	std::random_device rd;		// Create Random Device
+	std::mt19937 mt(rd());		// Get Random Method
+	std::uniform_real_distribution<double> rad(0, 1); // IONS
 
 
 	// ***** BEGIN LOOP OVER PARTICLE ORBITS ***** //
@@ -292,12 +302,36 @@ int main(int argc, char* argv[]){
 	threevector TotalAngularMom(0.0,0.0,0.0);
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
-	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0);
-	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel,TotalAngularMom) PRIVATE_FILES()
+	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0), IonNum(0), ElecNum(0);
+	#pragma omp parallel for shared(TotalAngularVel,TotalAngularMom) PRIVATE_FILES()
 	for( i=0; i < imax; i ++){
-	
 		if( j != jmax ){
-	
+			double BMagNorm = pow(MassRatio,2);
+			double ImpactParameter=eImpactParameter;
+			double CoulombImpactParameter=eCoulombImpactParameter;
+			double ThermalVel=eThermalVel;
+			double zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
+			double zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
+ 			double TimeStep(0.0001);
+			double SpeciesMass = 1.0/pow(MassRatio,2);
+			int SPEC_CHARGE=-1;
+			if( rad(mt) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
+				std::cout << "\nWe get here! j = " << j;
+				BMagNorm = 1.0;
+				ImpactParameter= iImpactParameter;
+				CoulombImpactParameter=iCoulombImpactParameter;
+				ThermalVel=iThermalVel;
+				zmax 	= izmax; 
+				zmin 	= izmin ;
+				TimeStep = 0.1;
+				SpeciesMass = 1.0;
+				SPEC_CHARGE=1;
+				IonNum ++;
+			}else{
+				ElecNum ++;
+			}
+
+			threevector BField = BMagNorm*Bhat;
 //			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 			threevector Position(0.0,0.0,0.0);
 			threevector Velocity(0.0,0.0,0.0);
@@ -307,8 +341,8 @@ int main(int argc, char* argv[]){
 			// For eliminating orbits that will definitely miss
 			if( BMag > 0 )  
 				RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
-							CoulombImpactParameter,BMagNorm,Bhat,Charge,RegeneratedParticles,
-							SPEC_CHARGE); 
+							CoulombImpactParameter,BMagNorm,Bhat,SPEC_CHARGE*Charge,
+							RegeneratedParticles,SPEC_CHARGE); 
 
 			#pragma omp critical 
 			{
@@ -321,18 +355,18 @@ int main(int argc, char* argv[]){
 			INITIAL_POT();				// For energy calculations
 
 
-			OPEN_TRACK(filename + "Track_" + std::to_string(i) + ".txt");
+			OPEN_TRACK(filename + "_Track_" + std::to_string(i) + ".txt");
 
 			// ***** DO PARTICLE PATH INTEGRATION ***** //
 //			Calculate Electric Field
 //			threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-			threevector EField = CoulombField(Position,Charge,e0norm);
+			threevector EField = CoulombField(Position,SPEC_CHARGE*Charge,e0norm);
 
 			RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
 
 
 			// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
-			UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);	
+			UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);	
 
 
 			unsigned int iter(0);
@@ -343,12 +377,11 @@ int main(int argc, char* argv[]){
 				// While the particle is not inside the sphere and not outside the simulation domain
 				while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e5 ){
 //					EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-					EField = CoulombField(Position,Charge,e0norm);
+					EField = CoulombField(Position,SPEC_CHARGE*Charge,e0norm);
 					OldVelocity = Velocity;	// For Angular Momentum Calculations
 					OldPosition = Position; // For Angular Momentum Calculations
 
-					TimeStep=0.1;       // Adaptive Time Step
-					UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
+					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
 					Position+=TimeStep*Velocity;
 
 					RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
@@ -357,17 +390,18 @@ int main(int argc, char* argv[]){
 				if( iter < 5e5 ){
 					Repeat = false;
 				}else{	// Particle is considered trapped
+
 					CLOSE_TRACK();
 					GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel);
 					RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
-							CoulombImpactParameter,BMagNorm,Bhat,Charge,RegeneratedParticles,
-							SPEC_CHARGE);
+							CoulombImpactParameter,BMagNorm,Bhat,SPEC_CHARGE*Charge,
+							RegeneratedParticles,SPEC_CHARGE);
 					INITIAL_VEL();          // For energy calculations
         			        INITIAL_POT();          // For energy calculations				
-					OPEN_TRACK(filename + std::to_string(i) + "_retry.txt");
-					EField = CoulombField(Position,Charge,e0norm);
+					OPEN_TRACK(filename + "_retry_" + std::to_string(i) + suffix);
+					EField = CoulombField(Position,SPEC_CHARGE*Charge,e0norm);
 		                	RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-					UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);
+					UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);
 					iter = 0;
 					Repeat = true;
 					TrappedParticles ++;
@@ -376,9 +410,10 @@ int main(int argc, char* argv[]){
 
 			threevector FinalVelocity = 0.5*(OldVelocity+Velocity);
 			threevector FinalPosition = 0.5*(OldPosition+Position);
-			threevector AngularMom = (FinalPosition^FinalVelocity); 
+			threevector AngularMom = (SpeciesMass/MASS)*(FinalPosition^FinalVelocity); 
 
 			if( Position.mag3() < 1.0 ){ // In this case it was captured!
+				double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
 				threevector AngularVel = (AngVelNorm)*
 				((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
 				#pragma omp critical
@@ -405,10 +440,13 @@ int main(int argc, char* argv[]){
 		} // END OF if (j != jmax-1)
 		CLOSE_TRACK();
 	} // END OF PARALLELISED FOR LOOP
-	AngularMomentumDataFile << "\n\n" << LinearMomentumSum << "\t" << AngularMomentumSum << "\t" 
-		<< j << "\t" << MissedParticles << "\t" << RegeneratedParticles << "\t" << TrappedParticles;
 
-	AngularMomentumDataFile.close();
+	RunDataFile << "LinMom\t\t\t\tAngMom\t\t\t\tj\tMissed\tRegen\tTrapped\tIonNum\tElecNum\n"; 
+	RunDataFile << LinearMomentumSum << "\t" << AngularMomentumSum << "\t" 
+		<< j << "\t" << MissedParticles << "\t" << RegeneratedParticles << "\t" << TrappedParticles << "\t" << IonNum << "\t" << ElecNum;
+
+	RunDataFile.close();
+	AngularDataFile.close();
 
 //	clock_t end = clock();
 //	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;

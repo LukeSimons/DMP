@@ -50,7 +50,7 @@
 #endif
 
 #ifdef SAVE_PARTICLE_MOM
-#define SAVE_MOM()	AngularMomentumDataFile << "\n" << j << "\t" << TotalAngularVel;
+#define SAVE_MOM()	AngularDataFile << "\n" << j << "\t" << TotalAngularVel;
 #else
 #define SAVE_MOM()
 #endif 
