@@ -83,10 +83,10 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 }
 
 void GyroCentrePos(threevector &Position, threevector &Velocity, double BMagNorm, const threevector &Bhat,
-			threevector &GyroCentre2D, double &RhoPerp){
+			threevector &GyroCentre2D, double &RhoPerp, const int SPEC_CHARGE){
 	threevector VPerp(Velocity.getx(),Velocity.gety(),0.0);
         threevector PosXY(Position.getx(),Position.gety(),0.0);
-        threevector AccelDir = (Velocity.getunit()^Bhat);
+        threevector AccelDir = (Velocity.getunit()^Bhat)*SPEC_CHARGE;
         RhoPerp = VPerp.mag3()/BMagNorm;
         GyroCentre2D = PosXY + (AccelDir*RhoPerp);
 }
@@ -95,33 +95,34 @@ void GyroCentrePos(threevector &Position, threevector &Velocity, double BMagNorm
 static void RegenerateMissingOrbits(threevector &Position, threevector &Velocity, const double DriftNorm, const double ThermalVel,
 					const double & zmin, const double & zmax, const double &IP, const double & CIP, 
 					double BMagNorm, const threevector &Bhat, const double &Charge, 
-					unsigned long long & RegeneratedParticles){
+					unsigned long long & RegeneratedParticles, const int SPEC_CHARGE){
 	// Calculate orbit parameters and get GyroCentre position
 	threevector GyroCentre2D(0.0,0.0,0.0);
 	double RhoPerp = 0.0;
-	GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp);
+	GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
 	
 	// Check if orbits will intersect the sphere
-	if( Charge == 0 ){
+	if( Charge <= 0 ){
 		while( fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0 ){ // Orbit won't intersect! re-generate orbit
 			GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel);
-			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp);
+			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
 			RegeneratedParticles ++;
 		}
-	}else{	// THIS WON'T WORK FOR ELECTRONS
-		while( fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + 0.5*CIP)  ){ // Orbit won't intersect! re-generate orbit
+	}else if(Charge > 0){
+		while( fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + CIP)  ){ // Orbit won't intersect! re-generate orbit
                         GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel);
-			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp);
+			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
                         RegeneratedParticles ++;
                 }
 	}
 }
 
 /*updates velocity using the Boris method, Birdsall, Plasma Physics via Computer Simulation, p.62*/
-static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BField, double dt, threevector &Velocity){
+static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BField, double dt, threevector &Velocity, 
+					const int SPEC_CHARGE){
 
 	/*t vector*/
-	threevector t = BField*0.5*dt;
+	threevector t = BField*0.5*SPEC_CHARGE*dt;
 	
 	/*magnitude of t, squared*/
 	double t_mag2 = t.square();
@@ -130,7 +131,7 @@ static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BFi
 	threevector s = 2.0*t*(1/(1+t_mag2));
 	
 	/*v minus*/
-	threevector v_minus = Velocity + Efield*0.5*dt; 
+	threevector v_minus = Velocity + Efield*0.5*SPEC_CHARGE*dt; 
 	
 	/*v prime*/
 	threevector v_prime = v_minus + (v_minus^t);
@@ -139,7 +140,7 @@ static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BFi
 	threevector v_plus = v_minus + (v_prime^s);
 	
 	/*v n+1/2*/
-	Velocity = v_plus + Efield*0.5*dt;
+	Velocity = v_plus + Efield*0.5*SPEC_CHARGE*dt;
 }
 
 threevector CoulombField(threevector Position, double Charge, double e0norm){
@@ -173,6 +174,7 @@ int main(int argc, char* argv[]){
 
 
 	// ***** DEFINE PLASMA PARAMETERS ***** //
+	double iTemp 		= 1.0;	// Ion Temperature, eV
 	double eTemp 		= 1.0;	// Electron Temperature, eV
 	double eDensity		= 1e18;	//1e14;	// m^(-3), Electron density
 	double iDensity		= 1e18;	//1e14;	// m^(-3), Ion density
@@ -213,8 +215,10 @@ int main(int argc, char* argv[]){
 	}
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
 	double MASS;			// kg, This is the mass of the Species being considered
-	if( SPEC_CHARGE > 0 )	MASS 	= Mp;
-	else{
+	if( SPEC_CHARGE > 0 ){
+		MASS 	= Mp;
+		iTemp	= TEMP;
+	}else{
 		MASS	= Me;
 		eTemp	= TEMP;
 	}
@@ -303,7 +307,8 @@ int main(int argc, char* argv[]){
 			// For eliminating orbits that will definitely miss
 			if( BMag > 0 )  
 				RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
-							CoulombImpactParameter,BMagNorm,Bhat,Charge,RegeneratedParticles); 
+							CoulombImpactParameter,BMagNorm,Bhat,Charge,RegeneratedParticles,
+							SPEC_CHARGE); 
 
 			#pragma omp critical 
 			{
@@ -327,7 +332,7 @@ int main(int argc, char* argv[]){
 
 
 			// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
-			UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);	
+			UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);	
 
 
 			unsigned int iter(0);
@@ -343,7 +348,7 @@ int main(int argc, char* argv[]){
 					OldPosition = Position; // For Angular Momentum Calculations
 
 					TimeStep=0.1;       // Adaptive Time Step
-					UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity);
+					UpdateVelocityBoris(MASS,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
 					Position+=TimeStep*Velocity;
 
 					RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
@@ -355,13 +360,14 @@ int main(int argc, char* argv[]){
 					CLOSE_TRACK();
 					GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel);
 					RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
-							CoulombImpactParameter,BMagNorm,Bhat,Charge,RegeneratedParticles);
+							CoulombImpactParameter,BMagNorm,Bhat,Charge,RegeneratedParticles,
+							SPEC_CHARGE);
 					INITIAL_VEL();          // For energy calculations
         			        INITIAL_POT();          // For energy calculations				
 					OPEN_TRACK(filename + std::to_string(i) + "_retry.txt");
 					EField = CoulombField(Position,Charge,e0norm);
 		                	RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-					UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity);
+					UpdateVelocityBoris(MASS,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);
 					iter = 0;
 					Repeat = true;
 					TrappedParticles ++;
