@@ -1,5 +1,5 @@
 //#define STORE_TRACKS 
-#define VEL_POS_DIST
+//#define VEL_POS_DIST
 //#define CALCULATE_ENERGY
 #define CALCULATE_MOM
 #define SAVE_PARTICLE_MOM
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]){
 	double zMinDebye	= 3.0;	// Arb, Number of debye distances max of simulation is
 	double ImpactPar	= 2.0;	// Arb, Multiplicative factor for the Impact Parameter
 	unsigned long long imax	= 100;	// Arb, Maximum number of particles to be launched
-	unsigned long long jmax	= 0.0;// Arb, Number of particles to be collected
+	unsigned long long jmax	= 2.0e6;// Arb, Number of particles to be collected
 
 
 	// ***** DETERMINE USER INPUT ***** //
@@ -289,7 +289,7 @@ int main(int argc, char* argv[]){
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0);
-	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel) PRIVATE_FILES()
+	#pragma omp parallel for private(TimeStep) shared(TotalAngularVel,TotalAngularMom) PRIVATE_FILES()
 	for( i=0; i < imax; i ++){
 	
 		if( j != jmax ){
@@ -370,8 +370,7 @@ int main(int argc, char* argv[]){
 
 			threevector FinalVelocity = 0.5*(OldVelocity+Velocity);
 			threevector FinalPosition = 0.5*(OldPosition+Position);
-			threevector CylindricalRadius(FinalPosition.getx(),FinalPosition.gety(),0.0);
-			threevector AngularMom = (CylindricalRadius^FinalVelocity); 
+			threevector AngularMom = (FinalPosition^FinalVelocity); 
 
 			if( Position.mag3() < 1.0 ){ // In this case it was captured!
 				threevector AngularVel = (AngVelNorm)*
