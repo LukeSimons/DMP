@@ -1,13 +1,25 @@
 #ifndef __CONSTANTS_H_INCLUDED__   // if Constants.h hasn't been included yet...
 #define __CONSTANTS_H_INCLUDED__
 
-#ifdef VEL_POS_DIST
-#define PRINT_VP(x)	std::cout << x
+#ifdef CALCULATE_MOM
+#define DECLARE_LMSUM()	threevector LinearMomentumSum(0.0,0.0,0.0);
+#define DECLARE_AMSUM()	threevector AngularMomentumSum(0.0,0.0,0.0);
+#define SAVE_MOM(x)	RunDataFile << x
 #else
-#define PRINT_VP(x)
+#define DECLARE_LMSUM()
+#define DECLARE_AMSUM()
+#define SAVE_MOM(x)
 #endif
 
-#ifdef STORE_TRACKS 
+#ifdef SELF_CONS_CHARGE
+#define ADD_CHARGE()	Charge += SPEC_CHARGE;
+#define SAVE_CHARGE(x)	RunDataFile << x;
+#else
+#define ADD_CHARGE()
+#define SAVE_CHARGE(x)
+#endif
+
+#ifdef SAVE_TRACKS 
 #define DECLARE_TRACK()	std::ofstream TrackDataFiles	
 #define PRIVATE_FILES()	private(TrackDataFiles)
 #define OPEN_TRACK(x)	TrackDataFiles.open(x)
@@ -21,40 +33,61 @@
 #define CLOSE_TRACK()
 #endif 
 
-#if defined CALCULATE_ENERGY || defined CALCULATE_MOM || defined VEL_POS_DIST
+#ifdef SAVE_ANGULAR_VEL
+#define DECLARE_AVEL()	std::ofstream AngularDataFile;
+#define OPEN_AVEL()	AngularDataFile.open("Data/DMP_AngVel.txt");
+#define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << TotalAngularVel;
+#define CLOSE_AVEL()	AngularDataFile.close();
+#else
+#define DECLARE_AVEL()
+#define OPEN_AVEL()
+#define SAVE_AVEL()
+#define CLOSE_AVEL()
+#endif 
+
+#ifdef SAVE_LINEAR_MOM
+#define DECLARE_LMOM()	std::ofstream LinearDataFile;
+#define OPEN_LMOM()	LinearDataFile.open("Data/DMP_LinMom.txt");
+#define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << SpeciesMass*FinalVelocity;
+#define CLOSE_LMOM()	LinearDataFile.close();
+#else
+#define DECLARE_LMOM()
+#define OPEN_LMOM()
+#define SAVE_LMOM()
+#define CLOSE_LMOM()
+#endif 
+
+#ifdef TEST_VELPOSDIST
+#define PRINT_VPD(x)	std::cout << x;
+#else
+#define PRINT_VPD(x)
+#endif
+
+#ifdef TEST_FINALPOS
+#define PRINT_FP(x)	std::cout << x;
+#else
+#define PRINT_FP(x)
+#endif
+
+#ifdef TEST_CHARGING
+#define PRINT_CHARGE(x)	std::cout << x;
+#else
+#define PRINT_CHARGE(x)
+#endif
+
+#if defined TEST_ENERGY 
 #define INITIAL_VEL()	threevector InitialVelMag = Velocity;
 #define INITIAL_POT()	double InitialPot = Charge/(4*PI*e0norm*Position.mag3());
 #define FINAL_VEL()	threevector FinalVelMag = Velocity;
 #define FINAL_POT()	double FinalPot = Charge/(4*PI*e0norm*Position.mag3());
+#define PRINT_ENERGY(x)	std::cout << x
 #else
 #define INITIAL_VEL()
 #define INITIAL_POT()
 #define FINAL_VEL()
 #define FINAL_POT()
+#define PRINT_ENERGY(x)
 #endif
-
-#ifdef CALCULATE_ENERGY
-#define OUTPUT_VEL(x)	std::cout << x
-#else
-#define OUTPUT_VEL(x)
-#endif 
-
-#ifdef CALCULATE_MOM
-#define DECLARE_LMSUM()	threevector LinearMomentumSum(0.0,0.0,0.0);
-#define DECLARE_AMSUM()	threevector AngularMomentumSum(0.0,0.0,0.0);
-#define OUTPUT_MOM(x)	std::cout << x
-#else
-#define DECLARE_LMSUM()
-#define DECLARE_AMSUM()
-#define OUTPUT_MOM(x)
-#endif
-
-#ifdef SAVE_PARTICLE_MOM
-#define SAVE_MOM()	AngularDataFile << "\n" << j << "\t" << TotalAngularVel;
-#else
-#define SAVE_MOM()
-#endif 
-
 
 #ifdef PAUSE
 #define Pause(); std::cin.get();

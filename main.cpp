@@ -1,22 +1,29 @@
-#define STORE_TRACKS 
-//#define VEL_POS_DIST
-//#define CALCULATE_ENERGY
 #define CALCULATE_MOM
-#define SAVE_PARTICLE_MOM
+#define SELF_CONS_CHARGE
+
+#define SAVE_TRACKS 
+#define SAVE_ANGULAR_VEL
+//#define SAVE_LINEAR_MOM
+
+//#define TEST_VELPOSDIST
+//#define TEST_FINALPOS
+//#define TEST_CHARGING
+//#define TEST_ENERGY
+
 
 #include <omp.h>	// For parallelisation
 
-#include <iostream>
-#include <array>
-#include <random>
-#include <fstream>
-#include <ctime>
+#include <iostream>	// for std::cout
+#include <array>	
+#include <random>	// for std::normal_distribution<> etc.
+#include <fstream>	// for std::ofstream
+#include <ctime>	// for clock()
 #include <math.h> 	// For fabs()
 #include <sstream>	// for std::stringstream
 
-#include "Functions.h"	
-#include "Constants.h"
-#include "threevector.h"
+//#include "Function.h"	// For LambertW() Function to calculate Debye-Huckel Screening Length
+#include "Constants.h"	// Define Pre-processor Directives and constants
+#include "threevector.h"// for threevector class
 
 static void show_usage(std::string name){
 	std::cerr << "Usage: int main(int argc, char* argv[]) <option(s)> SOURCES"
@@ -94,21 +101,27 @@ void GyroCentrePos(threevector &Position, threevector &Velocity, double BMagNorm
 static void RegenerateMissingOrbits(threevector &Position, threevector &Velocity, const double DriftNorm, const double ThermalVel,
 					const double & zmin, const double & zmax, const double &IP, const double & CIP, 
 					double BMagNorm, const threevector &Bhat, const double &Charge, 
-					unsigned long long & RegeneratedParticles, const int SPEC_CHARGE){
+					unsigned long long & RegeneratedParticles, const int SPEC_CHARGE,
+					const double &SpeciesMass, const double &e0norm){
 	// Calculate orbit parameters and get GyroCentre position
 	threevector GyroCentre2D(0.0,0.0,0.0);
 	double RhoPerp = 0.0;
 	GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
 	
 	// Check if orbits will intersect the sphere
-	if( Charge <= 0 ){
-		while( fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0 ){ // Orbit won't intersect! re-generate orbit
+	if( Charge <= 0 ){	// Repulsive Potential
+		// Orbit won't intersect! re-generate orbit
+		while( (fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0) ){
+//			TRYING TO IMPROVE RE-INJECTION ALGORITHM FOR REPELLED SPECIES
+//			HAVING SOME DIFFICULTY AS THESE KIND OF STATEMENTS SEEM TO HAVE NO EFFECT:
+//			&& (fabs(Velocity.getz()) < sqrt(fabs(Charge)/(2*PI*SpeciesMass*e0norm))) ){ 
 			GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel);
 			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
 			RegeneratedParticles ++;
 		}
-	}else if(Charge > 0){
-		while( fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + CIP)  ){ // Orbit won't intersect! re-generate orbit
+	}else if(Charge > 0){	// Attractive Potential
+		// Orbit won't intersect! re-generate orbit
+		while( fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + CIP) ){ 
                         GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel);
 			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
                         RegeneratedParticles ++;
@@ -162,8 +175,10 @@ int main(int argc, char* argv[]){
 	std::string filename = "Data/DMP";
 	std::string suffix	= ".txt";
 	DECLARE_TRACK();
+	DECLARE_AVEL();			// Data file for angular momentum information
+	DECLARE_LMOM();			// Data file for linear momentum information
 	std::ofstream RunDataFile;	// Data file for containing the run information
-	std::ofstream AngularDataFile;	// Data file for angular momentum information
+
 
 
 	// ***** DEFINE DUST PARAMETERS ***** //
@@ -227,9 +242,9 @@ int main(int argc, char* argv[]){
 		std::cerr << "Error! BMag <= 0.0. These values are prohibited.";
 		exit(EXIT_FAILURE);
 	}
+
 	double e0norm 	= epsilon0*MASS*pow(Radius,3)/(pow(echarge*Tau,2));
 	double PotNorm	= Potential*eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));	// NEEDS CHECKING MAYBE
-//	double BMagNorm	= BMag*Tau*echarge/MASS;  SUBSTITUTING IN TAU, THIS EVALUATES TO 1.0 ALWAYS
 	double DriftNorm= DriftVel*Tau/(Radius);
 
 	double eDensNorm= eDensity*pow(Radius,3);
@@ -240,7 +255,10 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE FIELD PARAMETERS ***** //
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
 
+
 	double Charge 		= PotNorm*(4*PI*e0norm); 		// Normalised Charge,
+
+	
 	double iThermalVel	= sqrt(2.0*iTempNorm/PI);		// Normalised Thermal velocity
 	double eThermalVel	= sqrt(2.0*eTempNorm/PI)*MassRatio;	// Normalised Thermal velocity
 	
@@ -262,7 +280,12 @@ int main(int argc, char* argv[]){
 		iRhoTherm = iThermalVel; // Thermal GyroRadius for ions normalised to dust grain radii
 		eRhoTherm = eThermalVel/pow(MassRatio,2); // Thermal GyroRadius for electrons normalised to dust grain radii
                 iImpactParameter = 1.0+ImpactPar*iRhoTherm+iCoulombImpactParameter;
-                eImpactParameter = 1.0+ImpactPar*eRhoTherm+eCoulombImpactParameter;
+		if(Charge <= 0.0){
+	                eImpactParameter = 1.0+ImpactPar*eRhoTherm;	// ASSUMING ELECTRONS ARE REPELLED
+		}else{
+			std::cerr << "Error! Cannot cope with Charge >= 0.0.";
+			exit(EXIT_FAILURE);
+		}
 	}
 	double ezmax = 1.05+zMaxCoeff*eCoulombImpactParameter;
 	double ezmin = -1.05-zMaxCoeff*eCoulombImpactParameter;
@@ -272,20 +295,16 @@ int main(int argc, char* argv[]){
 	// Define ratio of flux of electrons to ions
 	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(1+eImpactParameter,2)/pow(1+iImpactParameter,2));
 	double ProbabilityOfIon = 1.0/(1.0+ElecToIonRatio);
-
-	std::cout << "\nivt = " << iThermalVel;	
-	std::cout << "\nevt = " << eThermalVel;	
-	std::cout << "\neRT = " << eRhoTherm;
-	std::cout << "\neip = " << eImpactParameter;	
-	std::cout << "\niip = " << iImpactParameter;	
-	std::cout << "\nProbabilityOfIon = " << ProbabilityOfIon;	std::cin.get();
+//	double ProbabilityOfIon = 0.0;
 
 
 	// ***** OPEN DATA FILE WITH HEADER ***** //
 	time_t now = time(0);		// Get the time of simulation
 	char * dt = ctime(&now);
-	RunDataFile.open(filename + suffix);	
-	AngularDataFile.open(filename + "_AngMom" + suffix);	
+	OPEN_AVEL();
+	OPEN_LMOM();
+
+	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
 	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<eDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<iDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n";
@@ -303,9 +322,9 @@ int main(int argc, char* argv[]){
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0), IonNum(0), ElecNum(0);
-	#pragma omp parallel for shared(TotalAngularVel,TotalAngularMom) PRIVATE_FILES()
+	#pragma omp parallel for shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
 	for( i=0; i < imax; i ++){
-		if( j != jmax ){
+		if( j <= jmax ){
 			double BMagNorm = pow(MassRatio,2);
 			double ImpactParameter=eImpactParameter;
 			double CoulombImpactParameter=eCoulombImpactParameter;
@@ -316,7 +335,6 @@ int main(int argc, char* argv[]){
 			double SpeciesMass = 1.0/pow(MassRatio,2);
 			int SPEC_CHARGE=-1;
 			if( rad(mt) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
-				std::cout << "\nWe get here! j = " << j;
 				BMagNorm = 1.0;
 				ImpactParameter= iImpactParameter;
 				CoulombImpactParameter=iCoulombImpactParameter;
@@ -330,24 +348,31 @@ int main(int argc, char* argv[]){
 			}else{
 				ElecNum ++;
 			}
-
+			
 			threevector BField = BMagNorm*Bhat;
 //			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 			threevector Position(0.0,0.0,0.0);
 			threevector Velocity(0.0,0.0,0.0);
 
 			GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel);
+
+			#pragma omp critical 
+			{
+				PRINT_VPD(Position); PRINT_VPD("\t");	// For debugging look at initial vel and positions
+				PRINT_VPD(Velocity); PRINT_VPD("\t");	// For debugging look at initial vel and positions
+			}
+
 		
 			// For eliminating orbits that will definitely miss
 			if( BMag > 0 )  
 				RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
 							CoulombImpactParameter,BMagNorm,Bhat,SPEC_CHARGE*Charge,
-							RegeneratedParticles,SPEC_CHARGE); 
+							RegeneratedParticles,SPEC_CHARGE,SpeciesMass,e0norm); 
 
 			#pragma omp critical 
 			{
-				PRINT_VP(Position); PRINT_VP("\t");	// For debugging look at initial vel and positions
-				PRINT_VP(Velocity); PRINT_VP("\n");	// For debugging look at initial vel and positions
+				PRINT_VPD(Position); PRINT_VPD("\t");	// For debugging look at initial vel and positions
+				PRINT_VPD(Velocity); PRINT_VPD("\n");	// For debugging look at initial vel and positions
 			}
 
 
@@ -360,7 +385,7 @@ int main(int argc, char* argv[]){
 			// ***** DO PARTICLE PATH INTEGRATION ***** //
 //			Calculate Electric Field
 //			threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-			threevector EField = CoulombField(Position,SPEC_CHARGE*Charge,e0norm);
+			threevector EField = CoulombField(Position,Charge,e0norm);
 
 			RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
 
@@ -377,7 +402,7 @@ int main(int argc, char* argv[]){
 				// While the particle is not inside the sphere and not outside the simulation domain
 				while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e5 ){
 //					EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-					EField = CoulombField(Position,SPEC_CHARGE*Charge,e0norm);
+					EField = CoulombField(Position,Charge,e0norm);
 					OldVelocity = Velocity;	// For Angular Momentum Calculations
 					OldPosition = Position; // For Angular Momentum Calculations
 
@@ -395,7 +420,7 @@ int main(int argc, char* argv[]){
 					GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel);
 					RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
 							CoulombImpactParameter,BMagNorm,Bhat,SPEC_CHARGE*Charge,
-							RegeneratedParticles,SPEC_CHARGE);
+							RegeneratedParticles,SPEC_CHARGE,SpeciesMass,e0norm);
 					INITIAL_VEL();          // For energy calculations
         			        INITIAL_POT();          // For energy calculations				
 					OPEN_TRACK(filename + "_retry_" + std::to_string(i) + suffix);
@@ -410,46 +435,55 @@ int main(int argc, char* argv[]){
 
 			threevector FinalVelocity = 0.5*(OldVelocity+Velocity);
 			threevector FinalPosition = 0.5*(OldPosition+Position);
-			threevector AngularMom = (SpeciesMass/MASS)*(FinalPosition^FinalVelocity); 
-
-			if( Position.mag3() < 1.0 ){ // In this case it was captured!
-				double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
-				threevector AngularVel = (AngVelNorm)*
-				((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
-				#pragma omp critical
-				{
-					if( j < jmax){
-						TotalAngularVel += AngularVel;
-						TotalAngularMom += AngularMom;
-						j ++;
-						SAVE_MOM()
-					}
-				}
-			}else{
-				FINAL_VEL(); 
-				FINAL_POT(); 
-				OUTPUT_VEL(i); OUTPUT_VEL("\t"); 
-				OUTPUT_VEL(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  OUTPUT_VEL("\t");
-				OUTPUT_VEL(100*(((FinalVelMag.square()+FinalPot)/(InitialVelMag.square()+InitialPot))-1));  
-				OUTPUT_VEL("\n");
+			threevector AngularMom = SpeciesMass*(FinalPosition^FinalVelocity); 
 			
-				LinearMomentumSum += FinalVelocity;
-				AngularMomentumSum += AngularMom;
-				MissedParticles ++;
-			} // END OF if ( Position.mag3() < 1.0 )
+			#pragma omp critical
+			{
+				if( Position.mag3() < 1.0 ){ // In this case it was captured!
+					double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
+					threevector AngularVel = (AngVelNorm)*
+					((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
+					PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
+					TotalAngularVel += AngularVel;
+					TotalAngularMom += AngularMom;
+					j ++;
+					PRINT_CHARGE(j)		PRINT_CHARGE("\t")
+					PRINT_CHARGE(Charge) 	PRINT_CHARGE("\n")
+					ADD_CHARGE()
+					SAVE_AVEL()
+					SAVE_LMOM()
+				}else{
+					FINAL_VEL(); 
+					FINAL_POT(); 
+					PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
+					PRINT_ENERGY(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  PRINT_ENERGY("\t");
+					PRINT_ENERGY(100*(((FinalVelMag.square()+FinalPot)/(InitialVelMag.square()+InitialPot))-1));  
+					PRINT_ENERGY("\n");
+					
+					LinearMomentumSum += SpeciesMass*FinalVelocity;	
+					AngularMomentumSum += AngularMom;
+					MissedParticles ++;
+				} // END OF if ( Position.mag3() < 1.0 )
+			}
 		} // END OF if (j != jmax-1)
 		CLOSE_TRACK();
 	} // END OF PARALLELISED FOR LOOP
+	SAVE_MOM("LinMom\t\t\t\tAngMom\n");
+	SAVE_MOM(LinearMomentumSum); SAVE_MOM("\t"); SAVE_MOM(AngularMomentumSum); SAVE_MOM("\n\n");
+	SAVE_CHARGE("Charge\n")
+	SAVE_CHARGE(Charge) SAVE_CHARGE("\n\n")
+	
 
-	RunDataFile << "LinMom\t\t\t\tAngMom\t\t\t\tj\tMissed\tRegen\tTrapped\tIonNum\tElecNum\n"; 
-	RunDataFile << LinearMomentumSum << "\t" << AngularMomentumSum << "\t" 
-		<< j << "\t" << MissedParticles << "\t" << RegeneratedParticles << "\t" << TrappedParticles << "\t" << IonNum << "\t" << ElecNum;
+	RunDataFile << "i\tj\tMissed\tRegen\tTrapped\tIonNum\tElecNum\n"; 
+	RunDataFile << i << "\t" << j << "\t" << MissedParticles << "\t" << RegeneratedParticles << "\t" << TrappedParticles << "\t" << IonNum << "\t" << ElecNum;
+
+	clock_t end = clock();
+	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
+	RunDataFile << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n";
 
 	RunDataFile.close();
-	AngularDataFile.close();
+	CLOSE_AVEL();
+	CLOSE_LMOM();
 
-//	clock_t end = clock();
-//	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
-//	std::cout << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n";
 	return 0;
 }
