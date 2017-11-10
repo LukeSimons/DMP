@@ -82,16 +82,24 @@
 #define PRINT_CHARGE(x)
 #endif
 
+#ifdef TEST_ANGVEL
+#define PRINT_AVEL(x)	std::cout << x;
+#else
+#define PRINT_AVEL(x)
+#endif
+
 #if defined TEST_ENERGY 
-#define INITIAL_VEL()	threevector InitialVelMag = Velocity;
-#define INITIAL_POT()	double InitialPot = Charge/(4*PI*e0norm*Position.mag3());
-#define FINAL_VEL()	threevector FinalVelMag = Velocity;
-#define FINAL_POT()	double FinalPot = Charge/(4*PI*e0norm*Position.mag3());
+#define INITIAL_VEL()	threevector InitialVel = Velocity;
+#define INITIAL_POT()	double InitialPot = Charge/(4.0*PI*e0norm*Position.mag3());
+#define RESET_VEL()	InitialVel = Velocity;
+#define RESET_POT()	InitialPot = Charge/(4.0*PI*e0norm*Position.mag3());
+#define FINAL_POT()	double FinalPot = Charge/(4.0*PI*e0norm*FinalPosition.mag3());
 #define PRINT_ENERGY(x)	std::cout << x
 #else
 #define INITIAL_VEL()
 #define INITIAL_POT()
-#define FINAL_VEL()
+#define RESET_VEL()
+#define RESET_POT()
 #define FINAL_POT()
 #define PRINT_ENERGY(x)
 #endif

@@ -9,6 +9,7 @@
 #define TEST_REGEN
 //#define TEST_FINALPOS
 //#define TEST_CHARGING
+//#define TEST_ANGVEL
 //#define TEST_ENERGY
 
 
@@ -259,20 +260,16 @@ int main(int argc, char* argv[]){
 
 	// ***** DEFINE FIELD PARAMETERS ***** //
 	threevector Bhat(0.0,0.0,1.0);	// Direction of magnetic field, z dir.
-
-
 	double Charge 		= PotNorm*(4*PI*e0norm); 		// Normalised Charge,
 
 	
-	double iThermalVel	= sqrt(2.0*iTempNorm/PI);		// Normalised Thermal velocity
-	double eThermalVel	= sqrt(2.0*eTempNorm/PI)*MassRatio;	// Normalised Thermal velocity
-	
-
 	// ***** DEFINE SIMULATION SPACE ***** //
 //	double DebyeHuckelImpactParameter = DebyeLength*LambertW((pow(naturale,2))/DebyeLength);
 //	double CoulombImpactParameter	= pow(pow(Charge,2)/(pow(4*PI,2)*e0norm*pow(ThermalVel,2)),0.25);
 //	double u0norm 	= (4.0*PI*10e-7*pow(echarge,2))/(MASS*Radius);
 //	double CoulombImpactParameter	= pow(pow(Charge/(4.0*PI*e0norm),2)/(pow(ThermalVel,2)+BMagNorm/u0norm),0.25);
+	double iThermalVel	= sqrt(2.0*iTempNorm/PI);		// Normalised Thermal velocity
+	double eThermalVel	= sqrt(2.0*eTempNorm/PI)*MassRatio;	// Normalised Thermal velocity
 	double iCoulombImpactParameter	= fabs(Charge/(2*PI*e0norm*pow(iThermalVel,2))); // Balance Coulomb to kinetic energy
 	double eCoulombImpactParameter	= fabs(Charge*pow(MassRatio,2)/(2*PI*e0norm*pow(eThermalVel,2))); // Balance Coulomb to kinetic energy
         double iImpactParameter,eImpactParameter;
@@ -293,7 +290,7 @@ int main(int argc, char* argv[]){
 		}
 	}
 	double ezmax = 1.05+zMaxCoeff*eCoulombImpactParameter;
-	double ezmin = -1.05-zMaxCoeff*eCoulombImpactParameter;
+	double ezmin = -1.05-zMinCoeff*eCoulombImpactParameter;
 	double izmax = 1.0001+zMaxCoeff*iCoulombImpactParameter;
 	double izmin = -1.0001-zMinCoeff*iCoulombImpactParameter;
 
@@ -302,7 +299,6 @@ int main(int argc, char* argv[]){
 	double ProbabilityOfIon = 1.0/(1.0+ElecToIonRatio);
 	if( iChance >= 0.0 && iChance <= 1.0 )
 		ProbabilityOfIon = iChance;
-//	double ProbabilityOfIon = 0.0;
 
 
 	// ***** OPEN DATA FILE WITH HEADER ***** //
@@ -355,7 +351,6 @@ int main(int argc, char* argv[]){
 			}else{
 				ElecNum ++;
 			}
-			
 			threevector BField = BMagNorm*Bhat;
 //			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 			threevector Position(0.0,0.0,0.0);
@@ -405,14 +400,13 @@ int main(int argc, char* argv[]){
 
 			unsigned int iter(0);
 			bool Repeat(true);
-			threevector OldVelocity(0.0,0.0,0.0), OldPosition(0.0,0.0,0.0);
+			threevector OldPosition(0.0,0.0,0.0);
 			// While we don't exceed a specified number of iterations to catch trapped orbits	
 			while( Repeat ){	
 				// While the particle is not inside the sphere and not outside the simulation domain
 				while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e5 ){
 //					EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
 					EField = CoulombField(Position,Charge,e0norm);
-					OldVelocity = Velocity;	// For Angular Momentum Calculations
 					OldPosition = Position; // For Angular Momentum Calculations
 
 					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
@@ -442,37 +436,38 @@ int main(int argc, char* argv[]){
 				}	
 			}
 
-			threevector FinalVelocity = 0.5*(OldVelocity+Velocity);
 			threevector FinalPosition = 0.5*(OldPosition+Position);
-			threevector AngularMom = SpeciesMass*(FinalPosition^FinalVelocity); 
+			threevector AngularMom = SpeciesMass*(FinalPosition^Velocity); 
 			
 			#pragma omp critical
 			{
 				if( Position.mag3() < 1.0 ){ // In this case it was captured!
 					double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
 					threevector AngularVel = (AngVelNorm)*
-					((FinalPosition^FinalVelocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
+					((FinalPosition^Velocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
 					PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
 					TotalAngularVel += AngularVel;
 					TotalAngularMom += AngularMom;
 					j ++;
 					PRINT_CHARGE(j)		PRINT_CHARGE("\t")
 					PRINT_CHARGE(Charge) 	PRINT_CHARGE("\n")
+					PRINT_AVEL((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AVEL("\t");
+					PRINT_AVEL((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AVEL("\n");
 					ADD_CHARGE()
 					SAVE_AVEL()
 					SAVE_LMOM()
-				}else{
-					FINAL_VEL(); 
-					FINAL_POT(); 
-					PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
-					PRINT_ENERGY(100*(FinalVelMag.mag3()/InitialVelMag.mag3()-1));  PRINT_ENERGY("\t");
-					PRINT_ENERGY(100*(((FinalVelMag.square()+FinalPot)/(InitialVelMag.square()+InitialPot))-1));  
-					PRINT_ENERGY("\n");
-					
-					LinearMomentumSum += SpeciesMass*FinalVelocity;	
+				}else{					
+					LinearMomentumSum += SpeciesMass*Velocity;	
 					AngularMomentumSum += AngularMom;
 					MissedParticles ++;
 				} // END OF if ( Position.mag3() < 1.0 )
+				FINAL_POT(); 
+				PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
+				PRINT_ENERGY(100*(Velocity.square()/InitialVel.square()-1.0));  PRINT_ENERGY("\t");
+				PRINT_ENERGY(0.5*SpeciesMass*Velocity.square()+SPEC_CHARGE*FinalPot-
+						(0.5*SpeciesMass*InitialVel.square()+SPEC_CHARGE*InitialPot));  
+				PRINT_ENERGY("\n");
+
 			}
 		} // END OF if (j != jmax-1)
 		CLOSE_TRACK();
