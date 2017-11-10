@@ -1,11 +1,12 @@
 #define CALCULATE_MOM
-#define SELF_CONS_CHARGE
+//#define SELF_CONS_CHARGE
 
-#define SAVE_TRACKS 
+//#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 //#define SAVE_LINEAR_MOM
 
 //#define TEST_VELPOSDIST
+#define TEST_REGEN
 //#define TEST_FINALPOS
 //#define TEST_CHARGING
 //#define TEST_ENERGY
@@ -36,6 +37,7 @@ static void show_usage(std::string name){
 	<< "\t-e,--etemp ETEMP\t\t(eV), Specify the temperature of plasma electrons\n\n"
 	<< "\t-n,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron density\n\n"
 	<< "\t-t,--itemp ITEMP\t\t\t(eV), Specify the temperature of Ions\n\n"
+	<< "\t-c,--ichance ICHANCE\t\t\t(eV), Specify the probability of generating an Ion\n\n"
 	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(arb), Specify the upper limit of simulation domain as number of distances\n\n"
 	<< "\t-l,--zmincoeff ZMINCOEFF\t(arb), Specify the lower limit of simulation domain as number of distances\n\n"
 	<< "\t-b,--impactpar IMPACTPAR\t(arb), Specify the radial limit of simulation domain as number of distances\n\n"
@@ -72,6 +74,7 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	// ***** RANDOMISE POSITION CYLINDRICALLY ***** //
 	double radial_pos=ImpactParameter*sqrt(rad(mt));
 	double theta_pos =2*PI*rad(mt);
+
 	Position.setx(radial_pos*cos(theta_pos));
 	Position.sety(radial_pos*sin(theta_pos));
 	double zvel = Gaussdist(mt);	// Generate z-velocity here to determine starting position 
@@ -197,6 +200,7 @@ int main(int argc, char* argv[]){
 	double zMaxCoeff	= 3.0;	// Arb, Number of debye distances max of simulation is
 	double zMinCoeff	= 3.0;	// Arb, Number of debye distances max of simulation is
 	double ImpactPar	= 2.0;	// Arb, Multiplicative factor for the Impact Parameter
+	double iChance		= -0.5;	// Arb, Manually set probability of Generating an ion
 	unsigned long long imax	= 100;	// Arb, Maximum number of particles to be launched
 	unsigned long long jmax	= 2.0e6;// Arb, Number of particles to be collected
 
@@ -214,6 +218,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--etemp" 	|| arg == "-e" )	InputFunction(argc,argv,i,ss0,eTemp);
 		else if( arg == "--edensity" 	|| arg == "-n" )	InputFunction(argc,argv,i,ss0,eDensity);
 		else if( arg == "--itemp" 	|| arg == "-t" )	InputFunction(argc,argv,i,ss0,iTemp);
+		else if( arg == "--ichance" 	|| arg == "-c" )	InputFunction(argc,argv,i,ss0,iChance);
 		else if( arg == "--zmaxcoeff" 	|| arg == "-u" )	InputFunction(argc,argv,i,ss0,zMaxCoeff);
 		else if( arg == "--zmincoeff" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinCoeff);
 		else if( arg == "--impactpar"	|| arg == "-b" )	InputFunction(argc,argv,i,ss0,ImpactPar);
@@ -295,6 +300,8 @@ int main(int argc, char* argv[]){
 	// Define ratio of flux of electrons to ions
 	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(1+eImpactParameter,2)/pow(1+iImpactParameter,2));
 	double ProbabilityOfIon = 1.0/(1.0+ElecToIonRatio);
+	if( iChance >= 0.0 && iChance <= 1.0 )
+		ProbabilityOfIon = iChance;
 //	double ProbabilityOfIon = 0.0;
 
 
@@ -331,7 +338,7 @@ int main(int argc, char* argv[]){
 			double ThermalVel=eThermalVel;
 			double zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
 			double zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
- 			double TimeStep(0.0001);
+ 			double TimeStep(0.0005);
 			double SpeciesMass = 1.0/pow(MassRatio,2);
 			int SPEC_CHARGE=-1;
 			if( rad(mt) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
@@ -341,7 +348,7 @@ int main(int argc, char* argv[]){
 				ThermalVel=iThermalVel;
 				zmax 	= izmax; 
 				zmin 	= izmin ;
-				TimeStep = 0.1;
+				TimeStep = 0.05;
 				SpeciesMass = 1.0;
 				SPEC_CHARGE=1;
 				IonNum ++;
@@ -358,10 +365,11 @@ int main(int argc, char* argv[]){
 
 			#pragma omp critical 
 			{
-				PRINT_VPD(Position); PRINT_VPD("\t");	// For debugging look at initial vel and positions
-				PRINT_VPD(Velocity); PRINT_VPD("\t");	// For debugging look at initial vel and positions
+				PRINT_VPD(Position); PRINT_VPD("\t");	// For debugging look at initial positions
+				PRINT_VPD(Velocity); PRINT_VPD("\t");	// For debugging look at initial velocities
+				PRINT_VPD( sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2))*SpeciesMass); 
+				PRINT_VPD("\n");	// For debugging look at gyro-radii
 			}
-
 		
 			// For eliminating orbits that will definitely miss
 			if( BMag > 0 )  
@@ -369,12 +377,13 @@ int main(int argc, char* argv[]){
 							CoulombImpactParameter,BMagNorm,Bhat,SPEC_CHARGE*Charge,
 							RegeneratedParticles,SPEC_CHARGE,SpeciesMass,e0norm); 
 
-			#pragma omp critical 
+			#pragma omp critical
 			{
-				PRINT_VPD(Position); PRINT_VPD("\t");	// For debugging look at initial vel and positions
-				PRINT_VPD(Velocity); PRINT_VPD("\n");	// For debugging look at initial vel and positions
+				PRINT_REGEN(Position); PRINT_REGEN("\t");	// For debugging look at regenerated positions
+				PRINT_REGEN(Velocity); PRINT_REGEN("\t");	// For debugging look at regenerated velocities
+				PRINT_REGEN( sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2))*SpeciesMass); 
+				PRINT_REGEN("\n");// Look at regenerated gyro-radii
 			}
-
 
 			INITIAL_VEL();				// For energy calculations
 			INITIAL_POT();				// For energy calculations

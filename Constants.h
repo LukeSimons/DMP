@@ -63,6 +63,13 @@
 #define PRINT_VPD(x)
 #endif
 
+#ifdef TEST_REGEN
+#define PRINT_REGEN(x)	std::cout << x;
+#else
+#define PRINT_REGEN(x)
+#endif
+
+
 #ifdef TEST_FINALPOS
 #define PRINT_FP(x)	std::cout << x;
 #else
