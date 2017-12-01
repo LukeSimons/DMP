@@ -5,8 +5,8 @@
 #define SAVE_ANGULAR_VEL
 //#define SAVE_LINEAR_MOM
 
-//#define TEST_VELPOSDIST
-#define TEST_REGEN
+#define TEST_VELPOSDIST
+//#define TEST_REGEN
 //#define TEST_FINALPOS
 //#define TEST_CHARGING
 //#define TEST_ANGVEL
@@ -33,19 +33,20 @@ static void show_usage(std::string name){
 	<< "\t-h,--help\t\tShow this help message\n\n"
 	<< "\t-r,--radius RADIUS\t\t(m), Specify radius of Dust grain\n\n"
 	<< "\t-d,--density DENSITY\t\t(m^-^3), Specify density of Dust grain\n\n"
-	<< "\t-p,--potential POTENTIAL\t(arb), Specify the potential of Dust grain normalised to electron temperature\n\n"
+	<< "\t-p,--potential POTENTIAL\t(float), Specify the potential of Dust grain normalised to electron temperature\n\n"
 	<< "\t-m,--magfield MAGFIELD\t\t(T), Specify the magnetic field (z direction)\n\n"
 	<< "\t-e,--etemp ETEMP\t\t(eV), Specify the temperature of plasma electrons\n\n"
 	<< "\t-n,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron density\n\n"
 	<< "\t-t,--itemp ITEMP\t\t\t(eV), Specify the temperature of Ions\n\n"
 	<< "\t-c,--ichance ICHANCE\t\t\t(eV), Specify the probability of generating an Ion\n\n"
-	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(arb), Specify the upper limit of simulation domain as number of distances\n\n"
-	<< "\t-l,--zmincoeff ZMINCOEFF\t(arb), Specify the lower limit of simulation domain as number of distances\n\n"
-	<< "\t-b,--impactpar IMPACTPAR\t(arb), Specify the radial limit of simulation domain as number of distances\n\n"
-	<< "\t-i,--imax IMAX\t(arb), Specify the number of particles to be launched\n\n"
-	<< "\t-j,--jmax JMAX\t(arb), Specify the number of particles to be collected (Over-rides imax)\n\n"
+	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(float), Specify the upper limit of simulation domain as number of distances\n\n"
+	<< "\t-l,--zmincoeff ZMINCOEFF\t(float), Specify the lower limit of simulation domain as number of distances\n\n"
+	<< "\t-b,--impactpar IMPACTPAR\t(float), Specify the radial limit of simulation domain as number of distances\n\n"
+	<< "\t-i,--imax IMAX\t(int), Specify the number of particles to be launched\n\n"
+	<< "\t-j,--jmax JMAX\t(int), Specify the number of particles to be collected (Over-rides imax)\n\n"
 	<< "\t-v,--driftvel DRIFTVEL\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
-	<< "\t-o,--output OUTPUT\t(N/A), Specify the suffix of the output file\n\n"
+	<< "\t-s,--seed SEED\t(float), Specify the seed for the random number generator\n\n"
+	<< "\t-o,--output OUTPUT\t(string), Specify the suffix of the output file\n\n"
 	<< std::endl;
 }
 
@@ -64,11 +65,10 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 }
 
 void GenerateOrbit(threevector &Position, threevector &Velocity, const double &ImpactParameter, 
-			const double &zmin, const double zmax, const double DriftNorm, const double ThermalVel){
+			const double &zmin, const double zmax, const double DriftNorm, const double ThermalVel,
+			std::mt19937 &mt){
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
-	std::random_device rd;		// Create Random Device
-	std::mt19937 mt(rd());		// Get Random Method
 	std::normal_distribution<double> Gaussdist(DriftNorm,ThermalVel);
 	std::uniform_real_distribution<double> rad(0, 1); // IONS
 
@@ -106,7 +106,7 @@ static void RegenerateMissingOrbits(threevector &Position, threevector &Velocity
 					const double & zmin, const double & zmax, const double &IP, const double & CIP, 
 					double BMagNorm, const threevector &Bhat, const double &Charge, 
 					unsigned long long & RegeneratedParticles, const int SPEC_CHARGE,
-					const double &SpeciesMass, const double &e0norm){
+					const double &SpeciesMass, const double &e0norm, std::mt19937 &mt){
 	// Calculate orbit parameters and get GyroCentre position
 	threevector GyroCentre2D(0.0,0.0,0.0);
 	double RhoPerp = 0.0;
@@ -119,14 +119,14 @@ static void RegenerateMissingOrbits(threevector &Position, threevector &Velocity
 //			TRYING TO IMPROVE RE-INJECTION ALGORITHM FOR REPELLED SPECIES
 //			HAVING SOME DIFFICULTY AS THESE KIND OF STATEMENTS SEEM TO HAVE NO EFFECT:
 //			&& (fabs(Velocity.getz()) < sqrt(fabs(Charge)/(2*PI*SpeciesMass*e0norm))) ){ 
-			GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel);
+			GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel,mt);
 			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
 			RegeneratedParticles ++;
 		}
 	}else if(Charge > 0){	// Attractive Potential
 		// Orbit won't intersect! re-generate orbit
 		while( fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + CIP) ){ 
-                        GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel);
+                        GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel,mt);
 			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
                         RegeneratedParticles ++;
                 }
@@ -184,7 +184,6 @@ int main(int argc, char* argv[]){
 	std::ofstream RunDataFile;	// Data file for containing the run information
 
 
-
 	// ***** DEFINE DUST PARAMETERS ***** //
 	double Radius 		= 1e-6;	// m, Radius of dust
 	double Density 		= 19600;// kg m^-^3, Tungsten
@@ -204,6 +203,10 @@ int main(int argc, char* argv[]){
 	double iChance		= -0.5;	// Arb, Manually set probability of Generating an ion
 	unsigned long long imax	= 100;	// Arb, Maximum number of particles to be launched
 	unsigned long long jmax	= 2.0e6;// Arb, Number of particles to be collected
+
+
+	// ***** RANDOM NUMBER GENERATOR ***** //
+	double seed		= 0.0;	// Arb, Seed for the random number generator
 
 
 	// ***** DETERMINE USER INPUT ***** //
@@ -226,15 +229,16 @@ int main(int argc, char* argv[]){
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
 		else if( arg == "--jmax"	|| arg == "-j" )	InputFunction(argc,argv,i,ss0,jmax);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
+		else if( arg == "--seed"	|| arg == "-s" )	InputFunction(argc,argv,i,ss0,seed);
 		else if( arg == "--output"	|| arg == "-o" )	InputFunction(argc,argv,i,ss0,suffix);
                 else{
 			sources.push_back(argv[i]);
 		}
 	}
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
-	double MASS 	= Mp;		// kg, This is the Mass to which quantities are normalised 
-	double MassRatio = sqrt(Mp/Me);
-	double DustMass		= (4.0/3.0)*PI*pow(Radius,3)*Density;
+	double MASS 		= Mp;		// kg, This is the Mass to which quantities are normalised 
+	double MassRatio 	= sqrt(Mp/Me);
+	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
 
 	// ***** NORMALISATION ***** //
 	// Normalise TIME to the ratio of the masses and the average time for a ion to hit the dust
@@ -301,6 +305,15 @@ int main(int argc, char* argv[]){
 		ProbabilityOfIon = iChance;
 
 
+	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
+	std::random_device rd;		// Create Random Device
+	std::vector<std::mt19937> randnumbers;
+	std::uniform_real_distribution<double> rad(0, 1); // IONS
+	for(int p = 0; p < omp_get_max_threads(); p ++){
+		randnumbers.push_back(std::mt19937(seed+p));
+	}
+
+
 	// ***** OPEN DATA FILE WITH HEADER ***** //
 	time_t now = time(0);		// Get the time of simulation
 	char * dt = ctime(&now);
@@ -310,13 +323,7 @@ int main(int argc, char* argv[]){
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
-	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<eDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<iDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n";
-
-
-	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
-	std::random_device rd;		// Create Random Device
-	std::mt19937 mt(rd());		// Get Random Method
-	std::uniform_real_distribution<double> rad(0, 1); // IONS
+	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<eDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<iDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:"<<seed<<"\n\n";
 
 
 	// ***** BEGIN LOOP OVER PARTICLE ORBITS ***** //
@@ -337,7 +344,7 @@ int main(int argc, char* argv[]){
  			double TimeStep(0.0005);
 			double SpeciesMass = 1.0/pow(MassRatio,2);
 			int SPEC_CHARGE=-1;
-			if( rad(mt) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
+			if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
 				BMagNorm = 1.0;
 				ImpactParameter= iImpactParameter;
 				CoulombImpactParameter=iCoulombImpactParameter;
@@ -356,7 +363,7 @@ int main(int argc, char* argv[]){
 			threevector Position(0.0,0.0,0.0);
 			threevector Velocity(0.0,0.0,0.0);
 
-			GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel);
+			GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,randnumbers[omp_get_thread_num()]);
 
 			#pragma omp critical 
 			{
@@ -370,7 +377,7 @@ int main(int argc, char* argv[]){
 			if( BMag > 0 )  
 				RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
 							CoulombImpactParameter,BMagNorm,Bhat,SPEC_CHARGE*Charge,
-							RegeneratedParticles,SPEC_CHARGE,SpeciesMass,e0norm); 
+							RegeneratedParticles,SPEC_CHARGE,SpeciesMass,e0norm,randnumbers[omp_get_thread_num()]); 
 
 			#pragma omp critical
 			{
@@ -420,10 +427,10 @@ int main(int argc, char* argv[]){
 				}else{	// Particle is considered trapped
 
 					CLOSE_TRACK();
-					GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel);
+					GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,randnumbers[omp_get_thread_num()]);
 					RegenerateMissingOrbits(Position,Velocity,DriftNorm,ThermalVel,zmin,zmax,ImpactParameter,
 							CoulombImpactParameter,BMagNorm,Bhat,SPEC_CHARGE*Charge,
-							RegeneratedParticles,SPEC_CHARGE,SpeciesMass,e0norm);
+							RegeneratedParticles,SPEC_CHARGE,SpeciesMass,e0norm,randnumbers[omp_get_thread_num()]);
 					INITIAL_VEL();          // For energy calculations
         			        INITIAL_POT();          // For energy calculations				
 					OPEN_TRACK(filename + "_retry_" + std::to_string(i) + suffix);
