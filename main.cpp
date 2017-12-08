@@ -43,6 +43,7 @@ static void show_usage(std::string name){
 	<< "\t-l,--zmincoeff ZMINCOEFF\t(float), Specify the lower limit of simulation domain as number of distances\n\n"
 	<< "\t-z,--zboundforce ZBOUNDFORCE\t(float), Force the absolute value of simulation domain upper and lower boundaries\n\n"
 	<< "\t-b,--impactpar IMPACTPAR\t(float), Specify the radial limit of simulation domain as number of distances\n\n"
+	<< "\t-f,--forceimppar FORCEIMPPAR\t(float), Force the absolute value of simulation radial distance\n\n"
 	<< "\t-i,--imax IMAX\t(int), Specify the number of particles to be launched\n\n"
 	<< "\t-j,--jmax JMAX\t(int), Specify the number of particles to be collected (Over-rides imax)\n\n"
 	<< "\t-v,--driftvel DRIFTVEL\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
@@ -324,7 +325,8 @@ int main(int argc, char* argv[]){
 
 	// ***** DEFINE PROBABILITY OF ION GENERATION	***** //
 	// Define ratio of flux of electrons to ions
-	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(1+eImpactParameter,2)/pow(1+iImpactParameter,2));
+//	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(1+eImpactParameter,2)/pow(1+iImpactParameter,2));
+	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(eImpactParameter,2)/pow(iImpactParameter,2));
 	double ProbabilityOfIon = 1.0/(1.0+ElecToIonRatio);
 	if( iChance >= 0.0 && iChance <= 1.0 )
 		ProbabilityOfIon = iChance;
@@ -425,8 +427,9 @@ int main(int argc, char* argv[]){
 			// Orbit won't intersect! re-generate orbit
 			
 			// Determine Condition
+
 			bool RegenCondition = (fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0);	
-//			if( SPEC_CHARGE*Charge > 0 ){	// Attractive Potential
+//			if( SPEC_CHARGE*Charge < 0 ){	// Attractive Potential
 //				RegenCondition = (fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + 10.0*CoulombImpactParameter));
 //			}
 			while( RegenCondition ){
@@ -467,11 +470,10 @@ int main(int argc, char* argv[]){
 					DriftNorm,ThermalVel,randnumbers[omp_get_thread_num()]);
 				GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
 				RegenCondition = (fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0);
-//				if( SPEC_CHARGE*Charge > 0 ){	// Attractive Potential
+//				if( SPEC_CHARGE*Charge > 0 ){   // Attractive Potential
 //				RegenCondition = (fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + 10.0*CoulombImpactParameter));
 //				}
 			}
-
 			// ************************************************** //
 
 
