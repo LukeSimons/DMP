@@ -24,26 +24,33 @@ plot filename using 1:2
 
 ## 1 DIMENSIONAL PLOTS OF POSITION AND VELOCITY DISTRIBUTION
 
+# Each bar is half the (visual) width of its x-range.
+set boxwidth 0.05 absolute
+set style fill solid 1.0 noborder
+bin_width = 0.1;
+bin_number(x) = floor(x/bin_width)
+rounded(x) = bin_width * ( bin_number(x) + 0.5 )
+
 set output sprintf("Plots/%s_VPD_Pos_x.eps",prefix)
 # Plot ion positions
-plot filename using 1
+plot filename using (rounded($1)):(1) smooth frequency with boxes
 set output sprintf("Plots/%s_VPD_Pos_y.eps",prefix)
 # Plot ion positions
-plot filename using 2
+plot filename using (rounded($2)):(2) smooth frequency with boxes
 set output sprintf("Plots/%s_VPD_Pos_z.eps",prefix)
 # Plot ion positions
-plot filename using 3
+plot filename using (rounded($3)):(3) smooth frequency with boxes
 
 set output sprintf("Plots/%s_VPD_Vel_x.eps",prefix)
 # Plot ion Velocities
-plot filename using 4
+plot filename using (rounded($4)):(4) smooth frequency with boxes
 set output sprintf("Plots/%s_VPD_Vel_y.eps",prefix)
 # Plot ion Velocities
-plot filename using 5
+plot filename using (rounded($5)):(5) smooth frequency with boxes
 set output sprintf("Plots/%s_VPD_Vel_z.eps",prefix)
 # Plot ion Velocities
-plot filename using 6
+plot filename using (rounded($6)):(6) smooth frequency with boxes
 
 set output sprintf("Plots/%s_VPD_GyroRad.eps",prefix)
 # Plot Gyro-radii
-plot filename using 7
+plot filename using (rounded($7)):(7) smooth frequency with boxes

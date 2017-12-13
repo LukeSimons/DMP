@@ -1,17 +1,15 @@
 #define CALCULATE_MOM
-#define SELF_CONS_CHARGE
+//#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 //#define SAVE_LINEAR_MOM
 
 //#define TEST_VELPOSDIST
-//#define TEST_REGEN
 //#define TEST_FINALPOS
-#define TEST_CHARGING
+//#define TEST_CHARGING
 //#define TEST_ANGVEL
 //#define TEST_ENERGY
-
 
 #include <omp.h>	// For parallelisation
 
@@ -26,6 +24,7 @@
 //#include "Function.h"	// For LambertW() Function to calculate Debye-Huckel Screening Length
 #include "Constants.h"	// Define Pre-processor Directives and constants
 #include "threevector.h"// for threevector class
+#include "rand_mwts.h"	// Functions to generate correct 1-way maxwellian flux
 
 static void show_usage(std::string name){
 	std::cerr << "Usage: int main(int argc, char* argv[]) <option(s)> SOURCES"
@@ -80,11 +79,12 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 
 	Position.setx(radial_pos*cos(theta_pos));
 	Position.sety(radial_pos*sin(theta_pos));
-	double zvel = Gaussdist(mt);	// Generate z-velocity here to determine starting position 
-	if( zvel >= 0 ){
-		Position.setz(zmin);
-	}else{
+
+	double zvel = rand_mwts(DriftNorm,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
+	Position.setz(zmin);
+	if( rad(mt) > 0.5 ){
 		Position.setz(zmax);
+		zvel=-zvel;
 	}
 
 	// ***** RANDOMISE VELOCITY ***** //
@@ -260,25 +260,20 @@ int main(int argc, char* argv[]){
 
 
 	// ***** NORMALISATION 				***** //
-	// Normalise TIME to the ratio of the masses and the average time for a ion to hit the dust
+	// Normalise TIME to the Gyro-Radius of an Ion at B=100T
 	// Normalise MASS to Ion Mass
 	// Normalise DISTANCE to Dust Radius
 	// Normalise CHARGE to fundamental charge
-        double Tau;
-	if( BMag > 0.0 ){
-		Tau = MASS/(echarge*BMag);
-	}else{
-		std::cerr << "Error! BMag <= 0.0. These values are prohibited.";
-		exit(EXIT_FAILURE);
-	}
+	double MAGNETIC(100);
+        double Tau = MASS/(echarge*100);
 
-	double e0norm 	= epsilon0*MASS*pow(Radius,3)/(pow(echarge*Tau,2));
-	double PotNorm	= Potential*eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));	// NEEDS CHECKING MAYBE
-	double DriftNorm= DriftVel*Tau/(Radius);
+	double e0norm 		= epsilon0*MASS*pow(Radius,3)/(pow(echarge*Tau,2));
+	double PotNorm		= Potential*eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));	// NEEDS CHECKING MAYBE
+	double DriftNorm	= DriftVel*Tau/(Radius);
 
-	double eDensNorm= eDensity*pow(Radius,3);
-	double iTempNorm= iTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
-	double eTempNorm= eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
+	double eDensNorm	= eDensity*pow(Radius,3);
+	double iTempNorm	= iTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
+	double eTempNorm	= eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
 	double DebyeLength 	= sqrt((e0norm*eTempNorm)/eDensNorm);	// Debye Length, THIS WILL BE WRONG FOR ELECTRONS
 
 	// ************************************************** //
@@ -292,18 +287,22 @@ int main(int argc, char* argv[]){
 	
 
 	// ***** DEFINE SIMULATION SPACE 		***** //
-//	double DebyeHuckelImpactParameter = DebyeLength*LambertW((pow(naturale,2))/DebyeLength);
-//	double CoulombImpactParameter	= pow(pow(Charge,2)/(pow(4*PI,2)*e0norm*pow(ThermalVel,2)),0.25);
-//	double u0norm 	= (4.0*PI*10e-7*pow(echarge,2))/(MASS*Radius);
-//	double CoulombImpactParameter	= pow(pow(Charge/(4.0*PI*e0norm),2)/(pow(ThermalVel,2)+BMagNorm/u0norm),0.25);
-	double iThermalVel	= sqrt(2.0*iTempNorm/PI);		// Normalised Thermal velocity
-	double eThermalVel	= sqrt(2.0*eTempNorm/PI)*MassRatio;	// Normalised Thermal velocity
-	double iRhoTherm 	= iThermalVel; // Thermal GyroRadius for ions normalised to dust grain radii
-	double eRhoTherm 	= eThermalVel/pow(MassRatio,2); // Thermal GyroRadius for electrons normalised to dust grain radii
+	double iThermalVel	= sqrt(iTempNorm/(2.0*PI));		// Normalised Ion Thermal velocity
+	double eThermalVel	= sqrt(eTempNorm/(2.0*PI))*MassRatio;	// Normalised Electron Thermal velocity
+	double iRhoTherm 	= 0.0;					// Ion gyro-radii are zero by Default
+	double eRhoTherm 	= 0.0;					// Electron gyro-radii are zero by Default
+	if( BMag != 0.0 ){						// If Magnetic field is non-zero
+		// Calculate thermal GyroRadius for ions and electrons normalised to dust grain radii
+		iRhoTherm	= iThermalVel/(BMag/MAGNETIC); 
+		eRhoTherm	= eThermalVel/(pow(MassRatio,2)*BMag/MAGNETIC); 
+	}
+
 	double iCoulombImpactParameter  = fabs(Charge/(2*PI*e0norm*pow(iThermalVel,2))); // Balance Coulomb to kinetic energy
 	double eCoulombImpactParameter  = fabs(Charge*pow(MassRatio,2)/(2*PI*e0norm*pow(eThermalVel,2))); // Balance Coulomb to kinetic energy
-	double iImpactParameter = 1.0+zMaxCoeff*iCoulombImpactParameter+iCoulombImpactParameter;
-	double eImpactParameter = 1.0+zMaxCoeff*eCoulombImpactParameter+eCoulombImpactParameter;
+//	double iImpactParameter = 1.0+ImpactPar*iRhoTherm+zMaxCoeff*iCoulombImpactParameter;
+//	double eImpactParameter = 1.0+ImpactPar*eRhoTherm+zMaxCoeff*eCoulombImpactParameter;
+	double iImpactParameter = 1.0+ImpactPar*(iRhoTherm+iCoulombImpactParameter); // SUGGESTED CHANGE
+	double eImpactParameter = 1.0+ImpactPar*(eRhoTherm+eCoulombImpactParameter); // SUGGESTED CHANGE
 	if( ForceImpPar > 0.0 ){
 		iImpactParameter = 1.0+ForceImpPar;
 		eImpactParameter = 1.0+ForceImpPar;
@@ -370,25 +369,27 @@ int main(int argc, char* argv[]){
 	#pragma omp parallel for shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
 	for( i=0; i < imax; i ++){ 	// Loop over maximum number of particles to generate
 		if( j <= jmax ){	// Loop until we reach a certain number of particles jmax
+
 //			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
+
 			// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
-			double BMagNorm = pow(MassRatio,2);
+			double BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
 			double CoulombImpactParameter=eCoulombImpactParameter;
 			double ImpactParameter=eImpactParameter;
 			double ThermalVel=eThermalVel;
 			double zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
 			double zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
- 			double TimeStep(0.0005);
+ 			double TimeStep(0.00005);
 			double SpeciesMass = 1.0/pow(MassRatio,2);
 			int SPEC_CHARGE=-1;
 			if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
-				BMagNorm = 1.0;
+				BMagNorm = BMag/MAGNETIC;
 				CoulombImpactParameter=iCoulombImpactParameter;
 				ImpactParameter=iImpactParameter;
 				ThermalVel=iThermalVel;
 				zmax 	= izmax; 
 				zmin 	= izmin ;
-				TimeStep = 0.02;
+				TimeStep = 0.005;
 				SpeciesMass = 1.0;
 				SPEC_CHARGE=1;
 			}		
@@ -400,11 +401,13 @@ int main(int argc, char* argv[]){
 			// ***** GENERATE AN ORBIT ***** //
 			threevector Position(0.0,0.0,0.0);
 			threevector Velocity(0.0,0.0,0.0);
-			GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,randnumbers[omp_get_thread_num()]);
+			GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,
+					randnumbers[omp_get_thread_num()]);
 
 			// ************************************************** //
 
 
+			// ***** TESTING AREA  				***** //
 			// ***** VELOCITY-POSITION DISTRIBUTION TEST 	***** //
 			#pragma omp critical 
 			{
@@ -414,95 +417,16 @@ int main(int argc, char* argv[]){
 				PRINT_VPD("\n");	// For debugging look at gyro-radii
 			}
 
-			// ************************************************** //
-
-
-			// ***** ELIMINATE ORBITS THAT WILL DEFINITELY MISS ***** //
-			// Calculate orbit parameters and get GyroCentre position
-			threevector GyroCentre2D(0.0,0.0,0.0);
-			double RhoPerp = 0.0;
-			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
-			
-			// Check if orbits will intersect the sphere
-			// Orbit won't intersect! re-generate orbit
-			
-			// Determine Condition
-
-			bool RegenCondition = (fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0);	
-//			if( SPEC_CHARGE*Charge < 0 ){	// Attractive Potential
-//				RegenCondition = (fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + 10.0*CoulombImpactParameter));
-//			}
-			while( RegenCondition ){
-				#pragma omp critical
-				{
-					RegeneratedParticles ++;
-					RegeneratedCharge += SPEC_CHARGE;
-					TotalNum ++;
-					TotalCharge += SPEC_CHARGE;
-				}	
-				// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
-				// If this is the case, we need to generate an ion
-				BMagNorm = pow(MassRatio,2);
-				ImpactParameter=eImpactParameter;
-				CoulombImpactParameter=eCoulombImpactParameter;
-				ThermalVel=eThermalVel;
-				zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
-				zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
-	 			TimeStep = 0.0005;
-				SpeciesMass = 1.0/pow(MassRatio,2);
-				SPEC_CHARGE=-1;
-
-				if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ 
-					BMagNorm = 1.0;
-					ImpactParameter= iImpactParameter;
-					CoulombImpactParameter=iCoulombImpactParameter;
-					ThermalVel=iThermalVel;
-					zmax 	= izmax; 
-					zmin 	= izmin ;
-					TimeStep = 0.02;
-					SpeciesMass = 1.0;
-					SPEC_CHARGE=1;
-				}
-				// ************************************************** //
-
-				
-				GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,
-					DriftNorm,ThermalVel,randnumbers[omp_get_thread_num()]);
-				GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
-				RegenCondition = (fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0);
-//				if( SPEC_CHARGE*Charge > 0 ){   // Attractive Potential
-//				RegenCondition = (fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + 10.0*CoulombImpactParameter));
-//				}
-			}
-			// ************************************************** //
-
-
-			// ***** REGENERATED DISTRIBUTION TEST 		***** //
-			#pragma omp critical
-			{
-				PRINT_REGEN(Position); PRINT_REGEN("\t");	// For debugging look at regenerated positions
-				PRINT_REGEN(Velocity); PRINT_REGEN("\t");	// For debugging look at regenerated velocities
-				PRINT_REGEN( sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2))*SpeciesMass); 
-				PRINT_REGEN("\n");// Look at regenerated gyro-radii
-			}
-
-			// ************************************************** //
-
-
 			// ***** ENERGY TEST: MEASURE INITIAL ENERGY	***** //
 			INITIAL_VEL();				// For energy calculations
 			INITIAL_POT();				// For energy calculations
 
-			// ************************************************** //
-
-
 			// ***** RECORD TRACK DATA, DEBUG AND TEST	***** //
-
 			OPEN_TRACK(filename + "_Track_" + std::to_string(i) + ".txt");
 			RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
 
-
 			// ************************************************** //
+
 
 			// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
 //			Calculate Electric Field
@@ -530,6 +454,7 @@ int main(int argc, char* argv[]){
 				iter ++;
 			}	
 			CLOSE_TRACK();
+
 			// ************************************************** //
 
 
