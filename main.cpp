@@ -93,48 +93,6 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	Velocity.setz(zvel);
 }
 
-void GyroCentrePos(threevector &Position, threevector &Velocity, double BMagNorm, const threevector &Bhat,
-			threevector &GyroCentre2D, double &RhoPerp, const int SPEC_CHARGE){
-        threevector PosXY(Position.getx(),Position.gety(),0.0);
-        threevector AccelDir = (Velocity.getunit()^Bhat)*SPEC_CHARGE;
-        RhoPerp = sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2))/BMagNorm;
-        GyroCentre2D = PosXY + (AccelDir*RhoPerp);
-}
-
-// THIS HAS BEEN VALIDATED VISUALLY AND WORKS WELL
-/*
-static void RegenerateMissingOrbits(threevector &Position, threevector &Velocity, const double DriftNorm, const double ThermalVel,
-					const double & zmin, const double & zmax, const double &IP, const double & CIP, 
-					double BMagNorm, const threevector &Bhat, const double &Charge, 
-					unsigned long long & RegeneratedParticles, const int SPEC_CHARGE,
-					const double &SpeciesMass, const double &e0norm, std::mt19937 &mt){
-	// Calculate orbit parameters and get GyroCentre position
-	threevector GyroCentre2D(0.0,0.0,0.0);
-	double RhoPerp = 0.0;
-	GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
-	
-	// Check if orbits will intersect the sphere
-	if( Charge <= 0 ){	// Repulsive Potential
-		// Orbit won't intersect! re-generate orbit
-		while( (fabs(GyroCentre2D.mag3() - RhoPerp) > 1.0) ){
-//			TRYING TO IMPROVE RE-INJECTION ALGORITHM FOR REPELLED SPECIES
-//			HAVING SOME DIFFICULTY AS THESE KIND OF STATEMENTS SEEM TO HAVE NO EFFECT:
-//			&& (fabs(Velocity.getz()) < sqrt(fabs(Charge)/(2*PI*SpeciesMass*e0norm))) ){ 
-			GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel,mt);
-			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
-			RegeneratedParticles ++;
-		}
-	}else if(Charge > 0){	// Attractive Potential
-		// Orbit won't intersect! re-generate orbit
-		while( fabs(GyroCentre2D.mag3() - RhoPerp) > (1.0 + CIP) ){ 
-                        GenerateOrbit(Position,Velocity,IP,zmin,zmax,DriftNorm,ThermalVel,mt);
-			GyroCentrePos(Position,Velocity,BMagNorm,Bhat,GyroCentre2D,RhoPerp,SPEC_CHARGE);
-                        RegeneratedParticles ++;
-                }
-	}
-}
-*/
-
 
 /*updates velocity using the Boris method, Birdsall, Plasma Physics via Computer Simulation, p.62*/
 static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BField, double dt, threevector &Velocity, 
