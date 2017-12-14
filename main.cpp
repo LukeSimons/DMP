@@ -1,7 +1,7 @@
 #define CALCULATE_MOM
 //#define SELF_CONS_CHARGE
 
-//#define SAVE_TRACKS 
+#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 //#define SAVE_LINEAR_MOM
 
@@ -71,14 +71,17 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
 	std::normal_distribution<double> Gaussdist(DriftNorm,ThermalVel);
-	std::uniform_real_distribution<double> rad(0, 1); // IONS
+	std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
 
 	// ***** RANDOMISE POSITION CYLINDRICALLY ***** //
 	double radial_pos=ImpactParameter*sqrt(rad(mt));
 	double theta_pos =2*PI*rad(mt);
-
 	Position.setx(radial_pos*cos(theta_pos));
 	Position.sety(radial_pos*sin(theta_pos));
+
+//	double radial_pos=ImpactParameter*sqrt(rad(mt));
+//	Position.setx(radial_pos);
+//	Position.sety(0.0);
 
 	double zvel = rand_mwts(DriftNorm,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
 	Position.setz(zmin);
@@ -105,7 +108,7 @@ static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BFi
 	double t_mag2 = t.square();
 
 	/*s vector*/
-	threevector s = 2.0*t*(1/(1+t_mag2));
+	threevector s = 2.0*t*(1.0/(1.0+t_mag2));
 	
 	/*v minus*/
 	threevector v_minus = Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt; 
@@ -161,8 +164,8 @@ int main(int argc, char* argv[]){
 	double eDensity		= 1e18;	//1e14;	// m^(-3), Electron density
 	double iDensity		= 1e18;	//1e14;	// m^(-3), Ion density
 	double DriftVel 	= 0.0;	// m s^-1, This is the Temperature of the species being considered
-	double zMaxCoeff	= 3.0;	// Arb, Number of Interaction distances from 0,0 plane to max of simulation domain
-	double zMinCoeff	= 3.0;	// Arb, Number of Interaction distances from 0,0 plane to min of simulation domain
+	double zMaxCoeff	= 1.0;	// Arb, Number of Interaction distances from 0,0 plane to max of simulation domain
+	double zMinCoeff	= 1.0;	// Arb, Number of Interaction distances from 0,0 plane to min of simulation domain
 	double ZBoundForce	= 0.0;	// Arb, Number of dust grain radii to vertical edge of simulation domain
 	double ImpactPar	= 2.0;	// Arb, Multiplicative factor for the Impact Parameter
 	double ForceImpPar	= 0.0;	// Arb, Number of dust grain radii to radial edge of simulation domain
@@ -255,8 +258,9 @@ int main(int argc, char* argv[]){
 		eRhoTherm	= eThermalVel/(pow(MassRatio,2)*BMag/MAGNETIC); 
 	}
 
-	double iCoulombImpactParameter  = fabs(Charge/(2*PI*e0norm*pow(iThermalVel,2))); // Balance Coulomb to kinetic energy
-	double eCoulombImpactParameter  = fabs(Charge*pow(MassRatio,2)/(2*PI*e0norm*pow(eThermalVel,2))); // Balance Coulomb to kinetic energy
+	double iCoulombImpactParameter  = sqrt(fabs(Charge/(4*PI*sqrt(e0norm)*iThermalVel))); // Balance Coulomb to kinetic energy
+	double eCoulombImpactParameter  = sqrt(fabs(Charge*MassRatio/(4*PI*sqrt(e0norm)*eThermalVel))); // Balance Coulomb to kinetic energy
+
 //	double iImpactParameter = 1.0+ImpactPar*iRhoTherm+zMaxCoeff*iCoulombImpactParameter;
 //	double eImpactParameter = 1.0+ImpactPar*eRhoTherm+zMaxCoeff*eCoulombImpactParameter;
 	double iImpactParameter = 1.0+ImpactPar*(iRhoTherm+iCoulombImpactParameter); // SUGGESTED CHANGE
@@ -332,7 +336,6 @@ int main(int argc, char* argv[]){
 
 			// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
 			double BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
-			double CoulombImpactParameter=eCoulombImpactParameter;
 			double ImpactParameter=eImpactParameter;
 			double ThermalVel=eThermalVel;
 			double zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
@@ -342,7 +345,6 @@ int main(int argc, char* argv[]){
 			int SPEC_CHARGE=-1;
 			if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
 				BMagNorm = BMag/MAGNETIC;
-				CoulombImpactParameter=iCoulombImpactParameter;
 				ImpactParameter=iImpactParameter;
 				ThermalVel=iThermalVel;
 				zmax 	= izmax; 
