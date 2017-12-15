@@ -1,7 +1,7 @@
 #define CALCULATE_MOM
 //#define SELF_CONS_CHARGE
 
-#define SAVE_TRACKS 
+//#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 //#define SAVE_LINEAR_MOM
 
@@ -29,25 +29,27 @@
 static void show_usage(std::string name){
 	std::cerr << "Usage: int main(int argc, char* argv[]) <option(s)> SOURCES"
 	<< "\n\nOptions:\n"
-	<< "\t-h,--help\t\tShow this help message\n\n"
+	<< "\t-h,--help\t\t\tShow this help message\n\n"
 	<< "\t-r,--radius RADIUS\t\t(m), Specify radius of Dust grain\n\n"
 	<< "\t-d,--density DENSITY\t\t(m^-^3), Specify density of Dust grain\n\n"
 	<< "\t-p,--potential POTENTIAL\t(float), Specify the potential of Dust grain normalised to electron temperature\n\n"
 	<< "\t-m,--magfield MAGFIELD\t\t(T), Specify the magnetic field (z direction)\n\n"
-	<< "\t-e,--etemp ETEMP\t\t(eV), Specify the temperature of plasma electrons\n\n"
-	<< "\t-n,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron density\n\n"
-	<< "\t-t,--itemp ITEMP\t\t\t(eV), Specify the temperature of Ions\n\n"
-	<< "\t-c,--ichance ICHANCE\t\t\t(eV), Specify the probability of generating an Ion\n\n"
-	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(float), Specify the upper limit of simulation domain as number of distances\n\n"
-	<< "\t-l,--zmincoeff ZMINCOEFF\t(float), Specify the lower limit of simulation domain as number of distances\n\n"
+	<< "\t-n,--normalised NORMALISED\t(bool), whether normalisation (following Sonmor & Laframboise) is on or off\n\n"
+	<< "\t-te,--etemp ETEMP\t\t(eV), Specify the temperature of plasma electrons\n\n"
+	<< "\t-ne,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron density\n\n"
+	<< "\t-ti,--itemp ITEMP\t\t(eV), Specify the temperature of Ions\n\n"
+	<< "\t-ni,--idensity IDENSITY\t\t(m^-^3), Specify the plasma ion density\n\n"
+	<< "\t-c,--ichance ICHANCE\t\t(eV), Specify the probability of generating an Ion\n\n"
+	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(float), The upper limit of simulation domain as number of Coulomb Interaction lengths\n\n"
+	<< "\t-l,--zmincoeff ZMINCOEFF\t(float), The lower limit of simulation domain as number of Coulomb Interaction lengths\n\n"
 	<< "\t-z,--zboundforce ZBOUNDFORCE\t(float), Force the absolute value of simulation domain upper and lower boundaries\n\n"
 	<< "\t-b,--impactpar IMPACTPAR\t(float), Specify the radial limit of simulation domain as number of distances\n\n"
 	<< "\t-f,--forceimppar FORCEIMPPAR\t(float), Force the absolute value of simulation radial distance\n\n"
-	<< "\t-i,--imax IMAX\t(int), Specify the number of particles to be launched\n\n"
-	<< "\t-j,--jmax JMAX\t(int), Specify the number of particles to be collected (Over-rides imax)\n\n"
-	<< "\t-v,--driftvel DRIFTVEL\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
-	<< "\t-s,--seed SEED\t(float), Specify the seed for the random number generator\n\n"
-	<< "\t-o,--output OUTPUT\t(string), Specify the suffix of the output file\n\n"
+	<< "\t-i,--imax IMAX\t\t\t(int), Specify the number of particles to be launched\n\n"
+	<< "\t-j,--jmax JMAX\t\t\t(int), Specify the number of particles to be collected (not exceeding imax)\n\n"
+	<< "\t-v,--driftvel DRIFTVEL\t\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
+	<< "\t-s,--seed SEED\t\t\t(float), Specify the seed for the random number generator\n\n"
+	<< "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n\n"
 	<< std::endl;
 }
 
@@ -150,10 +152,11 @@ int main(int argc, char* argv[]){
 	// ************************************************** //
 
 	// ***** DEFINE DUST PARAMETERS 		***** //
-	double Radius 		= 1e-6;	// m, Radius of dust
-	double Density 		= 19600;// kg m^-^3, Tungsten
-	double Potential	= -2.5;	// Coulombs, Charge in 
-	double BMag 		= 1.0; // Tesla, Magnitude of magnetic field
+	double Radius 		= 1e-6;		// m, Radius of dust
+	double Density 		= 19600;	// kg m^-^3, Tungsten
+	double Potential	= -2.5;		// Coulombs, Charge in 
+	double BMag 		= 1.0; 		// Tesla, Magnitude of magnetic field
+	bool   NormalisedB	= false;	// Is magnetic field Normalised according to Sonmor & Laframboise?
 
 	// ************************************************** //
 
@@ -193,9 +196,11 @@ int main(int argc, char* argv[]){
 		else if( arg == "--density" 	|| arg == "-d" )	InputFunction(argc,argv,i,ss0,Density);
 		else if( arg == "--potential" 	|| arg == "-p" )	InputFunction(argc,argv,i,ss0,Potential);
 		else if( arg == "--magfield" 	|| arg == "-m" )	InputFunction(argc,argv,i,ss0,BMag);
-		else if( arg == "--etemp" 	|| arg == "-e" )	InputFunction(argc,argv,i,ss0,eTemp);
-		else if( arg == "--edensity" 	|| arg == "-n" )	InputFunction(argc,argv,i,ss0,eDensity);
-		else if( arg == "--itemp" 	|| arg == "-t" )	InputFunction(argc,argv,i,ss0,iTemp);
+		else if( arg == "--normalised" 	|| arg == "-n" )	InputFunction(argc,argv,i,ss0,NormalisedB);
+		else if( arg == "--etemp" 	|| arg == "-te")	InputFunction(argc,argv,i,ss0,eTemp);
+		else if( arg == "--edensity" 	|| arg == "-ne")	InputFunction(argc,argv,i,ss0,eDensity);
+		else if( arg == "--itemp" 	|| arg == "-ti")	InputFunction(argc,argv,i,ss0,iTemp);
+		else if( arg == "--idensity" 	|| arg == "-ni")	InputFunction(argc,argv,i,ss0,iTemp);
 		else if( arg == "--ichance" 	|| arg == "-c" )	InputFunction(argc,argv,i,ss0,iChance);
 		else if( arg == "--zmaxcoeff" 	|| arg == "-u" )	InputFunction(argc,argv,i,ss0,zMaxCoeff);
 		else if( arg == "--zmincoeff" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinCoeff);
@@ -216,6 +221,9 @@ int main(int argc, char* argv[]){
 	double MASS 		= Mp;		// kg, This is the Mass to which quantities are normalised 
 	double MassRatio 	= sqrt(Mp/Me);
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
+	if( NormalisedB ){	// Magnetic Field is Normalised
+		BMag = pow(2/PI,2)*BMag*sqrt(PI*Mp*eTemp/(2*echarge))/Radius;
+	}
 
 	// ************************************************** //
 
@@ -467,6 +475,10 @@ int main(int argc, char* argv[]){
 	SAVE_MOM(LinearMomentumSum); SAVE_MOM("\t"); SAVE_MOM(AngularMomentumSum); SAVE_MOM("\n\n");
 	SAVE_CHARGE("Charge\n")
 	SAVE_CHARGE(Charge) SAVE_CHARGE("\n\n")
+
+	RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";
+	RunDataFile << 0.5*(j+CapturedCharge)*pow(iImpactParameter,2)/(2.0*(0.5*(TotalNum+TotalCharge)));
+	RunDataFile << "\t\t" << 0.5*(j-CapturedCharge)*pow(eImpactParameter,2)/(2.0*(0.5*(TotalNum-TotalCharge))) << "\n\n";
 
 	// ************************************************** //
 
