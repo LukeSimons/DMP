@@ -223,6 +223,7 @@ int main(int argc, char* argv[]){
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
 	if( NormalisedB ){	// Magnetic Field is Normalised
 		BMag = pow(2/PI,2)*BMag*sqrt(PI*Mp*eTemp/(2*echarge))/Radius;
+		Potential = Potential*pow(2.0/PI,4.0);//0.8*(1-sqrt(2.0/PI))=0.1616923514\simeq pow(2/PI,4.0); // 0.3913185475;
 	}
 
 	// ************************************************** //
