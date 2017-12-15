@@ -13,6 +13,7 @@
 
 #include <omp.h>	// For parallelisation
 
+#include <chrono>	// for chrono::high_resolution_clock::now().time_since_epoch().count();
 #include <iostream>	// for std::cout
 #include <array>	
 #include <random>	// for std::normal_distribution<> etc.
@@ -151,6 +152,7 @@ int main(int argc, char* argv[]){
 
 	// ************************************************** //
 
+
 	// ***** DEFINE DUST PARAMETERS 		***** //
 	double Radius 		= 1e-6;		// m, Radius of dust
 	double Density 		= 19600;	// kg m^-^3, Tungsten
@@ -181,7 +183,8 @@ int main(int argc, char* argv[]){
 
 
 	// ***** RANDOM NUMBER GENERATOR 		***** //
-	double seed		= 0.0;	// Arb, Seed for the random number generator
+	// Arb, Seed for the random number generator
+	double seed		= std::chrono::high_resolution_clock::now().time_since_epoch().count();;	
 	
 	// ************************************************** //
 
