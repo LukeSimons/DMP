@@ -1,7 +1,7 @@
 double Kb 	= 1.38064852e-23;  		// (kg m^2 s^-2 K^1) || (J K^-1)
 double R 	= 8.3144598; 			// https://en.wikipedia.org/wiki/Gas_constant 
 double echarge	= 1.60217662e-19; 		// C 
-double Me 	= 9.11e-31;			// kg, mass of electron
+double Me 	= 9.10938356e-31;		// kg, mass of electron
 double Mp 	= 1.6726219e-27;		// kg, mass of ion (And Neutrons)
 double AvNo 	= 6.0221409e+23; 		// mol^-1
 double PI 	= 3.14159265359;

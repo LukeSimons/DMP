@@ -203,7 +203,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--etemp" 	|| arg == "-te")	InputFunction(argc,argv,i,ss0,eTemp);
 		else if( arg == "--edensity" 	|| arg == "-ne")	InputFunction(argc,argv,i,ss0,eDensity);
 		else if( arg == "--itemp" 	|| arg == "-ti")	InputFunction(argc,argv,i,ss0,iTemp);
-		else if( arg == "--idensity" 	|| arg == "-ni")	InputFunction(argc,argv,i,ss0,iTemp);
+		else if( arg == "--idensity" 	|| arg == "-ni")	InputFunction(argc,argv,i,ss0,iDensity);
 		else if( arg == "--ichance" 	|| arg == "-c" )	InputFunction(argc,argv,i,ss0,iChance);
 		else if( arg == "--zmaxcoeff" 	|| arg == "-u" )	InputFunction(argc,argv,i,ss0,zMaxCoeff);
 		else if( arg == "--zmincoeff" 	|| arg == "-l" )	InputFunction(argc,argv,i,ss0,zMinCoeff);
@@ -224,9 +224,14 @@ int main(int argc, char* argv[]){
 	double MASS 		= Mp;		// kg, This is the Mass to which quantities are normalised 
 	double MassRatio 	= sqrt(Mp/Me);
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
-	if( NormalisedB ){	// Magnetic Field is Normalised
-		BMag = pow(2/PI,2)*BMag*sqrt(PI*Mp*eTemp/(2*echarge))/Radius;
-		Potential = Potential*pow(2.0/PI,4.0);//0.8*(1-sqrt(2.0/PI))=0.1616923514\simeq pow(2/PI,4.0); // 0.3913185475;
+	if( NormalisedB ){	// If we're using S&L normalised units but iChance is undertermined
+		BMag = pow(2/PI,2)*BMag*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;   // BMag normalised to Ions
+                Potential = Potential*pow(2.0/PI,4.0);//0.8*(1-sqrt(2.0/PI))=0.1616923514\simeq pow(2/PI,4.0); // 0.3913185475;
+		if( iChance == 1.0 ){	// If we are simulating only ions
+			BMag = pow(2/PI,2)*BMag*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
+		}else if( iChance == 0.0 ){ // If we are simulating only Electrons
+        	        BMag = BMag*sqrt(PI*Me*eTemp/(2*echarge))/(3.0*MassRatio*Radius);	// BMag normalised to Electrons
+		}
 	}
 
 	// ************************************************** //
