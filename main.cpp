@@ -1,5 +1,5 @@
 #define CALCULATE_MOM
-//#define SELF_CONS_CHARGE
+#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
@@ -143,7 +143,7 @@ int main(int argc, char* argv[]){
 	
 	// ***** TIMER AND FILE DECLERATIONS 		***** //
 	clock_t begin = clock();
-	std::string filename = "Data/DMP";
+	std::string filename = "Data/DiMPl";
 	std::string suffix	= ".txt";
 	DECLARE_TRACK();
 	DECLARE_AVEL();			// Data file for angular momentum information
@@ -158,6 +158,7 @@ int main(int argc, char* argv[]){
 	double Density 		= 19600;	// kg m^-^3, Tungsten
 	double Potential	= -2.5;		// Coulombs, Charge in 
 	double BMag 		= 1.0; 		// Tesla, Magnitude of magnetic field
+	double BMagIn		= BMag;		// (arb), input magnetic field,in normalised units or Tesla
 	bool   NormalisedB	= false;	// Is magnetic field Normalised according to Sonmor & Laframboise?
 
 	// ************************************************** //
@@ -198,7 +199,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--radius" 	|| arg == "-r" ) 	InputFunction(argc,argv,i,ss0,Radius);
 		else if( arg == "--density" 	|| arg == "-d" )	InputFunction(argc,argv,i,ss0,Density);
 		else if( arg == "--potential" 	|| arg == "-p" )	InputFunction(argc,argv,i,ss0,Potential);
-		else if( arg == "--magfield" 	|| arg == "-m" )	InputFunction(argc,argv,i,ss0,BMag);
+		else if( arg == "--magfield" 	|| arg == "-m" )	InputFunction(argc,argv,i,ss0,BMagIn);
 		else if( arg == "--normalised" 	|| arg == "-n" )	InputFunction(argc,argv,i,ss0,NormalisedB);
 		else if( arg == "--etemp" 	|| arg == "-te")	InputFunction(argc,argv,i,ss0,eTemp);
 		else if( arg == "--edensity" 	|| arg == "-ne")	InputFunction(argc,argv,i,ss0,eDensity);
@@ -226,11 +227,14 @@ int main(int argc, char* argv[]){
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
 	if( NormalisedB ){	// If we're using S&L normalised units but iChance is undertermined
                 Potential = Potential*pow(2.0/PI,4.0);//0.8*(1-sqrt(2.0/PI))=0.1616923514\simeq pow(2/PI,4.0); // 0.3913185475;
-		if( iChance == 1.0 ){	// If we are simulating only ions
-			BMag = pow(2/PI,2)*BMag*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
-		}else if( iChance == 0.0 ){ // If we are simulating only Electrons
-        	        BMag = BMag*sqrt(PI*Me*eTemp/(2*echarge))/(3.0*MassRatio*Radius);	// BMag normalised to Electrons
+
+		if( iChance == 0.0 ){ // If we are simulating only Electrons
+        	        BMag = BMagIn*sqrt(PI*Me*eTemp/(2*echarge))/(3.0*MassRatio*Radius);	// BMag normalised to Electrons
+		}else{	// If we are simulating only Ions or otherwise Ions and electrons.
+			BMag = pow(2.0/PI,2)*BMagIn*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
 		}
+	}else{
+		BMag = BMagIn;
 	}
 
 	// ************************************************** //
@@ -242,7 +246,7 @@ int main(int argc, char* argv[]){
 	// Normalise DISTANCE to Dust Radius
 	// Normalise CHARGE to fundamental charge
 	double MAGNETIC(100);
-        double Tau = MASS/(echarge*100);
+        double Tau = MASS/(echarge*MAGNETIC);
 
 	double e0norm 		= epsilon0*MASS*pow(Radius,3)/(pow(echarge*Tau,2));
 	double PotNorm		= Potential*eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));	// NEEDS CHECKING MAYBE
@@ -272,6 +276,10 @@ int main(int argc, char* argv[]){
 		// Calculate thermal GyroRadius for ions and electrons normalised to dust grain radii
 		iRhoTherm	= iThermalVel/(BMag/MAGNETIC); 
 		eRhoTherm	= eThermalVel/(pow(MassRatio,2)*BMag/MAGNETIC); 
+		if( NormalisedB ){
+			iRhoTherm	= 1.0/BMagIn;
+			eRhoTherm	= 1.0/(BMagIn*MassRatio);
+		}
 	}
 
 	double iCoulombImpactParameter  = sqrt(fabs(Charge/(4*PI*sqrt(e0norm)*iThermalVel))); // Balance Coulomb to kinetic energy
@@ -349,6 +357,7 @@ int main(int argc, char* argv[]){
 //			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 
 			// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
+			// MassRatio is squared because of absence of mass in Boris solver
 			double BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
 			double ImpactParameter=eImpactParameter;
 			double ThermalVel=eThermalVel;
@@ -479,8 +488,10 @@ int main(int argc, char* argv[]){
 	// ***** PRINT ANGULAR MOMENTUM AND CHARGE DATA	***** //
 	SAVE_MOM("LinMom\t\t\t\tAngMom\n");
 	SAVE_MOM(LinearMomentumSum); SAVE_MOM("\t"); SAVE_MOM(AngularMomentumSum); SAVE_MOM("\n\n");
-	SAVE_CHARGE("Charge\n")
-	SAVE_CHARGE(Charge) SAVE_CHARGE("\n\n")
+	// Save the Charge in units of electron charges and normalised potential.
+	SAVE_CHARGE("Charge\tPotential\n")
+	SAVE_CHARGE(Charge/pow(2.0/PI,4.0)) SAVE_CHARGE("\t") SAVE_CHARGE(Charge /(pow(2.0/PI,4.0)*4.0*PI*e0norm)) 
+	SAVE_CHARGE("\n\n")
 
 	RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";
 	RunDataFile << 0.5*(j+CapturedCharge)*pow(iImpactParameter,2)/(2.0*(0.5*(TotalNum+TotalCharge)));
