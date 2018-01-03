@@ -1,5 +1,5 @@
 #define CALCULATE_MOM
-#define SELF_CONS_CHARGE
+//#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
@@ -222,7 +222,6 @@ int main(int argc, char* argv[]){
 	double MassRatio 	= sqrt(Mp/Me);
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
 	if( NormalisedB ){	// If we're using S&L normalised units but iChance is undertermined
-		BMag = pow(2/PI,2)*BMag*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;   // BMag normalised to Ions
                 Potential = Potential*pow(2.0/PI,4.0);//0.8*(1-sqrt(2.0/PI))=0.1616923514\simeq pow(2/PI,4.0); // 0.3913185475;
 		if( iChance == 1.0 ){	// If we are simulating only ions
 			BMag = pow(2/PI,2)*BMag*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
