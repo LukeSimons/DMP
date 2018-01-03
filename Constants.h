@@ -12,7 +12,7 @@
 #endif
 
 #ifdef SELF_CONS_CHARGE
-#define ADD_CHARGE()	Charge += SPEC_CHARGE;
+#define ADD_CHARGE()	Charge += SPEC_CHARGE*WHY_DO_I_NEED_THIS;
 #define SAVE_CHARGE(x)	RunDataFile << x;
 #else
 #define ADD_CHARGE()

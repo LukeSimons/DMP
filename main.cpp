@@ -225,8 +225,9 @@ int main(int argc, char* argv[]){
 	double MASS 		= Mp;		// kg, This is the Mass to which quantities are normalised 
 	double MassRatio 	= sqrt(Mp/Me);
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
+	double WHY_DO_I_NEED_THIS = 0.121;
 	if( NormalisedB ){	// If we're using S&L normalised units but iChance is undertermined
-                Potential = Potential*pow(2.0/PI,4.0);//0.8*(1-sqrt(2.0/PI))=0.1616923514\simeq pow(2/PI,4.0); // 0.3913185475;
+                Potential = WHY_DO_I_NEED_THIS*Potential;// Potential*pow(2.0/PI,4.0);//0.8*(1-sqrt(2.0/PI))=0.1616923514\simeq pow(2/PI,4.0); // 0.3913185475;
 
 		if( iChance == 0.0 ){ // If we are simulating only Electrons
         	        BMag = BMagIn*sqrt(PI*Me*eTemp/(2*echarge))/(3.0*MassRatio*Radius);	// BMag normalised to Electrons
@@ -490,7 +491,7 @@ int main(int argc, char* argv[]){
 	SAVE_MOM(LinearMomentumSum); SAVE_MOM("\t"); SAVE_MOM(AngularMomentumSum); SAVE_MOM("\n\n");
 	// Save the Charge in units of electron charges and normalised potential.
 	SAVE_CHARGE("Charge\tPotential\n")
-	SAVE_CHARGE(Charge/pow(2.0/PI,4.0)) SAVE_CHARGE("\t") SAVE_CHARGE(Charge /(pow(2.0/PI,4.0)*4.0*PI*e0norm)) 
+	SAVE_CHARGE(Charge/WHY_DO_I_NEED_THIS) SAVE_CHARGE("\t") SAVE_CHARGE(Charge /(WHY_DO_I_NEED_THIS*4.0*PI*e0norm)) 
 	SAVE_CHARGE("\n\n")
 
 	RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";
