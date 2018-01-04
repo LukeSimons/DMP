@@ -35,7 +35,7 @@
 
 #ifdef SAVE_ANGULAR_VEL
 #define DECLARE_AVEL()	std::ofstream AngularDataFile;
-#define OPEN_AVEL()	AngularDataFile.open("Data/DMP_AngVel.txt");
+#define OPEN_AVEL()	AngularDataFile.open("Data/DiMPl_AngVel.txt");
 #define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << TotalAngularVel;
 #define CLOSE_AVEL()	AngularDataFile.close();
 #else
@@ -47,7 +47,7 @@
 
 #ifdef SAVE_LINEAR_MOM
 #define DECLARE_LMOM()	std::ofstream LinearDataFile;
-#define OPEN_LMOM()	LinearDataFile.open("Data/DMP_LinMom.txt");
+#define OPEN_LMOM()	LinearDataFile.open("Data/DiMPl_LinMom.txt");
 #define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << SpeciesMass*FinalVelocity;
 #define CLOSE_LMOM()	LinearDataFile.close();
 #else

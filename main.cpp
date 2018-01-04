@@ -1,8 +1,8 @@
 #define CALCULATE_MOM
-#define SELF_CONS_CHARGE
+//#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
-#define SAVE_ANGULAR_VEL
+//#define SAVE_ANGULAR_VEL
 //#define SAVE_LINEAR_MOM
 
 //#define TEST_VELPOSDIST
@@ -225,15 +225,18 @@ int main(int argc, char* argv[]){
 	double MASS 		= Mp;		// kg, This is the Mass to which quantities are normalised 
 	double MassRatio 	= sqrt(Mp/Me);
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
-	double WHY_DO_I_NEED_THIS = 0.121;
+	double WHY_DO_I_NEED_THIS = 0.121;// (2.0/PI)^(4.0) // THE TWO IDEAL VALUES ARE 0.121 and (2.0/PI)^(4.0)
 	if( NormalisedB ){	// If we're using S&L normalised units but iChance is undertermined
-                Potential = WHY_DO_I_NEED_THIS*Potential;// Potential*pow(2.0/PI,4.0);//0.8*(1-sqrt(2.0/PI))=0.1616923514\simeq pow(2/PI,4.0); // 0.3913185475;
+
 
 		if( iChance == 0.0 ){ // If we are simulating only Electrons
-        	        BMag = BMagIn*sqrt(PI*Me*eTemp/(2*echarge))/(3.0*MassRatio*Radius);	// BMag normalised to Electrons
+        	        BMag = pow(2.0/PI,2)*BMagIn*sqrt(PI*Me*eTemp/(2*echarge))/Radius;	// BMag normalised to Electrons
 		}else{	// If we are simulating only Ions or otherwise Ions and electrons.
 			BMag = pow(2.0/PI,2)*BMagIn*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
 		}
+
+		WHY_DO_I_NEED_THIS=0.14*pow(BMagIn,0.0871606633);
+                Potential = WHY_DO_I_NEED_THIS*Potential;
 	}else{
 		BMag = BMagIn;
 	}
@@ -279,7 +282,10 @@ int main(int argc, char* argv[]){
 		eRhoTherm	= eThermalVel/(pow(MassRatio,2)*BMag/MAGNETIC); 
 		if( NormalisedB ){
 			iRhoTherm	= 1.0/BMagIn;
-			eRhoTherm	= 1.0/(BMagIn*MassRatio);
+			eRhoTherm	= 1.0/BMagIn;
+			if( iChance != 0.0 ){ // If there is a finite probability of simulating ions
+				eRhoTherm       = 1.0/(BMagIn*MassRatio);
+			}
 		}
 	}
 
@@ -457,10 +463,12 @@ int main(int argc, char* argv[]){
 					j ++;
 					CapturedCharge += SPEC_CHARGE;
 					PRINT_CHARGE(j)			PRINT_CHARGE("\t")
-					PRINT_CHARGE(Charge) 		PRINT_CHARGE("\n")
+					PRINT_CHARGE(Charge) 		PRINT_CHARGE("\t")
+					PRINT_CHARGE(SPEC_CHARGE*WHY_DO_I_NEED_THIS);	PRINT_CHARGE("\n")
 					PRINT_AVEL((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AVEL("\t");
 					PRINT_AVEL((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AVEL("\n");
 					ADD_CHARGE()
+
 					SAVE_AVEL()
 					SAVE_LMOM()
 				}else if( iter >= 5e5 ){	// In this case it was trapped!
