@@ -75,10 +75,16 @@
 #define PRINT_CHARGE(x)
 #endif
 
-#ifdef TEST_ANGVEL
-#define PRINT_AVEL(x)	std::cout << x;
+#ifdef TEST_ANGMOM
+#define DECLARE_AMOM()	threevector INITIAL_AMOM(0.0,0.0,0.0),FINAL_AMOM(0.0,0.0,0.0);
+#define ADD_I_AMOM(x)	INITIAL_AMOM += x;
+#define ADD_F_AMOM(x)	FINAL_AMOM += x;
+#define PRINT_AMOM(x)	std::cout << x;
 #else
-#define PRINT_AVEL(x)
+#define DECLARE_AMOM()
+#define ADD_I_AMOM(x)
+#define ADD_F_AMOM(x)
+#define PRINT_AMOM(x)
 #endif
 
 #if defined TEST_ENERGY 

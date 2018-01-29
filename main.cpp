@@ -2,13 +2,13 @@
 //#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
-//#define SAVE_ANGULAR_VEL
+#define SAVE_ANGULAR_VEL
 //#define SAVE_LINEAR_MOM
 
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
 //#define TEST_CHARGING
-//#define TEST_ANGVEL
+//#define TEST_ANGMOM
 //#define TEST_ENERGY
 
 #include <omp.h>	// For parallelisation
@@ -33,7 +33,7 @@ static void show_usage(std::string name){
 	<< "\t-h,--help\t\t\tShow this help message\n\n"
 	<< "\t-r,--radius RADIUS\t\t(m), Specify radius of Dust grain\n\n"
 	<< "\t-d,--density DENSITY\t\t(m^-^3), Specify density of Dust grain\n\n"
-	<< "\t-p,--potential POTENTIAL\t(float), Specify the potential of Dust grain normalised to electron temperature\n\n"
+	<< "\t-p,--potential POTENTIAL\t(double), Specify the potential of Dust grain normalised to electron temperature\n\n"
 	<< "\t-m,--magfield MAGFIELD\t\t(T), Specify the magnetic field (z direction)\n\n"
 	<< "\t-n,--normalised NORMALISED\t(bool), whether normalisation (following Sonmor & Laframboise) is on or off\n\n"
 	<< "\t-te,--etemp ETEMP\t\t(eV), Specify the temperature of plasma electrons\n\n"
@@ -41,15 +41,16 @@ static void show_usage(std::string name){
 	<< "\t-ti,--itemp ITEMP\t\t(eV), Specify the temperature of Ions\n\n"
 	<< "\t-ni,--idensity IDENSITY\t\t(m^-^3), Specify the plasma ion density\n\n"
 	<< "\t-c,--ichance ICHANCE\t\t(eV), Specify the probability of generating an Ion\n\n"
-	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(float), The upper limit of simulation domain as number of Coulomb Interaction lengths\n\n"
-	<< "\t-l,--zmincoeff ZMINCOEFF\t(float), The lower limit of simulation domain as number of Coulomb Interaction lengths\n\n"
-	<< "\t-z,--zboundforce ZBOUNDFORCE\t(float), Force the absolute value of simulation domain upper and lower boundaries\n\n"
-	<< "\t-b,--impactpar IMPACTPAR\t(float), Specify the radial limit of simulation domain as number of distances\n\n"
-	<< "\t-f,--forceimppar FORCEIMPPAR\t(float), Force the absolute value of simulation radial distance\n\n"
+	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(double), The upper limit of simulation domain as number of Coulomb Interaction lengths\n\n"
+	<< "\t-l,--zmincoeff ZMINCOEFF\t(double), The lower limit of simulation domain as number of Coulomb Interaction lengths\n\n"
+	<< "\t-z,--zboundforce ZBOUNDFORCE\t(double), Force the absolute value of simulation domain upper and lower boundaries\n\n"
+	<< "\t-b,--impactpar IMPACTPAR\t(double), Specify the radial limit of simulation domain as number of distances\n\n"
+	<< "\t-f,--forceimppar FORCEIMPPAR\t(double), Force the absolute value of simulation radial distance\n\n"
 	<< "\t-i,--imax IMAX\t\t\t(int), Specify the number of particles to be launched\n\n"
 	<< "\t-j,--jmax JMAX\t\t\t(int), Specify the number of particles to be collected (not exceeding imax)\n\n"
 	<< "\t-v,--driftvel DRIFTVEL\t\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
-	<< "\t-s,--seed SEED\t\t\t(float), Specify the seed for the random number generator\n\n"
+	<< "\t-s,--seed SEED\t\t\t(double), Specify the seed for the random number generator\n\n"
+	<< "\t-s,--saves SAVES\t\t\t(int), Specify the number of saves in a run\n\n"
 	<< "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n\n"
 	<< std::endl;
 }
@@ -178,6 +179,7 @@ int main(int argc, char* argv[]){
 	double iChance		= -0.5;	// Arb, Manually set probability of Generating an ion
 	unsigned long long imax	= 100;	// Arb, Maximum number of particles to be launched
 	unsigned long long jmax	= 2.0e6;// Arb, Number of particles to be collected
+	unsigned int saves(2);
 
 
 	// ************************************************** //
@@ -214,7 +216,8 @@ int main(int argc, char* argv[]){
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
 		else if( arg == "--jmax"	|| arg == "-j" )	InputFunction(argc,argv,i,ss0,jmax);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
-		else if( arg == "--seed"	|| arg == "-s" )	InputFunction(argc,argv,i,ss0,seed);
+		else if( arg == "--seed"	|| arg == "-se" )	InputFunction(argc,argv,i,ss0,seed);
+		else if( arg == "--saves"	|| arg == "-sa" )	InputFunction(argc,argv,i,ss0,saves);
 		else if( arg == "--output"	|| arg == "-o" )	InputFunction(argc,argv,i,ss0,suffix);
                 else{
 			sources.push_back(argv[i]);
@@ -235,7 +238,8 @@ int main(int argc, char* argv[]){
 			BMag = pow(2.0/PI,2)*BMagIn*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
 		}
 
-		WHY_DO_I_NEED_THIS=0.14*pow(BMagIn,0.0871606633);
+//		WHY_DO_I_NEED_THIS=0.14*pow(BMagIn,0.0871606633);
+		WHY_DO_I_NEED_THIS=pow(2.0/PI,4.0);
                 Potential = WHY_DO_I_NEED_THIS*Potential;
 	}else{
 		BMag = BMagIn;
@@ -354,174 +358,196 @@ int main(int argc, char* argv[]){
 	threevector TotalAngularMom(0.0,0.0,0.0);
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
+	DECLARE_AMOM();
 
 	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0), TotalNum(0);
 	long long CapturedCharge(0), RegeneratedCharge(0), TrappedCharge(0), MissedCharge(0), TotalCharge(0);
-	#pragma omp parallel for shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
-	for( i=0; i < imax; i ++){ 	// Loop over maximum number of particles to generate
-		if( j <= jmax ){	// Loop until we reach a certain number of particles jmax
 
-//			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
-
-			// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
-			// MassRatio is squared because of absence of mass in Boris solver
-			double BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
-			double ImpactParameter=eImpactParameter;
-			double ThermalVel=eThermalVel;
-			double zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
-			double zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
- 			double TimeStep(0.00005);
-			double SpeciesMass = 1.0/pow(MassRatio,2);
-			int SPEC_CHARGE=-1;
-			if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
-				BMagNorm = BMag/MAGNETIC;
-				ImpactParameter=iImpactParameter;
-				ThermalVel=iThermalVel;
-				zmax 	= izmax; 
-				zmin 	= izmin ;
-				TimeStep = 0.005;
-				SpeciesMass = 1.0;
-				SPEC_CHARGE=1;
-			}		
-			threevector BField = BMagNorm*Bhat;
-
-			// ************************************************** //
+	for( unsigned int s=1; s <= saves; s ++){
+		unsigned long long IMAX = (s*imax)/saves;
+		RunDataFile.close();
+		RunDataFile.clear();
+		RunDataFile.open(filename+suffix, std::fstream::app);
+		#pragma omp parallel for shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
+		for( i=(IMAX-imax/saves); i < IMAX; i ++){ 	// Loop over maximum number of particles to generate
+			if( j <= jmax ){	// Loop until we reach a certain number of particles jmax
 	
+	//			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
+	
+				// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
+				// MassRatio is squared because of absence of mass in Boris solver
+				double BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
+				double ImpactParameter=eImpactParameter;
+				double ThermalVel=eThermalVel;
+				double zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
+				double zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
+	 			double TimeStep(0.00005);
+				double SpeciesMass = 1.0/pow(MassRatio,2);
+				int SPEC_CHARGE=-1;
+				if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
+					BMagNorm = BMag/MAGNETIC;
+					ImpactParameter=iImpactParameter;
+					ThermalVel=iThermalVel;
+					zmax 	= izmax; 
+					zmin 	= izmin ;
+					TimeStep = 0.005;
+					SpeciesMass = 1.0;
+					SPEC_CHARGE=1;
+				}		
+				threevector BField = BMagNorm*Bhat;
+	
+				// ************************************************** //
+		
+	
+				// ***** GENERATE AN ORBIT ***** //
+				threevector Position(0.0,0.0,0.0);
+				threevector Velocity(0.0,0.0,0.0);
+				GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,
+						randnumbers[omp_get_thread_num()]);
+	
+				// ************************************************** //
+	
+	
+				// ***** TESTING AREA  				***** //
+				// ***** VELOCITY-POSITION DISTRIBUTION TEST 	***** //
+				#pragma omp critical 
+				{
+					ADD_I_AMOM(SpeciesMass*(Position^Velocity));		// For Angular Momentum Calculations
+					PRINT_AMOM("IMom = "); PRINT_AMOM(INITIAL_AMOM); PRINT_AMOM("\n");
 
-			// ***** GENERATE AN ORBIT ***** //
-			threevector Position(0.0,0.0,0.0);
-			threevector Velocity(0.0,0.0,0.0);
-			GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,
-					randnumbers[omp_get_thread_num()]);
+					PRINT_VPD(Position); PRINT_VPD("\t");	// For debugging look at initial positions
+					PRINT_VPD(Velocity); PRINT_VPD("\t");	// For debugging look at initial velocities
+					PRINT_VPD( sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2))*SpeciesMass); 
+					PRINT_VPD("\n");	// For debugging look at gyro-radii
+				}
+	
+				// ***** ENERGY TEST: MEASURE INITIAL ENERGY	***** //
+				INITIAL_VEL();						// For energy calculations
+				INITIAL_POT();						// For energy calculations
 
-			// ************************************************** //
-
-
-			// ***** TESTING AREA  				***** //
-			// ***** VELOCITY-POSITION DISTRIBUTION TEST 	***** //
-			#pragma omp critical 
-			{
-				PRINT_VPD(Position); PRINT_VPD("\t");	// For debugging look at initial positions
-				PRINT_VPD(Velocity); PRINT_VPD("\t");	// For debugging look at initial velocities
-				PRINT_VPD( sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2))*SpeciesMass); 
-				PRINT_VPD("\n");	// For debugging look at gyro-radii
-			}
-
-			// ***** ENERGY TEST: MEASURE INITIAL ENERGY	***** //
-			INITIAL_VEL();				// For energy calculations
-			INITIAL_POT();				// For energy calculations
-
-			// ***** RECORD TRACK DATA, DEBUG AND TEST	***** //
-			OPEN_TRACK(filename + "_Track_" + std::to_string(i) + ".txt");
-			RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-
-			// ************************************************** //
-
-
-			// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
-//			Calculate Electric Field
-//			threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-			threevector EField = CoulombField(Position,Charge,e0norm);
-			UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);	
-
-			// ************************************************** //
-
-
-			// ***** DO PARTICLE PATH INTEGRATION 		***** //
-			threevector OldPosition(0.0,0.0,0.0);
-			// While we don't exceed a specified number of iterations to catch trapped orbits AND	
-			// while the particle is not inside the sphere and not outside the simulation domain
-			unsigned int iter(0);
-			while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e5 ){
-//				EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-				EField = CoulombField(Position,Charge,e0norm);
-				OldPosition = Position; // For Angular Momentum Calculations
-
-				UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
-				Position+=TimeStep*Velocity;
-
+	
+				// ***** RECORD TRACK DATA, DEBUG AND TEST	***** //
+				OPEN_TRACK(filename + "_Track_" + std::to_string(i) + ".txt");
 				RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-				iter ++;
-			}	
-			CLOSE_TRACK();
+	
+				// ************************************************** //
+	
+	
+				// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
+				// Calculate Electric Field
+				threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
+				// threevector EField = CoulombField(Position,Charge,e0norm);
+				UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);	
+	
+				// ************************************************** //
+	
+	
+				// ***** DO PARTICLE PATH INTEGRATION 		***** //
+				threevector OldPosition(0.0,0.0,0.0);
+				// While we don't exceed a specified number of iterations to catch trapped orbits AND	
+				// while the particle is not inside the sphere and not outside the simulation domain
+				unsigned int iter(0);
+				while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e5 ){
+					EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
+					// EField = CoulombField(Position,Charge,e0norm);
+					OldPosition = Position; // For Angular Momentum Calculations
+	
+					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
+					Position+=TimeStep*Velocity;
+	
+					RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+					iter ++;
+				}	
+				CLOSE_TRACK();
+	
+				// ************************************************** //
+	
+	
+				// ***** PERFORM MOMENTUM CALCULATIONS 		***** //
+				threevector FinalPosition = 0.5*(OldPosition+Position);
+				threevector AngularMom = SpeciesMass*(FinalPosition^Velocity); 		
+				#pragma omp critical
+				{
+					if( Position.mag3() <= 1.0 ){ // In this case it was captured!
+						double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
+						threevector AngularVel = (AngVelNorm)*
+						((FinalPosition^Velocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
+//						ADD_F_AMOM(AngularVel*(2.0*DustMass/5.0));
 
-			// ************************************************** //
 
+						PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
+						TotalAngularVel += AngularVel;
+						TotalAngularMom += AngularMom;
 
-			// ***** PERFORM MOMENTUM CALCULATIONS 		***** //
-			threevector FinalPosition = 0.5*(OldPosition+Position);
-			threevector AngularMom = SpeciesMass*(FinalPosition^Velocity); 		
-			#pragma omp critical
-			{
-				if( Position.mag3() <= 1.0 ){ // In this case it was captured!
-					double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
-					threevector AngularVel = (AngVelNorm)*
-					((FinalPosition^Velocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
-					PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
-					TotalAngularVel += AngularVel;
-					TotalAngularMom += AngularMom;
-					j ++;
-					CapturedCharge += SPEC_CHARGE;
-					PRINT_CHARGE(j)			PRINT_CHARGE("\t")
-					PRINT_CHARGE(Charge) 		PRINT_CHARGE("\t")
-					PRINT_CHARGE(SPEC_CHARGE*WHY_DO_I_NEED_THIS);	PRINT_CHARGE("\n")
-					PRINT_AVEL((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AVEL("\t");
-					PRINT_AVEL((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AVEL("\n");
-					ADD_CHARGE()
+						j ++;
+						CapturedCharge += SPEC_CHARGE;
+						PRINT_CHARGE(j)			PRINT_CHARGE("\t")
+						PRINT_CHARGE(Charge) 		PRINT_CHARGE("\t")
+						PRINT_CHARGE(SPEC_CHARGE*WHY_DO_I_NEED_THIS);	PRINT_CHARGE("\n")
+//						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AMOM("\t");
+//						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AMOM("\n");
+						ADD_CHARGE()
+						if(j % 1000 == 0){
+							SAVE_AVEL()
+							SAVE_LMOM()
+						}
+					}else if( iter >= 5e5 ){	// In this case it was trapped!
+						TrappedParticles ++;
+						TrappedCharge += SPEC_CHARGE;
+					}else{ 				// In this case it missed!
+						LinearMomentumSum += SpeciesMass*Velocity;	
+						AngularMomentumSum += AngularMom;
+						MissedParticles ++;
+						MissedCharge += SPEC_CHARGE;
+					} // END OF if ( Position.mag3() < 1.0 )
 
-					SAVE_AVEL()
-					SAVE_LMOM()
-				}else if( iter >= 5e5 ){	// In this case it was trapped!
-					TrappedParticles ++;
-					TrappedCharge += SPEC_CHARGE;
-				}else{ 				// In this case it missed!
-					LinearMomentumSum += SpeciesMass*Velocity;	
-					AngularMomentumSum += AngularMom;
-					MissedParticles ++;
-					MissedCharge += SPEC_CHARGE;
-				} // END OF if ( Position.mag3() < 1.0 )
-				FINAL_POT(); 
-				PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
-				PRINT_ENERGY(100*(Velocity.square()/InitialVel.square()-1.0));  PRINT_ENERGY("\t");
-				PRINT_ENERGY(0.5*SpeciesMass*Velocity.square()+SPEC_CHARGE*FinalPot-
-						(0.5*SpeciesMass*InitialVel.square()+SPEC_CHARGE*InitialPot));  
-				PRINT_ENERGY("\n");
-				TotalNum ++;
-				TotalCharge += SPEC_CHARGE;
+					ADD_F_AMOM(SpeciesMass*(Position^Velocity));
+					PRINT_AMOM("FMom = "); PRINT_AMOM(FINAL_AMOM); PRINT_AMOM("\n");
+					FINAL_POT(); 
+					PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
+					PRINT_ENERGY(100*(Velocity.square()/InitialVel.square()-1.0));  PRINT_ENERGY("\t");
+					PRINT_ENERGY(0.5*SpeciesMass*Velocity.square()+SPEC_CHARGE*FinalPot-
+							(0.5*SpeciesMass*InitialVel.square()+SPEC_CHARGE*InitialPot));  
+					PRINT_ENERGY("\n");
+					TotalNum ++;
+					TotalCharge += SPEC_CHARGE;
+				}
+				// ************************************************** //
 			}
-			// ************************************************** //
-		}
-	} // END OF PARALLELISED FOR LOOP
-
-
-	// ***** PRINT ANGULAR MOMENTUM AND CHARGE DATA	***** //
-	SAVE_MOM("LinMom\t\t\t\tAngMom\n");
-	SAVE_MOM(LinearMomentumSum); SAVE_MOM("\t"); SAVE_MOM(AngularMomentumSum); SAVE_MOM("\n\n");
-	// Save the Charge in units of electron charges and normalised potential.
-	SAVE_CHARGE("Charge\tPotential\n")
-	SAVE_CHARGE(Charge/WHY_DO_I_NEED_THIS) SAVE_CHARGE("\t") SAVE_CHARGE(Charge /(WHY_DO_I_NEED_THIS*4.0*PI*e0norm)) 
-	SAVE_CHARGE("\n\n")
-
-	RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";
-	RunDataFile << 0.5*(j+CapturedCharge)*pow(iImpactParameter,2)/(2.0*(0.5*(TotalNum+TotalCharge)));
-	RunDataFile << "\t\t" << 0.5*(j-CapturedCharge)*pow(eImpactParameter,2)/(2.0*(0.5*(TotalNum-TotalCharge))) << "\n\n";
-
-	// ************************************************** //
-
-
-	// ***** PRINT CHARGE AND PATH COUNTERS 	***** //
-	RunDataFile << "j\tjCharge\tMissed\tMCharge\tRegen\tRCharge\tTrapped\tTCharge\tGross\tGCharge\n"; 
-	RunDataFile << j << "\t" << CapturedCharge << "\t" << MissedParticles << "\t" << MissedCharge << "\t" << RegeneratedParticles << "\t" << RegeneratedCharge << "\t" << TrappedParticles << "\t" << TrappedCharge << "\t" << TotalNum << "\t" << TotalCharge << "\n";
-
-	clock_t end = clock();
-	double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
-	RunDataFile << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n";
-
-	// ************************************************** //
-
-
-	// ***** CLOSE DATA FILES 			***** //
-	RunDataFile.close();
+		} // END OF PARALLELISED FOR LOOP
+	
+	
+		// ***** PRINT ANGULAR MOMENTUM AND CHARGE DATA	***** //
+		RunDataFile << "*****\n\n\nSave : " << s << "\n\n";
+	
+		SAVE_MOM("LinMom\t\t\t\tAngMom\n");
+		SAVE_MOM(LinearMomentumSum); SAVE_MOM("\t"); SAVE_MOM(AngularMomentumSum); SAVE_MOM("\n\n");
+		// Save the Charge in units of electron charges and normalised potential.
+		SAVE_CHARGE("Charge\tPotential\n")
+		SAVE_CHARGE(Charge/WHY_DO_I_NEED_THIS) SAVE_CHARGE("\t") SAVE_CHARGE(Charge /(WHY_DO_I_NEED_THIS*4.0*PI*e0norm)) 
+		SAVE_CHARGE("\n\n")
+	
+		RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";
+		RunDataFile << 0.5*(j+CapturedCharge)*pow(iImpactParameter,2)/(2.0*(0.5*(TotalNum+TotalCharge)));
+		RunDataFile << "\t\t" << 0.5*(j-CapturedCharge)*pow(eImpactParameter,2)/(2.0*(0.5*(TotalNum-TotalCharge))) << "\n\n";
+	
+		// ************************************************** //
+	
+	
+		// ***** PRINT CHARGE AND PATH COUNTERS 	***** //
+		RunDataFile << "j\tjCharge\tMissed\tMCharge\tRegen\tRCharge\tTrapped\tTCharge\tGross\tGCharge\n"; 
+		RunDataFile << j << "\t" << CapturedCharge << "\t" << MissedParticles << "\t" << MissedCharge << "\t" << RegeneratedParticles << "\t" << RegeneratedCharge << "\t" << TrappedParticles << "\t" << TrappedCharge << "\t" << TotalNum << "\t" << TotalCharge << "\n";
+	
+		clock_t end = clock();
+		double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
+		RunDataFile << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n\n";
+	
+		// ************************************************** //
+	
+	
+		// ***** CLOSE DATA FILES 			***** //
+		RunDataFile.close();
+	}
 	CLOSE_AVEL();
 	CLOSE_LMOM();
 
