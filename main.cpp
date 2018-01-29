@@ -48,9 +48,10 @@ static void show_usage(std::string name){
 	<< "\t-f,--forceimppar FORCEIMPPAR\t(double), Force the absolute value of simulation radial distance\n\n"
 	<< "\t-i,--imax IMAX\t\t\t(int), Specify the number of particles to be launched\n\n"
 	<< "\t-j,--jmax JMAX\t\t\t(int), Specify the number of particles to be collected (not exceeding imax)\n\n"
+	<< "\t-no,--number NUMBER\t\t\t(int), Specify the number of particles to be captured before saving\n\n"
 	<< "\t-v,--driftvel DRIFTVEL\t\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
-	<< "\t-s,--seed SEED\t\t\t(double), Specify the seed for the random number generator\n\n"
-	<< "\t-s,--saves SAVES\t\t\t(int), Specify the number of saves in a run\n\n"
+	<< "\t-se,--seed SEED\t\t\t(double), Specify the seed for the random number generator\n\n"
+	<< "\t-sa,--saves SAVES\t\t\t(int), Specify the number of saves in a run\n\n"
 	<< "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n\n"
 	<< std::endl;
 }
@@ -179,6 +180,7 @@ int main(int argc, char* argv[]){
 	double iChance		= -0.5;	// Arb, Manually set probability of Generating an ion
 	unsigned long long imax	= 100;	// Arb, Maximum number of particles to be launched
 	unsigned long long jmax	= 2.0e6;// Arb, Number of particles to be collected
+	unsigned long long num	= 1000; // Arb, Number of particles to be collected before saving
 	unsigned int saves(2);
 
 
@@ -215,14 +217,45 @@ int main(int argc, char* argv[]){
 		else if( arg == "--forceimppar"	|| arg == "-f" )	InputFunction(argc,argv,i,ss0,ForceImpPar);
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
 		else if( arg == "--jmax"	|| arg == "-j" )	InputFunction(argc,argv,i,ss0,jmax);
+		else if( arg == "--number"	|| arg == "-no")	InputFunction(argc,argv,i,ss0,num);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
-		else if( arg == "--seed"	|| arg == "-se" )	InputFunction(argc,argv,i,ss0,seed);
-		else if( arg == "--saves"	|| arg == "-sa" )	InputFunction(argc,argv,i,ss0,saves);
+		else if( arg == "--seed"	|| arg == "-se")	InputFunction(argc,argv,i,ss0,seed);
+		else if( arg == "--saves"	|| arg == "-sa")	InputFunction(argc,argv,i,ss0,saves);
 		else if( arg == "--output"	|| arg == "-o" )	InputFunction(argc,argv,i,ss0,suffix);
                 else{
 			sources.push_back(argv[i]);
 		}
 	}
+	if( Radius < 0.0 )
+		std::cerr << "\nError! Probe Radius is negative\nRadius : " << Radius;
+	if( Density < 0.0 )
+		std::cerr << "\nError! Probe Density is negative\nDensity : " << Density;
+	if( eTemp < 0.0 )
+		std::cerr << "\nError! Electron Temperature is negative\neTemp : " << eTemp;
+	if( eDensity < 0.0 )
+		std::cerr << "\nError! Electron Density is negative\neDensity : " << eDensity;
+	if( iTemp < 0.0 )
+		std::cerr << "\nError! Ion Temperature is negative\niTemp : " << iTemp;
+	if( iDensity < 0.0 )
+		std::cerr << "\nError! Ion Density is negative\niDensity : " << iDensity;
+	if( iChance < 0.0 )
+		std::cerr << "\nError! Chance of generating Ion is negative\niChance : " << iChance;
+	if( ZMinCoeff < 0.0 )
+		std::cerr << "\nError! Lower Vertical Boundary Parameter is negative\nZMinCoeff : " << ZMinCoeff;
+	if( ZMaxCoeff < 0.0 )
+		std::cerr << "\nError! Upper Vertical Boundary Parameter is negative\nZMaxCoeff : " << ZMaxCoeff;
+	if( ZBoundForce < 0.0 )
+		std::cerr << "\nError! Force Vertical Boundaries Parameter is negative\nZBoundForce : " << ZBoundForce;
+	if( ImpactPar < 0.0 )
+		std::cerr << "\nError! Impact Parameter is negative\nImpactPar : " << ImpactPar;
+	if( ForceImpPar < 0.0 )
+		std::cerr << "\nError! Force Impact Parameter is negative\nForceImpPar : " << ForceImpPar;
+	if( imax < jmax )
+		std::cerr << "\nError! Total particle goal less than captured particle goal\nimax < jmax : " 
+			<< imax << " < " << jmax;
+	if( num < jmax )
+		std::cerr << "\nWarning! Save interval less than captured particle goal. No Angular data recorded\nnum < jmax : " 
+			<< num << " < " << jmax;
 
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
 	double MASS 		= Mp;		// kg, This is the Mass to which quantities are normalised 
@@ -487,7 +520,7 @@ int main(int argc, char* argv[]){
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AMOM("\t");
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AMOM("\n");
 						ADD_CHARGE()
-						if(j % 1000 == 0){
+						if(j % num == 0){
 							SAVE_AVEL()
 							SAVE_LMOM()
 						}
