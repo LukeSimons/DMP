@@ -1,8 +1,9 @@
 #define CALCULATE_MOM
-//#define SELF_CONS_CHARGE
+#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
+#define SAVE_CHARGING
 //#define SAVE_LINEAR_MOM
 
 //#define TEST_VELPOSDIST
@@ -150,6 +151,7 @@ int main(int argc, char* argv[]){
 	DECLARE_TRACK();
 	DECLARE_AVEL();			// Data file for angular momentum information
 	DECLARE_LMOM();			// Data file for linear momentum information
+	DECLARE_CHA();			// Data file for charge
 	std::ofstream RunDataFile;	// Data file for containing the run information
 
 	// ************************************************** //
@@ -239,11 +241,11 @@ int main(int argc, char* argv[]){
 	if( iDensity < 0.0 )
 		std::cerr << "\nError! Ion Density is negative\niDensity : " << iDensity;
 	if( iChance < 0.0 )
-		std::cerr << "\nError! Chance of generating Ion is negative\niChance : " << iChance;
-	if( ZMinCoeff < 0.0 )
-		std::cerr << "\nError! Lower Vertical Boundary Parameter is negative\nZMinCoeff : " << ZMinCoeff;
-	if( ZMaxCoeff < 0.0 )
-		std::cerr << "\nError! Upper Vertical Boundary Parameter is negative\nZMaxCoeff : " << ZMaxCoeff;
+		std::cout << "\nWarning! Chance of generating Ion is negative, self-consistent flux assumed\niChance : " << iChance;
+	if( zMinCoeff < 0.0 )
+		std::cerr << "\nError! Lower Vertical Boundary Parameter is negative\nzMinCoeff : " << zMinCoeff;
+	if( zMaxCoeff < 0.0 )
+		std::cerr << "\nError! Upper Vertical Boundary Parameter is negative\nzMaxCoeff : " << zMaxCoeff;
 	if( ZBoundForce < 0.0 )
 		std::cerr << "\nError! Force Vertical Boundaries Parameter is negative\nZBoundForce : " << ZBoundForce;
 	if( ImpactPar < 0.0 )
@@ -253,8 +255,8 @@ int main(int argc, char* argv[]){
 	if( imax < jmax )
 		std::cerr << "\nError! Total particle goal less than captured particle goal\nimax < jmax : " 
 			<< imax << " < " << jmax;
-	if( num < jmax )
-		std::cerr << "\nWarning! Save interval less than captured particle goal. No Angular data recorded\nnum < jmax : " 
+	if( jmax < num )
+		std::cout << "\nWarning! Save interval less than captured particle goal. No Angular data recorded\nnum < jmax : " 
 			<< num << " < " << jmax;
 
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
@@ -377,11 +379,12 @@ int main(int argc, char* argv[]){
 	char * dt = ctime(&now);
 	OPEN_AVEL();
 	OPEN_LMOM();
+	OPEN_CHA();
 
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
-	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<eDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<iDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:\t"<<seed<<"\n\n";
+	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<eDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<iDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:\t"<<seed<<"\nOMP_THREADS:\t"<<omp_get_max_threads()<<"\n\n";
 
 	// ************************************************** //
 
@@ -468,8 +471,8 @@ int main(int argc, char* argv[]){
 	
 				// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
 				// Calculate Electric Field
-				threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-				// threevector EField = CoulombField(Position,Charge,e0norm);
+//				threevector EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
+				threevector EField = CoulombField(Position,Charge,e0norm);
 				UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);	
 	
 				// ************************************************** //
@@ -481,8 +484,8 @@ int main(int argc, char* argv[]){
 				// while the particle is not inside the sphere and not outside the simulation domain
 				unsigned int iter(0);
 				while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e5 ){
-					EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
-					// EField = CoulombField(Position,Charge,e0norm);
+					// EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
+					EField = CoulombField(Position,Charge,e0norm);
 					OldPosition = Position; // For Angular Momentum Calculations
 	
 					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
@@ -523,6 +526,7 @@ int main(int argc, char* argv[]){
 						if(j % num == 0){
 							SAVE_AVEL()
 							SAVE_LMOM()
+							SAVE_CHA()
 						}
 					}else if( iter >= 5e5 ){	// In this case it was trapped!
 						TrappedParticles ++;
@@ -583,6 +587,7 @@ int main(int argc, char* argv[]){
 	}
 	CLOSE_AVEL();
 	CLOSE_LMOM();
+	CLOSE_CHA();
 
 	// ************************************************** //
 

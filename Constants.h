@@ -57,6 +57,18 @@
 #define CLOSE_LMOM()
 #endif 
 
+#ifdef SAVE_CHARGING
+#define DECLARE_CHA()	std::ofstream LinearDataFile;
+#define OPEN_CHA()	LinearDataFile.open("Data/DiMPl_Charge.txt");
+#define SAVE_CHA()	LinearDataFile << "\n" << j << "\t" << Charge;
+#define CLOSE_CHA()	LinearDataFile.close();
+#else
+#define DECLARE_CHA()
+#define OPEN_CHA()
+#define SAVE_CHA()
+#define CLOSE_CHA()
+#endif 
+
 #ifdef TEST_VELPOSDIST
 #define PRINT_VPD(x)	std::cout << x;
 #else
