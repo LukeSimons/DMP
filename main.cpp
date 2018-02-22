@@ -20,10 +20,11 @@
 #include <random>	// for std::normal_distribution<> etc.
 #include <fstream>	// for std::ofstream
 #include <ctime>	// for clock()
-#include <math.h> 	// For fabs()
+#include <math.h> 	// for fabs()
 #include <sstream>	// for std::stringstream
+#include <assert.h>	// for assert()
 
-//#include "Function.h"	// For LambertW() Function to calculate Debye-Huckel Screening Length
+//#include "Function.h"	// for LambertW() Function to calculate Debye-Huckel Screening Length
 #include "Constants.h"	// Define Pre-processor Directives and constants
 #include "threevector.h"// for threevector class
 #include "rand_mwts.h"	// Functions to generate correct 1-way maxwellian flux
@@ -160,7 +161,7 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE DUST PARAMETERS 		***** //
 	double Radius 		= 1e-6;		// m, Radius of dust
 	double Density 		= 19600;	// kg m^-^3, Tungsten
-	double Potential	= -2.5;		// Coulombs, Charge in 
+	double Potential	= -2.5;		// Normalised potential,
 	double BMag 		= 1.0; 		// Tesla, Magnitude of magnetic field
 	double BMagIn		= BMag;		// (arb), input magnetic field,in normalised units or Tesla
 	bool   NormalisedB	= false;	// Is magnetic field Normalised according to Sonmor & Laframboise?
@@ -177,13 +178,13 @@ int main(int argc, char* argv[]){
 	double zMaxCoeff	= 1.0;	// Arb, Number of Interaction distances from 0,0 plane to max of simulation domain
 	double zMinCoeff	= 1.0;	// Arb, Number of Interaction distances from 0,0 plane to min of simulation domain
 	double ZBoundForce	= 0.0;	// Arb, Number of dust grain radii to vertical edge of simulation domain
-	double ImpactPar	= 2.0;	// Arb, Multiplicative factor for the Impact Parameter
-	double ForceImpPar	= 0.0;	// Arb, Number of dust grain radii to radial edge of simulation domain
-	double iChance		= -0.5;	// Arb, Manually set probability of Generating an ion
-	unsigned long long imax	= 100;	// Arb, Maximum number of particles to be launched
-	unsigned long long jmax	= 2.0e6;// Arb, Number of particles to be collected
+	double ImpactPar	= 2.0;	// Species gyro-radii, Multiplicative factor for the Impact Parameter
+	double ForceImpPar	= 0.0;	// Number of dust grain radii to radial edge of simulation domain
+	double iChance		= -0.5;	// Manually set probability of Generating an ion, negative will cause self-consistent
+	unsigned long long imax	= 10000;// Arb, Maximum number of particles to be launched
+	unsigned long long jmax	= 5000;	// Arb, Number of particles to be collected
 	unsigned long long num	= 1000; // Arb, Number of particles to be collected before saving
-	unsigned int saves(2);
+	unsigned int saves(2);		// Arb, Number of saves to be performed in a run
 
 
 	// ************************************************** //
@@ -263,7 +264,7 @@ int main(int argc, char* argv[]){
 	double MASS 		= Mp;		// kg, This is the Mass to which quantities are normalised 
 	double MassRatio 	= sqrt(Mp/Me);
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
-	double WHY_DO_I_NEED_THIS = 0.121;// (2.0/PI)^(4.0) // THE TWO IDEAL VALUES ARE 0.121 and (2.0/PI)^(4.0)
+	double ChargeNorm	= pow(2.0/PI,4.0);
 	if( NormalisedB ){	// If we're using S&L normalised units but iChance is undertermined
 
 
@@ -273,9 +274,7 @@ int main(int argc, char* argv[]){
 			BMag = pow(2.0/PI,2)*BMagIn*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
 		}
 
-//		WHY_DO_I_NEED_THIS=0.14*pow(BMagIn,0.0871606633);
-		WHY_DO_I_NEED_THIS=pow(2.0/PI,4.0);
-                Potential = WHY_DO_I_NEED_THIS*Potential;
+                Potential = ChargeNorm*Potential;
 	}else{
 		BMag = BMagIn;
 	}
@@ -292,7 +291,7 @@ int main(int argc, char* argv[]){
         double Tau = MASS/(echarge*MAGNETIC);
 
 	double e0norm 		= epsilon0*MASS*pow(Radius,3)/(pow(echarge*Tau,2));
-	double PotNorm		= Potential*eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));	// NEEDS CHECKING MAYBE
+	double PotNorm		= Potential*eTemp*echarge*pow(Tau,2)/(MASS*pow(Radius,2));
 	double DriftNorm	= DriftVel*Tau/(Radius);
 
 	double eDensNorm	= eDensity*pow(Radius,3);
@@ -354,8 +353,12 @@ int main(int argc, char* argv[]){
 
 	// ***** DEFINE PROBABILITY OF ION GENERATION	***** //
 	// Define ratio of flux of electrons to ions
-//	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(1+eImpactParameter,2)/pow(1+iImpactParameter,2));
-	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(eImpactParameter,2)/pow(iImpactParameter,2));
+	assert(ezmax == ezmin);	// The min and max heights must match as long as the ProbabilityOfIon is the same for
+	assert(izmax == izmin);	// both the top and bottom surfaces.
+	double BoltzmanneDensity = eDensity*exp(Potential/ezmax);
+	double BoltzmanniDensity = iDensity*exp(-Potential/izmax);
+	double ElecToIonRatio = (BoltzmanneDensity/BoltzmanniDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(eImpactParameter,2)
+					/pow(iImpactParameter,2));
 	double ProbabilityOfIon = 1.0/(1.0+ElecToIonRatio);
 	if( iChance >= 0.0 && iChance <= 1.0 )
 		ProbabilityOfIon = iChance;
@@ -384,7 +387,7 @@ int main(int argc, char* argv[]){
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
-	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<eDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<iDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:\t"<<seed<<"\nOMP_THREADS:\t"<<omp_get_max_threads()<<"\n\n";
+	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<eDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<iDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge/ChargeNorm<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:\t"<<seed<<"\nOMP_THREADS:\t"<<omp_get_max_threads()<<"\n\n";
 
 	// ************************************************** //
 
@@ -519,7 +522,7 @@ int main(int argc, char* argv[]){
 						CapturedCharge += SPEC_CHARGE;
 						PRINT_CHARGE(j)			PRINT_CHARGE("\t")
 						PRINT_CHARGE(Charge) 		PRINT_CHARGE("\t")
-						PRINT_CHARGE(SPEC_CHARGE*WHY_DO_I_NEED_THIS);	PRINT_CHARGE("\n")
+						PRINT_CHARGE(SPEC_CHARGE*ChargeNorm);	PRINT_CHARGE("\n")
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AMOM("\t");
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AMOM("\n");
 						ADD_CHARGE()
@@ -528,6 +531,8 @@ int main(int argc, char* argv[]){
 							SAVE_LMOM()
 							SAVE_CHA()
 						}
+						// For SELF_CONS_CHARGE, update the probability of generating ions or electrons
+						UPDATE_PROB();	
 					}else if( iter >= 5e5 ){	// In this case it was trapped!
 						TrappedParticles ++;
 						TrappedCharge += SPEC_CHARGE;
@@ -561,7 +566,7 @@ int main(int argc, char* argv[]){
 		SAVE_MOM(LinearMomentumSum); SAVE_MOM("\t"); SAVE_MOM(AngularMomentumSum); SAVE_MOM("\n\n");
 		// Save the Charge in units of electron charges and normalised potential.
 		SAVE_CHARGE("Charge\tPotential\n")
-		SAVE_CHARGE(Charge/WHY_DO_I_NEED_THIS) SAVE_CHARGE("\t") SAVE_CHARGE(Charge /(WHY_DO_I_NEED_THIS*4.0*PI*e0norm)) 
+		SAVE_CHARGE(Charge/ChargeNorm) SAVE_CHARGE("\t") SAVE_CHARGE(Charge /(ChargeNorm*4.0*PI*e0norm)) 
 		SAVE_CHARGE("\n\n")
 	
 		RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";

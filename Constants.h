@@ -12,10 +12,12 @@
 #endif
 
 #ifdef SELF_CONS_CHARGE
-#define ADD_CHARGE()	Charge += SPEC_CHARGE*WHY_DO_I_NEED_THIS;
+#define ADD_CHARGE()	Charge += SPEC_CHARGE*ChargeNorm;
+#define UPDATE_PROB()	ProbabilityOfIon = 1.0/(1.0+(sqrt(eTemp*Mp/(iTemp*Me))*(eDensity*exp(Potential/ezmax)*pow(eImpactParameter,2)/(pow(iImpactParameter,2)*iDensity*exp(-Potential/izmax))));
 #define SAVE_CHARGE(x)	RunDataFile << x;
 #else
 #define ADD_CHARGE()
+#define UPDATE_PROB()
 #define SAVE_CHARGE(x)
 #endif
 
