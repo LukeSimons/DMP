@@ -1,4 +1,4 @@
-DIMP - Dust In Magnetised Plasma
+DiMPl - Dust In Magnetised Plasma
 
 Simulates trajectories of ions and electrons in a magnetised plasma around a charged dust grain.
 Rate of collection of ions and electrons is calculated with a focus on calculating the torque on the sphere.
@@ -6,32 +6,48 @@ Rate of collection of ions and electrons is calculated with a focus on calculati
 This code calculates the angular and linear momentum transfer to a charged sphere with either a Debye-Huckel or Coulomb electric potential in a constant magnetic field. Output is in files in subdirectory Data. Optional full tracking of particles, including their change in energy and net linear and angular momentum can be calculated by defining the relevant pre-processor directives. Command line input is available with the following options:
 
 Options:
--h,--help Show this help message
+-h,--help			Show this help message
 
 -r,--radius RADIUS		(m), Specify radius of Dust grain
 
 -d,--density DENSITY		(m^-^3), Specify density of Dust grain
 
--p,--potential POTENTIAL	(arb), Specify the potential of Dust grain normalised to electron temperature
+-p,--potential POTENTIAL	(double), Specify the potential of Dust grain normalised to electron temperature
 
--b,--bfield BFIELD		(T), Specify the magnetic field (z direction)
+-m,--magfield MAGFIELD		(T), Specify the magnetic field (z direction)
 
--e,--etemp ETEMP		(eV), Specify the temperature of plasma electrons
+-n,--normalised NORMALISED	(bool), whether normalisation (following Sonmor & Laframboise) is on or off
 
--n,--edensity EDENSITY		(m^-^3), Specify the plasma electron density
+-te,--etemp ETEMP		(eV), Specify the temperature of plasma electrons
 
--t,--temp TEMP			(eV), Specify the temperature of species of interest
+-ne,--edensity EDENSITY		(m^-^3), Specify the plasma electron density
 
--s,--spec_charge SPEC_CHARGE	(arb), Specify the charge of the species of interest
+-ti,--itemp ITEMP		(eV), Specify the temperature of Ions
 
--u,--zmaxdebye ZMAXDEBYE	(arb), Specify the upper limit of simulation domain as number of distances
+-ni,--idensity IDENSITY		(m^-^3), Specify the plasma ion density
 
--l,--zmindebye ZMINDEBYE	(arb), Specify the lower limit of simulation domain as number of distances
+-c,--ichance ICHANCE		(eV), Specify the probability of generating an Ion
 
--b,--impactpar IMPACTPAR	(arb), Specify the radial limit of simulation domain as number of distances
+-u,--zmaxcoeff ZMAXCOEFF	(double), The upper limit of simulation domain as number of Coulomb Interaction lengths
 
--i,--imax IMAX			(arb), Specify the number of particles to be launched
+-l,--zmincoeff ZMINCOEFF	(double), The lower limit of simulation domain as number of Coulomb Interaction lengths
+
+-z,--zboundforce ZBOUNDFORCE	(double), Force the absolute value of simulation domain upper and lower boundaries
+
+-b,--impactpar IMPACTPAR	(double), Specify the radial limit of simulation domain as number of distances
+
+-f,--forceimppar FORCEIMPPAR	(double), Force the absolute value of simulation radial distance
+
+-i,--imax IMAX			(int), Specify the number of particles to be launched
+
+-j,--jmax JMAX			(int), Specify the number of particles to be collected (not exceeding imax)
+
+-no,--number NUMBER			(int), Specify the number of particles to be captured before saving
 
 -v,--driftvel DRIFTVEL		(m s^-^1), Specify the drift velocity of the plasma
 
--o,--output OUTPUT		(N/A), Specify the suffix of the output file
+-se,--seed SEED			(double), Specify the seed for the random number generator
+
+-sa,--saves SAVES			(int), Specify the number of saves in a run
+
+-o,--output OUTPUT		(string), Specify the suffix of the output file

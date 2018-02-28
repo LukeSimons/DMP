@@ -2,7 +2,7 @@ if (!exists("filenumi")) filenumi=0
 if (!exists("filenumf")) filenumf=5
 if (!exists("iter")) iter=1
 
-filename(n) = sprintf("Data/DMP_Track_%d.txt", n);
+filename(n) = sprintf("Data/DiMPl_Track_%d.txt", n);
 set key off
 set parametric
 set urange [0:2*pi]

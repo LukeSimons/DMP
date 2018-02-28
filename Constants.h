@@ -12,10 +12,12 @@
 #endif
 
 #ifdef SELF_CONS_CHARGE
-#define ADD_CHARGE()	Charge += SPEC_CHARGE;
+#define ADD_CHARGE()	Charge += SPEC_CHARGE*ChargeNorm;
+#define UPDATE_PROB()	ProbabilityOfIon = 1.0/(1.0+(sqrt(eTemp*Mp/(iTemp*Me))*(eDensity*exp(Potential/ezmax)*pow(eImpactParameter,2)/(pow(iImpactParameter,2)*iDensity*exp(-Potential/izmax)))));
 #define SAVE_CHARGE(x)	RunDataFile << x;
 #else
 #define ADD_CHARGE()
+#define UPDATE_PROB()
 #define SAVE_CHARGE(x)
 #endif
 
@@ -35,7 +37,7 @@
 
 #ifdef SAVE_ANGULAR_VEL
 #define DECLARE_AVEL()	std::ofstream AngularDataFile;
-#define OPEN_AVEL()	AngularDataFile.open("Data/DMP_AngVel.txt");
+#define OPEN_AVEL()	AngularDataFile.open("Data/DiMPl_AngVel.txt");
 #define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << TotalAngularVel;
 #define CLOSE_AVEL()	AngularDataFile.close();
 #else
@@ -47,7 +49,7 @@
 
 #ifdef SAVE_LINEAR_MOM
 #define DECLARE_LMOM()	std::ofstream LinearDataFile;
-#define OPEN_LMOM()	LinearDataFile.open("Data/DMP_LinMom.txt");
+#define OPEN_LMOM()	LinearDataFile.open("Data/DiMPl_LinMom.txt");
 #define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << SpeciesMass*FinalVelocity;
 #define CLOSE_LMOM()	LinearDataFile.close();
 #else
@@ -55,6 +57,18 @@
 #define OPEN_LMOM()
 #define SAVE_LMOM()
 #define CLOSE_LMOM()
+#endif 
+
+#ifdef SAVE_CHARGING
+#define DECLARE_CHA()	std::ofstream LinearDataFile;
+#define OPEN_CHA()	LinearDataFile.open("Data/DiMPl_Charge.txt");
+#define SAVE_CHA()	LinearDataFile << "\n" << j << "\t" << Charge;
+#define CLOSE_CHA()	LinearDataFile.close();
+#else
+#define DECLARE_CHA()
+#define OPEN_CHA()
+#define SAVE_CHA()
+#define CLOSE_CHA()
 #endif 
 
 #ifdef TEST_VELPOSDIST
@@ -75,10 +89,16 @@
 #define PRINT_CHARGE(x)
 #endif
 
-#ifdef TEST_ANGVEL
-#define PRINT_AVEL(x)	std::cout << x;
+#ifdef TEST_ANGMOM
+#define DECLARE_AMOM()	threevector INITIAL_AMOM(0.0,0.0,0.0),FINAL_AMOM(0.0,0.0,0.0);
+#define ADD_I_AMOM(x)	INITIAL_AMOM += x;
+#define ADD_F_AMOM(x)	FINAL_AMOM += x;
+#define PRINT_AMOM(x)	std::cout << x;
 #else
-#define PRINT_AVEL(x)
+#define DECLARE_AMOM()
+#define ADD_I_AMOM(x)
+#define ADD_F_AMOM(x)
+#define PRINT_AMOM(x)
 #endif
 
 #if defined TEST_ENERGY 
