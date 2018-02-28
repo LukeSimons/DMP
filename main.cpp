@@ -353,8 +353,8 @@ int main(int argc, char* argv[]){
 
 	// ***** DEFINE PROBABILITY OF ION GENERATION	***** //
 	// Define ratio of flux of electrons to ions
-	assert(ezmax == ezmin);	// The min and max heights must match as long as the ProbabilityOfIon is the same for
-	assert(izmax == izmin);	// both the top and bottom surfaces.
+	assert(fabs(ezmax) == fabs(ezmin));	// The min and max heights must match as long as the ProbabilityOfIon is the same for
+	assert(fabs(izmax) == fabs(izmin));	// both the top and bottom surfaces.
 	double BoltzmanneDensity = eDensity*exp(Potential/ezmax);
 	double BoltzmanniDensity = iDensity*exp(-Potential/izmax);
 	double ElecToIonRatio = (BoltzmanneDensity/BoltzmanniDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(eImpactParameter,2)
