@@ -5,6 +5,8 @@
 #define SAVE_ANGULAR_VEL
 //#define SAVE_CHARGING
 //#define SAVE_LINEAR_MOM
+#define SAVE_ENDPOS
+#define SAVE_SPECIES
 
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
@@ -154,6 +156,8 @@ int main(int argc, char* argv[]){
 	DECLARE_AVEL();			// Data file for angular momentum information
 	DECLARE_LMOM();			// Data file for linear momentum information
 	DECLARE_CHA();			// Data file for charge
+	DECLARE_EPOS();			// Data file for end positions
+	DECLARE_SPEC();			// Data file for the species
 	std::ofstream RunDataFile;	// Data file for containing the run information
 
 	// ************************************************** //
@@ -330,8 +334,8 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-	double iCoulombImpactParameter  = sqrt(fabs(Charge/(4*PI*sqrt(e0norm)*iThermalVel))); // Balance Coulomb to kinetic energy
-	double eCoulombImpactParameter  = sqrt(fabs(Charge*MassRatio/(4*PI*sqrt(e0norm)*eThermalVel))); // Balance Coulomb to kinetic energy
+	double iCoulombImpactParameter  = sqrt(fabs(Charge/(4*PI*sqrt(e0norm)*pow(iThermalVel,2.0)))); // Balance Coulomb to kinetic energy
+	double eCoulombImpactParameter  = sqrt(fabs(Charge*MassRatio/(4*PI*sqrt(e0norm)*pow(eThermalVel,2.0)))); // Balance Coulomb to kinetic energy
 
 	double iImpactParameter = 1.0+ImpactPar*iRhoTherm+iCoulombImpactParameter; 
 	double eImpactParameter = 1.0+ImpactPar*eRhoTherm+eCoulombImpactParameter; 
@@ -386,6 +390,8 @@ int main(int argc, char* argv[]){
 	OPEN_AVEL();
 	OPEN_LMOM();
 	OPEN_CHA();
+	OPEN_EPOS();
+	OPEN_SPEC();
 
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
@@ -529,11 +535,14 @@ int main(int argc, char* argv[]){
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AMOM("\t");
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AMOM("\n");
 						ADD_CHARGE()
+						SAVE_EPOS()
+						SAVE_SPEC()
 						if(j % num == 0){
 							SAVE_AVEL()
 							SAVE_LMOM()
 							SAVE_CHA()
 						}
+						
 						// For SELF_CONS_CHARGE, update the probability of generating ions or electrons
 						UPDATE_PROB();	
 					}else if( iter >= 5e5 ){	// In this case it was trapped!
@@ -596,6 +605,8 @@ int main(int argc, char* argv[]){
 	CLOSE_AVEL();
 	CLOSE_LMOM();
 	CLOSE_CHA();
+	CLOSE_EPOS();
+	CLOSE_SPEC();
 
 	// ************************************************** //
 

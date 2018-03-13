@@ -71,6 +71,30 @@
 #define CLOSE_CHA()
 #endif 
 
+#ifdef SAVE_ENDPOS
+#define DECLARE_EPOS()	std::ofstream EndPosDataFile;
+#define OPEN_EPOS()	EndPosDataFile.open("Data/DiMPl_EndPos.txt");
+#define SAVE_EPOS()	EndPosDataFile << "\n" << j << "\t" << Position;
+#define CLOSE_EPOS()	EndPosDataFile.close();
+#else
+#define DECLARE_EPOS()
+#define OPEN_EPOS()
+#define SAVE_EPOS()
+#define CLOSE_EPOS()
+#endif 
+
+#ifdef SAVE_SPECIES
+#define DECLARE_SPEC()	std::ofstream SpeciesDataFile;
+#define OPEN_SPEC()	SpeciesDataFile.open("Data/DiMPl_Species.txt");
+#define SAVE_SPEC()	SpeciesDataFile << "\n" << j << "\t" << SPEC_CHARGE;
+#define CLOSE_SPEC()	SpeciesDataFile.close();
+#else
+#define DECLARE_SPEC()
+#define OPEN_SPEC()
+#define SAVE_SPEC()
+#define CLOSE_SPEC()
+#endif 
+
 #ifdef TEST_VELPOSDIST
 #define PRINT_VPD(x)	std::cout << x;
 #else
