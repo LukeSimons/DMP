@@ -51,6 +51,7 @@ static void show_usage(std::string name){
 	<< "\t-i,--imax IMAX\t\t\t(int), Specify the number of particles to be launched\n\n"
 	<< "\t-j,--jmax JMAX\t\t\t(int), Specify the number of particles to be collected (not exceeding imax)\n\n"
 	<< "\t-no,--number NUMBER\t\t\t(int), Specify the number of particles to be captured before saving\n\n"
+	<< "\t-it,--itmax ITMAX\t\t\t(int), Specify the number of iterations before terminating a path.\n\n"
 	<< "\t-v,--driftvel DRIFTVEL\t\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
 	<< "\t-se,--seed SEED\t\t\t(double), Specify the seed for the random number generator\n\n"
 	<< "\t-sa,--saves SAVES\t\t\t(int), Specify the number of saves in a run\n\n"
@@ -184,6 +185,7 @@ int main(int argc, char* argv[]){
 	unsigned long long imax	= 10000;// Arb, Maximum number of particles to be launched
 	unsigned long long jmax	= 5000;	// Arb, Number of particles to be collected
 	unsigned long long num	= 1000; // Arb, Number of particles to be collected before saving
+	unsigned long long itmax= 1e6; // Arb, Number of particles to be collected before saving
 	unsigned int saves(2);		// Arb, Number of saves to be performed in a run
 
 
@@ -221,6 +223,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
 		else if( arg == "--jmax"	|| arg == "-j" )	InputFunction(argc,argv,i,ss0,jmax);
 		else if( arg == "--number"	|| arg == "-no")	InputFunction(argc,argv,i,ss0,num);
+		else if( arg == "--itmax"	|| arg == "-it")	InputFunction(argc,argv,i,ss0,itmax);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
 		else if( arg == "--seed"	|| arg == "-se")	InputFunction(argc,argv,i,ss0,seed);
 		else if( arg == "--saves"	|| arg == "-sa")	InputFunction(argc,argv,i,ss0,saves);
@@ -486,7 +489,7 @@ int main(int argc, char* argv[]){
 				// While we don't exceed a specified number of iterations to catch trapped orbits AND	
 				// while the particle is not inside the sphere and not outside the simulation domain
 				unsigned int iter(0);
-				while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e5 ){
+				while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < itmax ){
 					// EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
 					EField = CoulombField(Position,Charge,e0norm);
 					OldPosition = Position; // For Angular Momentum Calculations
