@@ -1,9 +1,9 @@
 #define CALCULATE_MOM
-//#define SELF_CONS_CHARGE
+#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
-//#define SAVE_CHARGING
+#define SAVE_CHARGING
 //#define SAVE_LINEAR_MOM
 #define SAVE_ENDPOS
 #define SAVE_SPECIES
@@ -335,7 +335,7 @@ int main(int argc, char* argv[]){
 	}
 
 	double iCoulombImpactParameter  = sqrt(fabs(Charge/(4*PI*sqrt(e0norm)*pow(iThermalVel,2.0)))); // Balance Coulomb to kinetic energy
-	double eCoulombImpactParameter  = sqrt(fabs(Charge*MassRatio/(4*PI*sqrt(e0norm)*pow(eThermalVel,2.0)))); // Balance Coulomb to kinetic energy
+	double eCoulombImpactParameter  = sqrt(fabs(Charge*pow(MassRatio,2.0)/(4*PI*sqrt(e0norm)*pow(eThermalVel,2.0)))); // Balance Coulomb to kinetic energy
 
 	double iImpactParameter = 1.0+ImpactPar*iRhoTherm+iCoulombImpactParameter; 
 	double eImpactParameter = 1.0+ImpactPar*eRhoTherm+eCoulombImpactParameter; 
