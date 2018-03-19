@@ -12,10 +12,12 @@
 #endif
 
 #ifdef SELF_CONS_CHARGE
-#define ADD_CHARGE()	Charge += SPEC_CHARGE*WHY_DO_I_NEED_THIS;
+#define ADD_CHARGE()	Charge += SPEC_CHARGE*ChargeNorm;
+#define UPDATE_PROB()	ProbabilityOfIon = 1.0/(1.0+(sqrt(eTemp*Mp/(iTemp*Me))*(eDensity*exp(Potential/ezmax)*pow(eImpactParameter,2)/(pow(iImpactParameter,2)*iDensity*exp(-Potential/izmax)))));
 #define SAVE_CHARGE(x)	RunDataFile << x;
 #else
 #define ADD_CHARGE()
+#define UPDATE_PROB()
 #define SAVE_CHARGE(x)
 #endif
 
@@ -67,6 +69,30 @@
 #define OPEN_CHA()
 #define SAVE_CHA()
 #define CLOSE_CHA()
+#endif 
+
+#ifdef SAVE_ENDPOS
+#define DECLARE_EPOS()	std::ofstream EndPosDataFile;
+#define OPEN_EPOS()	EndPosDataFile.open("Data/DiMPl_EndPos.txt");
+#define SAVE_EPOS()	EndPosDataFile << "\n" << j << "\t" << Position << "\t" << Velocity;
+#define CLOSE_EPOS()	EndPosDataFile.close();
+#else
+#define DECLARE_EPOS()
+#define OPEN_EPOS()
+#define SAVE_EPOS()
+#define CLOSE_EPOS()
+#endif 
+
+#ifdef SAVE_SPECIES
+#define DECLARE_SPEC()	std::ofstream SpeciesDataFile;
+#define OPEN_SPEC()	SpeciesDataFile.open("Data/DiMPl_Species.txt");
+#define SAVE_SPEC()	SpeciesDataFile << "\n" << j << "\t" << SPEC_CHARGE;
+#define CLOSE_SPEC()	SpeciesDataFile.close();
+#else
+#define DECLARE_SPEC()
+#define OPEN_SPEC()
+#define SAVE_SPEC()
+#define CLOSE_SPEC()
 #endif 
 
 #ifdef TEST_VELPOSDIST
