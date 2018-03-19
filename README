@@ -10,7 +10,11 @@ Options:
 
 -r,--radius RADIUS		(m), Specify radius of Dust grain
 
--d,--density DENSITY		(m^-^3), Specify density of Dust grain
+-a1,--semix SEMIX		(arb), Specify the semi-axis for x in dust radii\n
+
+-a2,--semiy SEMIZ		(arb), Specify the semi-axis for y in dust radii\n
+
+-a3,--semiz SEMIY		(arb), Specify the semi-axis for z in dust radii\n
 
 -p,--potential POTENTIAL	(double), Specify the potential of Dust grain normalised to electron temperature
 

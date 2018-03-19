@@ -36,6 +36,9 @@ static void show_usage(std::string name){
 	<< "\n\nOptions:\n"
 	<< "\t-h,--help\t\t\tShow this help message\n\n"
 	<< "\t-r,--radius RADIUS\t\t(m), Specify radius of Dust grain\n\n"
+	<< "\t-a1,--semix SEMIX\t\t(arb), Specify the semi-axis for x in dust radii\n"
+	<< "\t-a2,--semiy SEMIZ\t\t(arb), Specify the semi-axis for y in dust radii\n"
+	<< "\t-a3,--semiz SEMIY\t\t(arb), Specify the semi-axis for z in dust radii\n"
 	<< "\t-d,--density DENSITY\t\t(m^-^3), Specify density of Dust grain\n\n"
 	<< "\t-p,--potential POTENTIAL\t(double), Specify the potential of Dust grain normalised to electron temperature\n\n"
 	<< "\t-m,--magfield MAGFIELD\t\t(T), Specify the magnetic field (z direction)\n\n"
@@ -169,6 +172,9 @@ int main(int argc, char* argv[]){
 	double BMag 		= 1.0; 		// Tesla, Magnitude of magnetic field
 	double BMagIn		= BMag;		// (arb), input magnetic field,in normalised units or Tesla
 	bool   NormalisedB	= false;	// Is magnetic field Normalised according to Sonmor & Laframboise?
+	double a1		= 1.0;		// Semi-axis for x in dust-grain radii
+	double a2		= 1.0;		// Semi-axis for y in dust-grain radii 
+	double a3		= 1.0;		// Semi-axis for z in dust-grain radii
 
 	// ************************************************** //
 
@@ -208,6 +214,9 @@ int main(int argc, char* argv[]){
 		std::string arg = argv[i];
 		if     ( arg == "--help" 	|| arg == "-h" ){	show_usage( argv[0]); return 0; 		}
 		else if( arg == "--radius" 	|| arg == "-r" ) 	InputFunction(argc,argv,i,ss0,Radius);
+		else if( arg == "--semix" 	|| arg == "-a1") 	InputFunction(argc,argv,i,ss0,a1);
+		else if( arg == "--semiy" 	|| arg == "-a2") 	InputFunction(argc,argv,i,ss0,a2);
+		else if( arg == "--semiz" 	|| arg == "-a3") 	InputFunction(argc,argv,i,ss0,a3);
 		else if( arg == "--density" 	|| arg == "-d" )	InputFunction(argc,argv,i,ss0,Density);
 		else if( arg == "--potential" 	|| arg == "-p" )	InputFunction(argc,argv,i,ss0,Potential);
 		else if( arg == "--magfield" 	|| arg == "-m" )	InputFunction(argc,argv,i,ss0,BMagIn);
@@ -266,6 +275,9 @@ int main(int argc, char* argv[]){
 
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
 	double MASS 		= Mp;		// kg, This is the Mass to which quantities are normalised 
+	a1 = 1.0/(a1*a1);
+	a2 = 1.0/(a2*a2);
+	a3 = 1.0/(a3*a3);
 	double MassRatio 	= sqrt(Mp/Me);
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
 	double ChargeNorm = pow(2.0/PI,4.0);
@@ -491,7 +503,7 @@ int main(int argc, char* argv[]){
 				// While we don't exceed a specified number of iterations to catch trapped orbits AND	
 				// while the particle is not inside the sphere and not outside the simulation domain
 				unsigned int iter(0);
-				while( Position.mag3() > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e6 ){
+				while( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e6 ){
 					// EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
 					EField = CoulombField(Position,Charge,e0norm);
 					OldPosition = Position; // For Angular Momentum Calculations
@@ -512,7 +524,7 @@ int main(int argc, char* argv[]){
 				threevector AngularMom = SpeciesMass*(FinalPosition^Velocity); 		
 				#pragma omp critical
 				{
-					if( Position.mag3() <= 1.0 ){ // In this case it was captured!
+					if( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) <= 1.0 ){ // In this case it was captured!
 						double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
 						threevector AngularVel = (AngVelNorm)*
 						((FinalPosition^Velocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
