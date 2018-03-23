@@ -280,7 +280,7 @@ int main(int argc, char* argv[]){
 	a3 = 1.0/(a3*a3);
 	double MassRatio 	= sqrt(Mp/Me);
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
-	double ChargeNorm = pow(2.0/PI,4.0);
+	double ChargeNorm = pow(2.0/PI,2.0);
 	if( NormalisedB ){	// If we're using S&L normalised units but iChance is undertermined
 
 
@@ -346,20 +346,27 @@ int main(int argc, char* argv[]){
 	double iCoulombImpactParameter  = sqrt(fabs(Charge/(4*PI*sqrt(e0norm)*iThermalVel))); // Balance Coulomb to kinetic energy
 	double eCoulombImpactParameter  = sqrt(fabs(Charge*MassRatio/(4*PI*sqrt(e0norm)*eThermalVel))); // Balance Coulomb to kinetic energy
 
-	double iImpactParameter = 1.0+ImpactPar*iRhoTherm+iCoulombImpactParameter; 
-	double eImpactParameter = 1.0+ImpactPar*eRhoTherm+eCoulombImpactParameter; 
+	// Account for non-spherical impact factor, chose larger of two semi axis
+	double semiaxisDistortion=1.0;
+	if( a1 < a2 ){
+		semiaxisDistortion=a1;
+	}else{
+		semiaxisDistortion=a2;
+	}
+	double iImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*iRhoTherm+iCoulombImpactParameter; 
+	double eImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*eRhoTherm+eCoulombImpactParameter; 
 	if( ForceImpPar > 0.0 ){
 		iImpactParameter = 1.0+ForceImpPar;
 		eImpactParameter = 1.0+ForceImpPar;
 	}
 
-	double ezmax = 1.05+zMaxCoeff*eCoulombImpactParameter;
-	double ezmin = -1.05-zMinCoeff*eCoulombImpactParameter;
-	double izmax = 1.0001+zMaxCoeff*iCoulombImpactParameter;
-	double izmin = -1.0001-zMinCoeff*iCoulombImpactParameter;
+	double ezmax = 1.05/sqrt(a3)+zMaxCoeff*eCoulombImpactParameter;
+	double ezmin = -1.05/sqrt(a3)-zMinCoeff*eCoulombImpactParameter;
+	double izmax = 1.0001/sqrt(a3)+zMaxCoeff*iCoulombImpactParameter;
+	double izmin = -1.0001/sqrt(a3)-zMinCoeff*iCoulombImpactParameter;
 	if( ZBoundForce > 0.0 ){
-		ezmax = 1.0+ZBoundForce;
-		ezmin = -1.0-ZBoundForce;
+		ezmax = 1.0/sqrt(a3)+ZBoundForce;
+		ezmin = -1.0/sqrt(a3)-ZBoundForce;
 		izmax = ezmax;
 		izmin = ezmin;
 	}
@@ -404,7 +411,7 @@ int main(int argc, char* argv[]){
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
-	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<BoltzmanneDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<BoltzmanniDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge/ChargeNorm<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:\t"<<seed<<"\nOMP_THREADS:\t"<<omp_get_max_threads()<<"\n\n";
+	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<BoltzmanneDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<BoltzmanniDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\na1:\t\t"<<(1.0/sqrt(a1))<<"\na2:\t\t"<<(1.0/sqrt(a2))<<"\na3:\t\t"<<(1.0/sqrt(a3))<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<Charge/ChargeNorm<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength/Radius<<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:\t"<<seed<<"\nOMP_THREADS:\t"<<omp_get_max_threads()<<"\n\n";
 
 	// ************************************************** //
 
@@ -503,7 +510,7 @@ int main(int argc, char* argv[]){
 				// While we don't exceed a specified number of iterations to catch trapped orbits AND	
 				// while the particle is not inside the sphere and not outside the simulation domain
 				unsigned int iter(0);
-				while( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e6 ){
+				while( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) > 1.0 && Position.getz() >= zmin && Position.getz() <= zmax && iter < 5e5 ){
 					// EField = DebyeHuckelField(Position,Charge,Radius,eDensity,eTemp,DebyeLength,e0norm);
 					EField = CoulombField(Position,Charge,e0norm);
 					OldPosition = Position; // For Angular Momentum Calculations
@@ -589,8 +596,10 @@ int main(int argc, char* argv[]){
 		SAVE_CHARGE("\n\n")
 	
 		RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";
-		RunDataFile << 0.5*(j+CapturedCharge)*pow(iImpactParameter,2)/(2.0*(0.5*(TotalNum+TotalCharge)));
-		RunDataFile << "\t\t" << 0.5*(j-CapturedCharge)*pow(eImpactParameter,2)/(2.0*(0.5*(TotalNum-TotalCharge))) << "\n\n";
+		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2)
+					/(2.0*(0.5*(TotalNum+TotalCharge))*iDensity);
+		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2)
+				/(2.0*(0.5*(TotalNum-TotalCharge))*eDensity) << "\n\n";
 	
 		// ************************************************** //
 	
