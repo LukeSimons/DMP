@@ -407,6 +407,8 @@ int main(int argc, char* argv[]){
 	OPEN_AVEL();
 	OPEN_LMOM();
 	OPEN_CHA();
+	OPEN_EPOS();
+	OPEN_SPEC();
 
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
