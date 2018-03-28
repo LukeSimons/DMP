@@ -328,23 +328,37 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE SIMULATION SPACE 		***** //
 	double iThermalVel	= sqrt(iTempNorm/(2.0*PI));		// Normalised Ion Thermal velocity
 	double eThermalVel	= sqrt(eTempNorm/(2.0*PI))*MassRatio;	// Normalised Electron Thermal velocity
+	double iCoulombImpactParameter  = sqrt(fabs(Charge/(4*PI*sqrt(e0norm)*iThermalVel))); // Balance Coulomb to kinetic energy
+	double eCoulombImpactParameter  = sqrt(fabs(Charge*MassRatio/(4*PI*sqrt(e0norm)*eThermalVel))); // Balance Coulomb to kinetic energy
 	double iRhoTherm 	= 0.0;					// Ion gyro-radii are zero by Default
 	double eRhoTherm 	= 0.0;					// Electron gyro-radii are zero by Default
+	double TimeStepe = 0.00005;					// Normalised time step for electrons
+	double TimeStepi = 0.005;					// Normalised time step for ions
 	if( BMag != 0.0 ){						// If Magnetic field is non-zero
 		// Calculate thermal GyroRadius for ions and electrons normalised to dust grain radii
 		iRhoTherm	= iThermalVel/(BMag/MAGNETIC); 
 		eRhoTherm	= eThermalVel/(pow(MassRatio,2)*BMag/MAGNETIC); 
+
 		if( NormalisedB ){
 			iRhoTherm	= 1.0/BMagIn;
 			eRhoTherm	= 1.0/BMagIn;
+			
 			if( iChance != 0.0 ){ // If there is a finite probability of simulating ions
 				eRhoTherm       = 1.0/(BMagIn*MassRatio);
 			}
 		}
+		TimeStepe	= 0.01*eRhoTherm/eThermalVel;	// 1% of Gyro-radius size
+		TimeStepi	= 0.01*iRhoTherm/iThermalVel;	// 1% of Gyro-radius size
+		if( Potential == 0.0 ){ 
+			TimeStepe       = 0.01*eRhoTherm/eThermalVel;   // 1% of Gyro-radius size
+	                TimeStepi       = 0.01*iRhoTherm/iThermalVel;   // 1% of Gyro-radius size
+		}else{ // I NEED TO THINK OF SOMETHING BETTER FOR THIS 
+			TimeStepe = 0.00005*eRhoTherm/eThermalVel;	// 0.05% of Gyro-radius size
+			TimeStepi = 0.00005*iRhoTherm/iThermalVel;	// 0.05% of Gyro-radius size
+		}
 	}
 
-	double iCoulombImpactParameter  = sqrt(fabs(Charge/(4*PI*sqrt(e0norm)*iThermalVel))); // Balance Coulomb to kinetic energy
-	double eCoulombImpactParameter  = sqrt(fabs(Charge*MassRatio/(4*PI*sqrt(e0norm)*eThermalVel))); // Balance Coulomb to kinetic energy
+
 
 	// Account for non-spherical impact factor, chose larger of two semi axis
 	double semiaxisDistortion=1.0;
@@ -446,7 +460,7 @@ int main(int argc, char* argv[]){
 				double ThermalVel=eThermalVel;
 				double zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
 				double zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
-	 			double TimeStep(0.00005);
+	 			double TimeStep(TimeStepe);
 				double SpeciesMass = 1.0/pow(MassRatio,2);
 				int SPEC_CHARGE=-1;
 				if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
@@ -455,7 +469,7 @@ int main(int argc, char* argv[]){
 					ThermalVel=iThermalVel;
 					zmax 	= izmax; 
 					zmin 	= izmin ;
-					TimeStep = 0.005;
+					TimeStep = TimeStepi;
 					SpeciesMass = 1.0;
 					SPEC_CHARGE=1;
 				}		
