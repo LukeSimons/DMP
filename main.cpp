@@ -1,7 +1,7 @@
 #define CALCULATE_MOM
 //#define SELF_CONS_CHARGE
 
-//#define SAVE_TRACKS 
+#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 //#define SAVE_LINEAR_MOM
@@ -283,14 +283,14 @@ int main(int argc, char* argv[]){
 	double ChargeNorm = pow(2.0/PI,2.0);
 	if( NormalisedB ){	// If we're using S&L normalised units but iChance is undertermined
 
-
+		assert( BMagIn > 0.009 ); // Outside this range, timestep is invalid
+		assert( BMagIn < 501 ); // Outside this range, timestep is invalid
 		if( iChance == 0.0 ){ // If we are simulating only Electrons
         	        BMag = pow(2.0/PI,2)*BMagIn*sqrt(PI*Me*eTemp/(2*echarge))/Radius;	// BMag normalised to Electrons
 		}else{	// If we are simulating only Ions or otherwise Ions and electrons.
 			BMag = pow(2.0/PI,2)*BMagIn*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
 		}
-
-                Potential = ChargeNorm*Potential;
+                Potential = ChargeNorm*Potential;	
 	}else{
 		BMag = BMagIn;
 	}
@@ -352,12 +352,11 @@ int main(int argc, char* argv[]){
 		if( Potential == 0.0 ){ 
 			TimeStepe       = 0.01*eRhoTherm/eThermalVel;   // 1% of Gyro-radius size
 	                TimeStepi       = 0.01*iRhoTherm/iThermalVel;   // 1% of Gyro-radius size
-		}else{ // I NEED TO THINK OF SOMETHING BETTER FOR THIS 
-			TimeStepe = 0.00005*eRhoTherm/eThermalVel;	// 0.05% of Gyro-radius size
-			TimeStepi = 0.00005*iRhoTherm/iThermalVel;	// 0.05% of Gyro-radius size
+		}else{	// THIS SEEMS TO WORK FOR NOW AS A TEMPORARY SOLUTION
+			TimeStepe = 0.005*eRhoTherm/(eThermalVel*iCoulombImpactParameter);	// 0.05% of Gyro-radius size
+			TimeStepi = 0.005*iRhoTherm/(iThermalVel*eCoulombImpactParameter);	// 0.05% of Gyro-radius size
 		}
 	}
-
 
 
 	// Account for non-spherical impact factor, chose larger of two semi axis
