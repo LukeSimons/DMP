@@ -12,7 +12,7 @@
 #endif
 
 #ifdef SELF_CONS_CHARGE
-#define ADD_CHARGE()	Charge += SPEC_CHARGE*ChargeNorm;
+#define ADD_CHARGE()	PotentialNorm += SPEC_CHARGE;
 #define UPDATE_PROB()	ProbabilityOfIon = 1.0/(1.0+(sqrt(eTemp*Mp/(iTemp*Me))*(eDensity*exp(Potential/ezmax)*pow(eImpactParameter,2)/(pow(iImpactParameter,2)*iDensity*exp(-Potential/izmax)))));
 #define SAVE_CHARGE(x)	RunDataFile << x;
 #else
@@ -38,7 +38,7 @@
 #ifdef SAVE_ANGULAR_VEL
 #define DECLARE_AVEL()	std::ofstream AngularDataFile;
 #define OPEN_AVEL()	AngularDataFile.open("Data/DiMPl_AngVel.txt");
-#define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << TotalAngularVel;
+#define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << i << "\t" << TotalAngularVel;
 #define CLOSE_AVEL()	AngularDataFile.close();
 #else
 #define DECLARE_AVEL()
@@ -50,7 +50,7 @@
 #ifdef SAVE_LINEAR_MOM
 #define DECLARE_LMOM()	std::ofstream LinearDataFile;
 #define OPEN_LMOM()	LinearDataFile.open("Data/DiMPl_LinMom.txt");
-#define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << SpeciesMass*FinalVelocity;
+#define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << i << "\t" << SpeciesMass*FinalVelocity;
 #define CLOSE_LMOM()	LinearDataFile.close();
 #else
 #define DECLARE_LMOM()
@@ -62,7 +62,7 @@
 #ifdef SAVE_CHARGING
 #define DECLARE_CHA()	std::ofstream LinearDataFile;
 #define OPEN_CHA()	LinearDataFile.open("Data/DiMPl_Charge.txt");
-#define SAVE_CHA()	LinearDataFile << "\n" << j << "\t" << Charge;
+#define SAVE_CHA()	LinearDataFile << "\n" << j << "\t" << i << "\t" << PotentialNorm;
 #define CLOSE_CHA()	LinearDataFile.close();
 #else
 #define DECLARE_CHA()
@@ -74,7 +74,7 @@
 #ifdef SAVE_ENDPOS
 #define DECLARE_EPOS()	std::ofstream EndPosDataFile;
 #define OPEN_EPOS()	EndPosDataFile.open("Data/DiMPl_EndPos.txt");
-#define SAVE_EPOS()	EndPosDataFile << "\n" << j << "\t" << Position << "\t" << Velocity;
+#define SAVE_EPOS()	EndPosDataFile << "\n" << j << "\t" << i << "\t" << Position << "\t" << Velocity << "\t" << Velocity*(Position.getunit());
 #define CLOSE_EPOS()	EndPosDataFile.close();
 #else
 #define DECLARE_EPOS()
@@ -86,7 +86,7 @@
 #ifdef SAVE_SPECIES
 #define DECLARE_SPEC()	std::ofstream SpeciesDataFile;
 #define OPEN_SPEC()	SpeciesDataFile.open("Data/DiMPl_Species.txt");
-#define SAVE_SPEC()	SpeciesDataFile << "\n" << j << "\t" << SPEC_CHARGE;
+#define SAVE_SPEC()	SpeciesDataFile << "\n" << j << "\t" << i << "\t" << SPEC_CHARGE;
 #define CLOSE_SPEC()	SpeciesDataFile.close();
 #else
 #define DECLARE_SPEC()
@@ -127,10 +127,10 @@
 
 #if defined TEST_ENERGY 
 #define INITIAL_VEL()	threevector InitialVel = Velocity;
-#define INITIAL_POT()	double InitialPot = Charge/(4.0*PI*e0norm*Position.mag3());
+#define INITIAL_POT()	double InitialPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*Position.mag3()*Radius);
 #define RESET_VEL()	InitialVel = Velocity;
-#define RESET_POT()	InitialPot = Charge/(4.0*PI*e0norm*Position.mag3());
-#define FINAL_POT()	double FinalPot = Charge/(4.0*PI*e0norm*FinalPosition.mag3());
+#define RESET_POT()	InitialPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*Position.mag3()*Radius);
+#define FINAL_POT()	double FinalPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*FinalPosition.mag3()*Radius);
 #define PRINT_ENERGY(x)	std::cout << x
 #else
 #define INITIAL_VEL()
