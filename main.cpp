@@ -1,7 +1,7 @@
 #define CALCULATE_MOM
 //#define SELF_CONS_CHARGE
 
-//#define SAVE_TRACKS 
+#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 //#define SAVE_LINEAR_MOM
@@ -9,6 +9,7 @@
 #define SAVE_SPECIES
 
 //#define SPHERICAL_INJECTION
+#define POINT_INJECTION
 //#define NO_SPHERE
 
 //#define TEST_VELPOSDIST
@@ -110,33 +111,43 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	Velocity.setz(invel);
 
 	#ifdef SPHERICAL_INJECTION
-	// ***** RANDOMISE POSITION SPHERICALLY ***** //
-	invel = Gaussdist(mt); 
-	radial_pos = ImpactParameter;
-	theta_pos  = 2.0*PI*rad(mt);
-	double phi_pos    = asin(2.0*rad(mt)-1.0);
-	Position.setx(radial_pos*cos(phi_pos)*cos(theta_pos));
-	Position.sety(radial_pos*cos(phi_pos)*sin(theta_pos));
-	Position.setz(radial_pos*sin(phi_pos));
-//	Position.setx(0.0);
-//	Position.sety(0.0);
-//	Position.setz(radial_pos);
-
-
-	// ***** RANDOMISE VELOCITY SPHERICALLY ***** //
-	// http://www.astrosurf.com/jephem/library/li110spherCart_en.htm
-	double theta_vel = Gaussdist(mt)/radial_pos;
-	double phi_vel = Gaussdist(mt)/radial_pos;
-
-	Velocity.setx(Gaussdist(mt));
-	Velocity.sety(Gaussdist(mt));
-	Velocity.setz(Gaussdist(mt));
+		// ***** RANDOMISE POSITION SPHERICALLY ***** //
+		invel = Gaussdist(mt); 
+		radial_pos = ImpactParameter;
+		theta_pos  = 2.0*PI*rad(mt);
+		double phi_pos    = asin(2.0*rad(mt)-1.0);
+		Position.setx(radial_pos*cos(phi_pos)*cos(theta_pos));
+		Position.sety(radial_pos*cos(phi_pos)*sin(theta_pos));
+		Position.setz(radial_pos*sin(phi_pos));
+	//	Position.setx(0.0);
+	//	Position.sety(0.0);
+	//	Position.setz(radial_pos);
 	
-	if( Position*Velocity > 0.0 ){
-		Position.setx(-1.0*Position.getx());
-		Position.sety(-1.0*Position.gety());
-		Position.setz(-1.0*Position.getz());
-	}
+	
+		// ***** RANDOMISE VELOCITY SPHERICALLY ***** //
+		// http://www.astrosurf.com/jephem/library/li110spherCart_en.htm
+		double theta_vel = Gaussdist(mt)/radial_pos;
+		double phi_vel = Gaussdist(mt)/radial_pos;
+	
+		Velocity.setx(Gaussdist(mt));
+		Velocity.sety(Gaussdist(mt));
+		Velocity.setz(Gaussdist(mt));
+		
+		if( Position*Velocity > 0.0 ){
+			Position.setx(-1.0*Position.getx());
+			Position.sety(-1.0*Position.gety());
+			Position.setz(-1.0*Position.getz());
+		}
+	#endif
+	#ifdef POINT_INJECTION
+		// ***** INJECT AT SINGLE POINT WITH DRIFT VELOCITY ***** //
+		Position.setx(0.0);
+		Position.sety(0.0);
+		Position.setz(zmax);
+		
+		Velocity.setx(0.0);
+		Velocity.sety(0.0);
+		Velocity.setz(DriftNorm);
 	#endif
 }
 
@@ -308,6 +319,14 @@ int main(int argc, char* argv[]){
 		std::cout << "\nWarning! Save interval less than captured particle goal. No Angular data recorded\nnum < jmax : " 
 			<< num << " < " << jmax;
 
+	#ifdef SAVE_TRACKS
+	if( imax >= 1000 ){
+		std::cout << "\nWarning! Attempting to store more than 1000 tracks!\ni = " << imax;
+		std::cout << "\nContinue?...\n";
+		std::cin.get();
+	}
+	#endif
+
 	// If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
 	double MASS 		= Mp;		// kg, This is the Mass to which quantities are normalised 
 	a1 = 1.0/(a1*a1);
@@ -361,8 +380,8 @@ int main(int argc, char* argv[]){
 
 	double iRhoTherm = 0.0;					// Ion gyro-radii are zero by Default
 	double eRhoTherm = 0.0;					// Electron gyro-radii are zero by Default
-	double TimeStepe = 0.00001/fabs(A_Coulomb*MassRatio*MassRatio); // Normalised time step for electrons
-	double TimeStepi = 0.00001/fabs(A_Coulomb);	// Normalised time step for ions
+	double TimeStepe = 0.00005/fabs(A_Coulomb*MassRatio*MassRatio); // Normalised time step for electrons
+	double TimeStepi = 0.00005/fabs(A_Coulomb);	// Normalised time step for ions
 
 	if( BMag != 0.0 ){						// If Magnetic field is non-zero
 		// Calculate thermal GyroRadius for ions and electrons normalised to dust grain radii
@@ -458,7 +477,7 @@ int main(int argc, char* argv[]){
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
-	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<BoltzmanneDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<BoltzmanniDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\n\nRadius:\t\t"<<Radius<<"\na1:\t\t"<<(1.0/sqrt(a1))<<"\na2:\t\t"<<(1.0/sqrt(a2))<<"\na3:\t\t"<<(1.0/sqrt(a3))<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<PotentialNorm<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength <<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:\t"<<seed<<"\nOMP_THREADS:\t"<<omp_get_max_threads()<<"\n\n";
+	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<BoltzmanneDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\nElecs Timestep:\t"<<TimeStepe<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<BoltzmanniDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\nIon Timestep:\t"<<TimeStepi<<"\n\nRadius:\t\t"<<Radius<<"\na1:\t\t"<<(1.0/sqrt(a1))<<"\na2:\t\t"<<(1.0/sqrt(a2))<<"\na3:\t\t"<<(1.0/sqrt(a3))<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<PotentialNorm<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength <<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:\t"<<seed<<"\nOMP_THREADS:\t"<<omp_get_max_threads()<<"\n\n";
 
 	// ************************************************** //
 
@@ -675,9 +694,10 @@ int main(int argc, char* argv[]){
 		RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";
 //		Calculate currents for cylindrical geometry
 		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
-					/(2.0*(0.5*(TotalNum+TotalCharge))*iDensity);
+		/(2.0*(1-cos(asin(sqrt(1.0/(1+izmax*izmax/(iImpactParameter*iImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity);
 		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
-				/(2.0*(0.5*(TotalNum-TotalCharge))*eDensity) << "\n\n";
+		/(2.0*(1-cos(asin(sqrt(1.0/(1+ezmax*ezmax/(eImpactParameter*eImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity) << "\n\n";
+
 //		Calculate currents for Spherical geometry with Bfield
 		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 					/(0.5*(TotalNum+TotalCharge)*iDensity);

@@ -64,4 +64,4 @@ rounded(x) = bin_width * ( bin_number(x) + 0.5 )
 
 set output sprintf("Plots/%s_VPD_GyroRad.eps",prefix)
 # Plot histogram of Gyro-radii
-plot filename using (rounded($7)):(7) smooth frequency with boxes
+plot filename using (rounded($8)):(8) smooth frequency with boxes

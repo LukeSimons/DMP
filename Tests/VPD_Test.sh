@@ -10,39 +10,39 @@
 
 echo "Test 1:"
 echo "Ion velocity distribution"
-./main -p 0.0 -b 6.0 -m 100 -i 100000 -j 10000 -c 1.0 > Tests/ions_VPD_out.txt
+./main -p 0.0 -b 6.0 -m 100 -i 100000 -j 10000 -c 1.0 > Tests/Data/ions_VPD_out.txt
 
 echo
 echo "Complete!"
-echo "Plotting data from Tests/ions_VPD_out.txt"
+echo "Plotting data from Tests/Data/ions_VPD_out.txt"
 echo
 
-gnuplot -e "filename='Tests/ions_VPD_out.txt'" -e "prefix='ion'" Tests/VPD.plt
+gnuplot -e "filename='Tests/Data/ions_VPD_out.txt'" -e "prefix='ion'" Tests/PlotScripts/VPD.plt
 
 echo
 echo "Test 2:"
 echo "Electron velocity distribution"
 
-./main -p 0.0 -b 6.0 -m 100 -i 100000 -j 10000 -c 0.0 > Tests/elecs_VPD_out.txt
+./main -p 0.0 -b 6.0 -m 100 -i 100000 -j 10000 -c 0.0 > Tests/Data/elecs_VPD_out.txt
 
 echo
 echo "Complete!"
-echo "Plotting data from Tests/elecs_VPD_out.txt"
+echo "Plotting data from Tests/Data/elecs_VPD_out.txt"
 echo
 
-gnuplot -e "filename='Tests/elecs_VPD_out.txt'" -e "prefix='elec'" -e "bin_width_coeff=50.0" Tests/VPD.plt
+gnuplot -e "filename='Tests/Data/elecs_VPD_out.txt'" -e "prefix='elec'" -e "bin_width_coeff=50.0" Tests/PlotScripts/VPD.plt
 
 echo
 echo "Test 3:"
 echo "Ion & Electron distribution"
-./main -p 0.0 -b 6.0 -m 65 -i 100000 -j 10000 > Tests/VPD_out.txt
+./main -p 0.0 -b 6.0 -m 65 -i 100000 -j 10000 > Tests/Data/VPD_out.txt
 
 echo
 echo "Complete!"
-echo "Plotting data from Tests/VPD_out.txt"
+echo "Plotting data from Tests/Data/VPD_out.txt"
 echo
 
-gnuplot -e "set logscale y" -e "filename='Tests/VPD_out.txt'" -e "prefix='both'" -e "bin_width_coeff=50.0" Tests/VPD.plt
+gnuplot -e "set logscale y" -e "filename='Tests/Data/VPD_out.txt'" -e "prefix='both'" -e "bin_width_coeff=50.0" Tests/PlotScripts/VPD.plt
 
 echo
 echo "Finished!"

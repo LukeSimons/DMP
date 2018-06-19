@@ -13,53 +13,53 @@
 echo "Test 1:"
 echo "Ion final positions, constant magnetic field"
 
-./main -p 0.0 -b 10.0 -m 100 -i 10000 -j 1000 -c 1.0 > Tests/ions_FPOS_out.txt
+./main -p 0.0 -b 10.0 -m 100 -i 10000 -j 1000 -c 1.0 > Tests/Data/ions_FPOS_out.txt
 
 echo
 echo "Complete!"
-echo "Plotting data from Tests/ions_FPOS_out.txt"
+echo "Plotting data from Tests/Data/ions_FPOS_out.txt"
 echo
 
-gnuplot -e "filename='Tests/ions_FPOS_out.txt'" -e "prefix='ion'" Tests/FINALPOS.plt
+gnuplot -e "filename='Tests/Data/ions_FPOS_out.txt'" -e "prefix='ion'" Tests/PlotScripts/FINALPOS.plt
 
 echo
 echo "Test 2:"
 echo "Electron final positions, constant magnetic field"
 
-./main -p 0.0 -b 10.0 -m 100 -i 10000 -j 1000 -c 0.0 > Tests/elecs_FPOS_out.txt
+./main -p 0.0 -b 10.0 -m 100 -i 10000 -j 1000 -c 0.0 > Tests/Data/elecs_FPOS_out.txt
 
 echo
 echo "Complete!"
-echo "Plotting data from Tests/elecs_FPOS_out.txt"
+echo "Plotting data from Tests/Data/elecs_FPOS_out.txt"
 echo
 
-gnuplot -e "filename='Tests/elecs_FPOS_out.txt'" -e "prefix='elec'" Tests/FINALPOS.plt
+gnuplot -e "filename='Tests/Data/elecs_FPOS_out.txt'" -e "prefix='elec'" Tests/PlotScripts/FINALPOS.plt
 
 echo
 echo "Test 3:"
 echo "Electrons and Ions final positions, constant magnetic field"
 
-./main -p 0.0 -b 10.0 -m 100 -i 10000 -j 1000 > Tests/FPOS_out.txt
+./main -p 0.0 -b 10.0 -m 100 -i 10000 -j 1000 > Tests/Data/FPOS_out.txt
 
 echo
 echo "Complete!"
-echo "Plotting data from Tests/FPOS_out.txt"
+echo "Plotting data from Tests/Data/FPOS_out.txt"
 echo
 
-gnuplot -e "filename='Tests/FPOS_out.txt'" -e "prefix='both'" Tests/FINALPOS.plt
+gnuplot -e "filename='Tests/Data/FPOS_out.txt'" -e "prefix='both'" Tests/PlotScripts/FINALPOS.plt
 
 echo
 echo "Test 4:"
 echo "Electron and Ions final positions, constant magnetic and electric field"
 
-./main -p -2.5 -b 10.0 -m 100 -i 10000 -j 1000 > Tests/charged_FPOS_out.txt
+./main -p -2.5 -b 10.0 -m 100 -i 10000 -j 1000 > Tests/Data/charged_FPOS_out.txt
 
 echo
 echo "Complete!"
-echo "Plotting data from Tests/charged_FPOS_out.txt"
+echo "Plotting data from Tests/Data/charged_FPOS_out.txt"
 echo
 
-gnuplot -e "filename='Tests/charged_FPOS_out.txt'" -e "prefix='charged_both'" Tests/FINALPOS.plt
+gnuplot -e "filename='Tests/Data/charged_FPOS_out.txt'" -e "prefix='charged_both'" Tests/PlotScripts/FINALPOS.plt
 
 echo
 echo "Finished!"

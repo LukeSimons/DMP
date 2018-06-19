@@ -10,27 +10,27 @@
 
 echo "Test 1:"
 echo "Energy conservation in constant magnetic field"
-./main -p 0.0 -b 10.0 -m 65 -i 10000 -j 100 -se 1 > Tests/mag_ENERGY_out.txt
+./main -p 0.0 -b 10.0 -m 65 -i 10000 -j 100 -se 1 > Tests/Data/mag_ENERGY_out.txt
 
 echo
 echo "Complete!"
-echo "Plotting data from Tests/mag_ENERGY_out.txt"
+echo "Plotting data from Tests/Data/mag_ENERGY_out.txt"
 echo
 
-gnuplot -e "filename='Tests/mag_ENERGY_out.txt'" -e "prefix='uncharged'" Tests/ENERGY.plt
+gnuplot -e "filename='Tests/Data/mag_ENERGY_out.txt'" -e "prefix='uncharged'" Tests/PlotScripts/ENERGY.plt
 
 echo
 echo "Test 2:"
 echo "Energy conservation in constant magnetic and electric field"
 
-./main -p -2.5 -b 10.0 -m 65 -u 1.0 -l 1.0 -i 10000 -j 100 -se 1 > Tests/magelec_ENERGY_out.txt
+./main -p -2.5 -b 10.0 -m 65 -u 1.0 -l 1.0 -i 10000 -j 100 -se 1 > Tests/Data/magelec_ENERGY_out.txt
 
 echo
 echo "Complete!"
-echo "Plotting data from Tests/magelec_ENERGY_out.txt"
+echo "Plotting data from Tests/Data/magelec_ENERGY_out.txt"
 echo
 
-gnuplot  -e "filename='Tests/magelec_ENERGY_out.txt'" -e "prefix='fixedcharge'" Tests/ENERGY.plt
+gnuplot  -e "filename='Tests/Data/magelec_ENERGY_out.txt'" -e "prefix='fixedcharge'" Tests/PlotScripts/ENERGY.plt
 
 echo
 echo "Finished!"
