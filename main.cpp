@@ -1,7 +1,7 @@
 #define CALCULATE_MOM
 //#define SELF_CONS_CHARGE
 
-#define SAVE_TRACKS 
+//#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 //#define SAVE_LINEAR_MOM
@@ -9,11 +9,12 @@
 #define SAVE_SPECIES
 
 //#define SPHERICAL_INJECTION
-#define POINT_INJECTION
+//#define POINT_INJECTION
 //#define NO_SPHERE
 
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
+#define TEST_CLOSEST_APPROACH
 //#define TEST_CHARGING
 //#define TEST_ANGMOM
 //#define TEST_ENERGY
@@ -60,6 +61,7 @@ static void show_usage(std::string name){
 	<< "\t-i,--imax IMAX\t\t\t(int), Specify the number of particles to be launched\n\n"
 	<< "\t-j,--jmax JMAX\t\t\t(int), Specify the number of particles to be collected (not exceeding imax)\n\n"
 	<< "\t-no,--number NUMBER\t\t\t(int), Specify the number of particles to be captured before saving\n\n"
+	<< "\t-t,--timestep TIMESTEP\t\t(double), Specify the multiplicative factor for the time step\n\n"
 	<< "\t-v,--driftvel DRIFTVEL\t\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
 	<< "\t-se,--seed SEED\t\t\t(double), Specify the seed for the random number generator\n\n"
 	<< "\t-sa,--saves SAVES\t\t\t(int), Specify the number of saves in a run\n\n"
@@ -239,6 +241,7 @@ int main(int argc, char* argv[]){
 	unsigned long long imax	= 10000;// Arb, Maximum number of particles to be launched
 	unsigned long long jmax	= 5000; // Arb, Number of particles to be collected
 	unsigned long long num	= 1000; // Arb, Number of particles to be collected before saving
+	double TimeStepFactor	= 1.0;	// Arb, Multiplicative factor used to determine size of the timestep
 	unsigned int saves(2);		// Arb, Number of saves to be performed in a run
 	unsigned int reflectionsmax(15);// Arb, Number of reflections before rejecting particles
 
@@ -279,6 +282,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--forceimppar"	|| arg == "-f" )	InputFunction(argc,argv,i,ss0,ForceImpPar);
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
 		else if( arg == "--jmax"	|| arg == "-j" )	InputFunction(argc,argv,i,ss0,jmax);
+		else if( arg == "--time"	|| arg == "-t" )	InputFunction(argc,argv,i,ss0,TimeStepFactor);
 		else if( arg == "--number"	|| arg == "-no")	InputFunction(argc,argv,i,ss0,num);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
 		else if( arg == "--seed"	|| arg == "-se")	InputFunction(argc,argv,i,ss0,seed);
@@ -380,8 +384,8 @@ int main(int argc, char* argv[]){
 
 	double iRhoTherm = 0.0;					// Ion gyro-radii are zero by Default
 	double eRhoTherm = 0.0;					// Electron gyro-radii are zero by Default
-	double TimeStepe = 0.00005/fabs(A_Coulomb*MassRatio*MassRatio); // Normalised time step for electrons
-	double TimeStepi = 0.00005/fabs(A_Coulomb);	// Normalised time step for ions
+	double TimeStepe = TimeStepFactor/fabs(A_Coulomb*MassRatio*MassRatio); // Normalised time step for electrons
+	double TimeStepi = TimeStepFactor/fabs(A_Coulomb);	// Normalised time step for ions
 
 	if( BMag != 0.0 ){						// If Magnetic field is non-zero
 		// Calculate thermal GyroRadius for ions and electrons normalised to dust grain radii
@@ -538,24 +542,46 @@ int main(int argc, char* argv[]){
 	
 	
 				// ***** TESTING AREA  				***** //
-				// ***** VELOCITY-POSITION DISTRIBUTION TEST 	***** //
+				// ***** ANGULAR-MOMENTUM TEST 			***** //
+				#ifdef TEST_ANGMOM
 				#pragma omp critical 
 				{
 					ADD_I_AMOM(SpeciesMass*(Position^Velocity));		// For Angular Momentum Calculations
 					PRINT_AMOM("IMom = "); PRINT_AMOM(INITIAL_AMOM); PRINT_AMOM("\n");
-
+				}
+				#endif
+				// ***** VELOCITY-POSITION DISTRIBUTION TEST 	***** //
+				#ifdef TEST_VELPOSDIST
+				#pragma omp critical
+				{
 					PRINT_VPD(Position); PRINT_VPD("\t");	// For debugging look at initial positions
 					PRINT_VPD(Velocity); PRINT_VPD("\t");	// For debugging look at initial velocities
 					PRINT_VPD(Velocity*(Position.getunit())); PRINT_VPD("\t");	
 					PRINT_VPD( sqrt(pow(Velocity.getx(),2)+pow(Velocity.gety(),2))*SpeciesMass); 
 					PRINT_VPD("\n");	// For debugging look at gyro-radii
 				}
-	
+				#endif
 				// ***** ENERGY TEST: MEASURE INITIAL ENERGY	***** //
 				INITIAL_VEL();						// For energy calculations
 				INITIAL_POT();						// For energy calculations
+				#ifdef TEST_CLOSEST_APPROACH
+				double C1 = fabs(2.0*echarge*echarge*PotentialNorm/(Mp*4.0*PI*epsilon0));
+				double ri = Position.mag3()*1e-6;
+				double vmag = Velocity.mag3()*1e-6/Tau;
+				double vperp = (Position.getunit()^Velocity).mag3()*1e-6/Tau;
+				double Min_r1 = (-C1+sqrt(C1*C1+4.0*(vmag*vmag+C1/ri)*ri*ri*vperp*vperp))/(2.0*(vmag*vmag+C1/ri));
+				double Min_r2 = (-C1-sqrt(C1*C1+4.0*(vmag*vmag+C1/ri)*ri*ri*vperp*vperp))/(2.0*(vmag*vmag+C1/ri));
+//				std::cout << "\nri = " << ri << "\tC1 = " << C1 << "\tvmag = " << vmag << "\tvperp = " << vperp;
+//				std::cout << "\nmr1 = " << Min_r1 << "\tmr2 = " << Min_r2 << "\n";
+				#pragma omp critical
+				{	
+				if( Min_r1 <= Radius ){//|| fabs(Min_r2) <= Radius){
+					std::cout << "\n" << i << "\t" << j << "\t" << Min_r1 << "\t" << Min_r2;
+				}
+				}
+				#endif
 
-	
+
 				// ***** RECORD TRACK DATA, DEBUG AND TEST	***** //
 				OPEN_TRACK(filename + "_Track_" + std::to_string(i) + ".txt");
 				RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
@@ -594,7 +620,10 @@ int main(int argc, char* argv[]){
 					//EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
 					EField = CoulombField(Position,PotentialNorm,A_Coulomb);
 					OldPosition = Position; // For Angular Momentum Calculations
+
+					TimeStep = TimeStepFactor/Velocity.mag3();
 					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
+					
 					double PreviousVelocity = Velocity.getz();
 					if( (Velocity.getz() > 0.0 && PreviousVelocity <= 0.0) || 
 						(Velocity.getz() < 0.0 && PreviousVelocity >= 0.0) ){
@@ -614,6 +643,7 @@ int main(int argc, char* argv[]){
 					#ifdef NO_SPHERE
 						SphereCondition = true;
 					#endif
+
 
 					RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
 					RECORD_TRACK("\t");
@@ -656,7 +686,9 @@ int main(int argc, char* argv[]){
 							SAVE_SPEC()
 						}
 						// For SELF_CONS_CHARGE, update the probability of generating ions or electrons
+						#ifdef SELF_CONS_CHARGE
 						UPDATE_PROB();
+						#endif
 						if( reflections >= reflectionsmax ){        // In this case it was trapped!
         	                                        TrappedParticles ++;
 	                                                TrappedCharge += SPEC_CHARGE;
