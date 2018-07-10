@@ -1,5 +1,5 @@
 #define CALCULATE_MOM
-//#define SELF_CONS_CHARGE
+#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
@@ -621,7 +621,6 @@ int main(int argc, char* argv[]){
 					EField = CoulombField(Position,PotentialNorm,A_Coulomb);
 					OldPosition = Position; // For Angular Momentum Calculations
 
-					TimeStep = TimeStepFactor/Velocity.mag3();
 					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
 					
 					double PreviousVelocity = Velocity.getz();
