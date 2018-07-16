@@ -499,11 +499,11 @@ int main(int argc, char* argv[]){
 	// ***** OPEN DATA FILE WITH HEADER 		***** //
 	time_t now = time(0);		// Get the time of simulation
 	char * dt = ctime(&now);
-	OPEN_AVEL();
-	OPEN_LMOM();
-	OPEN_CHA();
-	OPEN_EPOS();
-	OPEN_SPEC();
+	OPEN_AVEL();	HEAD_AVEL();
+	OPEN_LMOM();	HEAD_LMOM();
+	OPEN_CHA();	HEAD_CHA();
+	OPEN_EPOS();	HEAD_EPOS();
+	OPEN_SPEC();	HEAD_SPEC();
 
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";

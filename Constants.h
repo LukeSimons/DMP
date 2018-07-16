@@ -38,10 +38,12 @@
 #ifdef SAVE_ANGULAR_VEL
 #define DECLARE_AVEL()	std::ofstream AngularDataFile;
 #define OPEN_AVEL()	AngularDataFile.open("Data/DiMPl_AngVel.txt");
+#define HEAD_AVEL()	AngularDataFile << "#Collect num\tSimulated num\tLx\tLy\tLz";
 #define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << i << "\t" << TotalAngularVel;
 #define CLOSE_AVEL()	AngularDataFile.close();
 #else
 #define DECLARE_AVEL()
+#define HEAD_AVEL()
 #define OPEN_AVEL()
 #define SAVE_AVEL()
 #define CLOSE_AVEL()
@@ -50,23 +52,27 @@
 #ifdef SAVE_LINEAR_MOM
 #define DECLARE_LMOM()	std::ofstream LinearDataFile;
 #define OPEN_LMOM()	LinearDataFile.open("Data/DiMPl_LinMom.txt");
-#define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << i << "\t" << SpeciesMass*FinalVelocity;
+#define HEAD_LMOM()	LinearDataFile << "#Collect num\tSimulated num\tPx\tPy\tPz";
+#define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << i << "\t" << SpeciesMass*Velocity;
 #define CLOSE_LMOM()	LinearDataFile.close();
 #else
 #define DECLARE_LMOM()
 #define OPEN_LMOM()
+#define HEAD_LMOM()
 #define SAVE_LMOM()
 #define CLOSE_LMOM()
 #endif 
 
 #ifdef SAVE_CHARGING
-#define DECLARE_CHA()	std::ofstream LinearDataFile;
-#define OPEN_CHA()	LinearDataFile.open("Data/DiMPl_Charge.txt");
-#define SAVE_CHA()	LinearDataFile << "\n" << j << "\t" << i << "\t" << PotentialNorm;
-#define CLOSE_CHA()	LinearDataFile.close();
+#define DECLARE_CHA()	std::ofstream ChargeDataFile;
+#define OPEN_CHA()	ChargeDataFile.open("Data/DiMPl_Charge.txt");
+#define HEAD_CHA()	ChargeDataFile << "#Collect num\tSimulated num\tPotential (1/echarge)";
+#define SAVE_CHA()	ChargeDataFile << "\n" << j << "\t" << i << "\t" << PotentialNorm;
+#define CLOSE_CHA()	ChargeDataFile.close();
 #else
 #define DECLARE_CHA()
 #define OPEN_CHA()
+#define HEAD_CHA()
 #define SAVE_CHA()
 #define CLOSE_CHA()
 #endif 
@@ -74,11 +80,13 @@
 #ifdef SAVE_ENDPOS
 #define DECLARE_EPOS()	std::ofstream EndPosDataFile;
 #define OPEN_EPOS()	EndPosDataFile.open("Data/DiMPl_EndPos.txt");
+#define HEAD_EPOS()	EndPosDataFile << "#Collect num\tSimulated num\tx\ty\tz\tvx\tvy\tvz\tv·r";
 #define SAVE_EPOS()	EndPosDataFile << "\n" << j << "\t" << i << "\t" << Position << "\t" << Velocity << "\t" << Velocity*(Position.getunit());
 #define CLOSE_EPOS()	EndPosDataFile.close();
 #else
 #define DECLARE_EPOS()
 #define OPEN_EPOS()
+#define HEAD_EPOS()
 #define SAVE_EPOS()
 #define CLOSE_EPOS()
 #endif 
@@ -86,11 +94,13 @@
 #ifdef SAVE_SPECIES
 #define DECLARE_SPEC()	std::ofstream SpeciesDataFile;
 #define OPEN_SPEC()	SpeciesDataFile.open("Data/DiMPl_Species.txt");
+#define HEAD_SPEC()	SpeciesDataFile << "#Collect num\tSimulated num\tSpecies Charge(echarge)";
 #define SAVE_SPEC()	SpeciesDataFile << "\n" << j << "\t" << i << "\t" << SPEC_CHARGE;
 #define CLOSE_SPEC()	SpeciesDataFile.close();
 #else
 #define DECLARE_SPEC()
 #define OPEN_SPEC()
+#define HEAD_SPEC()
 #define SAVE_SPEC()
 #define CLOSE_SPEC()
 #endif 
