@@ -1,14 +1,14 @@
 #define CALCULATE_MOM
-#define SELF_CONS_CHARGE
+//#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
-//#define SAVE_LINEAR_MOM
+#define SAVE_LINEAR_MOM
 #define SAVE_ENDPOS
 #define SAVE_SPECIES
 
-//#define SPHERICAL_INJECTION
+#define SPHERICAL_INJECTION
 //#define POINT_INJECTION
 //#define NO_SPHERE
 
@@ -30,6 +30,7 @@
 #include <math.h> 	// for fabs()
 #include <sstream>	// for std::stringstream
 #include <assert.h>	// for assert()
+#include <algorithm>	// for std::min()
 
 //#include "Function.h"	// for LambertW() Function to calculate Debye-Huckel Screening Length
 #include "Constants.h"	// Define Pre-processor Directives and constants
@@ -40,32 +41,58 @@ static void show_usage(std::string name){
 	std::cerr << "Usage: int main(int argc, char* argv[]) <option(s)> SOURCES"
 	<< "\n\nOptions:\n"
 	<< "\t-h,--help\t\t\tShow this help message\n\n"
-	<< "\t-r,--radius RADIUS\t\t(m), Specify radius of Dust grain\n\n"
+	<< "\t-r,--radius RADIUS\t\t(m), Specify radius of Dust grain\n"
+	<< "\t\tRadius(=1e-6m) DEFAULT,\t\tBy Default, simulate sphere of size 1um in radius\n\n"
 	<< "\t-a1,--semix SEMIX\t\t(arb), Specify the semi-axis for x in dust radii\n"
+	<< "\t\ta1(=1) DEFAULT,\t\t\tBy Default, simulate perfect sphere\n\n"
 	<< "\t-a2,--semiy SEMIZ\t\t(arb), Specify the semi-axis for y in dust radii\n"
-	<< "\t-a3,--semiz SEMIY\t\t(arb), Specify the semi-axis for z in dust radii\n\n"
-	<< "\t-d,--density DENSITY\t\t(m^-^3), Specify density of Dust grain\n\n"
-	<< "\t-p,--potential POTENTIAL\t(double), Specify the potential of Dust grain normalised to electron temperature\n\n"
-	<< "\t-m,--magfield MAGFIELD\t\t(T), Specify the magnetic field (z direction)\n\n"
-	<< "\t-n,--normalised NORMALISED\t(bool), whether normalisation (following Sonmor & Laframboise) is on or off\n\n"
-	<< "\t-te,--etemp ETEMP\t\t(eV), Specify the temperature of plasma electrons\n\n"
-	<< "\t-ne,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron density\n\n"
-	<< "\t-ti,--itemp ITEMP\t\t(eV), Specify the temperature of Ions\n\n"
-	<< "\t-ni,--idensity IDENSITY\t\t(m^-^3), Specify the plasma ion density\n\n"
-	<< "\t-c,--ichance ICHANCE\t\t(eV), Specify the probability of generating an Ion\n\n"
-	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(double), The upper limit of simulation domain as number of Coulomb Interaction lengths\n\n"
-	<< "\t-l,--zmincoeff ZMINCOEFF\t(double), The lower limit of simulation domain as number of Coulomb Interaction lengths\n\n"
-	<< "\t-z,--zboundforce ZBOUNDFORCE\t(double), Force the absolute value of simulation domain upper and lower boundaries\n\n"
-	<< "\t-b,--impactpar IMPACTPAR\t(double), Specify the radial limit of simulation domain as number of distances\n\n"
-	<< "\t-f,--forceimppar FORCEIMPPAR\t(double), Force the absolute value of simulation radial distance\n\n"
-	<< "\t-i,--imax IMAX\t\t\t(int), Specify the number of particles to be launched\n\n"
-	<< "\t-j,--jmax JMAX\t\t\t(int), Specify the number of particles to be collected (not exceeding imax)\n\n"
-	<< "\t-no,--number NUMBER\t\t\t(int), Specify the number of particles to be captured before saving\n\n"
-	<< "\t-t,--timestep TIMESTEP\t\t(double), Specify the multiplicative factor for the time step\n\n"
-	<< "\t-v,--driftvel DRIFTVEL\t\t(m s^-^1), Specify the drift velocity of the plasma\n\n"
-	<< "\t-se,--seed SEED\t\t\t(double), Specify the seed for the random number generator\n\n"
-	<< "\t-sa,--saves SAVES\t\t\t(int), Specify the number of saves in a run\n\n"
-	<< "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n\n"
+	<< "\t\ta2(=1) DEFAULT,\t\t\tBy Default, simulate perfect sphere\n\n"
+	<< "\t-a3,--semiz SEMIY\t\t(arb), Specify the semi-axis for z in dust radii\n"
+	<< "\t\ta3(=1) DEFAULT,\t\t\tBy Default, simulate perfect sphere\n\n"
+	<< "\t-d,--density DENSITY\t\t(kgm^-^3), Specify density of Dust grain\n"
+	<< "\t\tDensity(=19600kgm^-^3) DEFAULT,\tBy Default, Tungsten Density\n\n"
+	<< "\t-p,--potential POTENTIAL\t(double), Specify the potential of Dust grain normalised to electron temperature\n"
+	<< "\t\tPotential(=-2.5eV) DEFAULT,\tBy Default, OML Potential in Ti=Te Hydrogen plasma\n\n"
+	<< "\t-m,--magfield MAGFIELD\t\t(T), Specify the magnetic field (z direction)\n"
+	<< "\t\tBMag(=1.0T) DEFAULT,\t\tBy Default, magnetic field is 1.0T upwards in vertical z\n\n"
+	<< "\t-n,--normalised NORMALISED\t(bool), whether normalisation (following Sonmor & Laframboise) is on or off\n"
+	<< "\t\tNormalisedVars(=0) DEFAULT,\tFalse, By Default use Tesla and electron volts\n\n"
+	<< "\t-te,--etemp ETEMP\t\t(eV), Specify the temperature of plasma electrons\n"
+	<< "\t\teTemp(=1eV) DEFAULT,\n\n"
+	<< "\t-ne,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron density\n"
+	<< "\t\teDensity(=1e18m^-^3) DEFAULT,\tTokamak density\n\n"
+	<< "\t-ti,--itemp ITEMP\t\t(eV), Specify the temperature of Ions\n"
+	<< "\t\tiTemp(=1eV) DEFAULT,\n\n"
+	<< "\t-ni,--idensity IDENSITY\t\t(m^-^3), Specify the plasma ion density\n"
+	<< "\t\tiDensity(=1e18m^-^3) DEFAULT,\tTokamak density\n\n"
+	<< "\t-c,--ichance ICHANCE\t\t\t(eV), Specify the probability of generating an Ion\n"
+	<< "\t\tiChance(=-0.5) DEFAULT,\tFicticious ion generation probability: i.e Self-consistently generate ions & electrons\n\n"
+	<< "\t-u,--zmaxcoeff ZMAXCOEFF\t(double), The upper limit of simulation domain as number of Coulomb Interaction lengths\n"
+	<< "\t\tzMaxCoeff(=1.0) DEFAULT,\tNumber of Interaction distances from (0,0,Radius) plane to max of simulation domain\n\n"
+	<< "\t-l,--zmincoeff ZMINCOEFF\t(double), The lower limit of simulation domain as number of Coulomb Interaction lengths\n"
+	<< "\t\tzMaxCoeff(=1.0) DEFAULT,\tNumber of Interaction distances from (0,0,Radius) plane to min of simulation domain\n\n"
+	<< "\t-z,--zboundforce ZBOUNDFORCE\t(double), Force the absolute value of simulation domain upper and lower boundaries\n"
+	<< "\t\tZBoundForce(=0.0) DEFAULT,\tBy Default, use -u and -l to determine height of injection plane\n\n"
+	<< "\t-b,--impactpar IMPACTPAR\t(double), Specify the radial limit of simulation domain as number of distances\n"
+	<< "\t\tImpactPar(=2.0) DEFAULT,\tBy Default, Radial extent of injection is three gyro-radii from centre\n\n"
+	<< "\t-f,--forceimppar FORCEIMPPAR\t(double), Force the absolute value of simulation radial distance\n"
+	<< "\t\tForceImpPar(=0.0) DEFAULT,\tBy Default, use -b to determine radial extent of injection plane\n\n"
+	<< "\t-i,--imax IMAX\t\t\t(int), Specify the number of particles to be launched\n"
+	<< "\t\timax(=10000) DEFAULT,\t\tBy Default, inject 10,000 particles\n\n"
+	<< "\t-j,--jmax JMAX\t\t\t(int), Specify the number of particles to be collected (not exceeding imax)\n"
+	<< "\t\tjmax(=5000) DEFAULT,\t\tBy Default, stop simulation if 5,000 particles are collected\n\n"
+	<< "\t-t,--timestep TIMESTEP\t\t(double), Specify the multiplicative factor for the time step\n"
+	<< "\t\tTimeStepFactor(=0.001) DEFAULT,\n\n"
+	<< "\t-no,--number NUMBER\t\t\t(int), Specify the number of particles to be captured before saving\n"
+	<< "\t\tNumber(=1000) DEFAULT,\t\tBy Default, store average values after collecting 1000 particles\n\n"
+	<< "\t-v,--driftvel DRIFTVEL\t\t(m s^-^1), Specify the drift velocity of the plasma\n"
+	<< "\t\tDriftVel(=0.0) DEFAULT,\t\tBy Default, No drift velocity\n\n"
+	<< "\t-se,--seed SEED\t\t\t(double), Specify the seed for the random number generator\n"
+	<< "\t\tSeed(=1.0) DEFAULT,\t\tBy Default, Seed is 1.0\n\n"
+	<< "\t-sa,--Saves SAVES\t\t\t(int), Specify the number of saves in a run\n"
+	<< "\t\tSaves(=1.0) DEFAULT,\tBy Default, Save data to Meta datafile once per run\n\n"
+	<< "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n"
+	<< "\t\tsuffix(='.txt') DEFAULT,\tBy Default, Save data to Data/DiMPl.txt\n\n"
 	<< std::endl;
 }
 
@@ -218,7 +245,7 @@ int main(int argc, char* argv[]){
 	double Potential	= -2.5;		// Normalised Potential, 
 	double BMag 		= 1.0; 		// Tesla, Magnitude of magnetic field
 	double BMagIn		= BMag;		// (arb), input magnetic field,in normalised units or Tesla
-	bool   NormalisedB	= false;	// Is magnetic field Normalised according to Sonmor & Laframboise?
+	bool   NormalisedVars	= false;	// Is magnetic field Normalised according to Sonmor & Laframboise?
 	double a1		= 1.0;		// Semi-axis for x in dust-grain radii
 	double a2		= 1.0;		// Semi-axis for y in dust-grain radii 
 	double a3		= 1.0;		// Semi-axis for z in dust-grain radii
@@ -241,8 +268,8 @@ int main(int argc, char* argv[]){
 	unsigned long long imax	= 10000;// Arb, Maximum number of particles to be launched
 	unsigned long long jmax	= 5000; // Arb, Number of particles to be collected
 	unsigned long long num	= 1000; // Arb, Number of particles to be collected before saving
-	double TimeStepFactor	= 1.0;	// Arb, Multiplicative factor used to determine size of the timestep
-	unsigned int saves(2);		// Arb, Number of saves to be performed in a run
+	double TimeStepFactor	= 0.001;// Arb, Multiplicative factor used to determine size of the timestep
+	unsigned int Saves(1);		// Arb, Number of Saves to be performed in a run
 	unsigned int reflectionsmax(15);// Arb, Number of reflections before rejecting particles
 
 
@@ -251,7 +278,7 @@ int main(int argc, char* argv[]){
 
 	// ***** RANDOM NUMBER GENERATOR 		***** //
 	// Arb, Seed for the random number generator
-	double seed		= std::chrono::high_resolution_clock::now().time_since_epoch().count();
+	double seed		= 1.0; //std::chrono::high_resolution_clock::now().time_since_epoch().count();
 	
 	// ************************************************** //
 
@@ -269,7 +296,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--density" 	|| arg == "-d" )	InputFunction(argc,argv,i,ss0,Density);
 		else if( arg == "--potential" 	|| arg == "-p" )	InputFunction(argc,argv,i,ss0,Potential);
 		else if( arg == "--magfield" 	|| arg == "-m" )	InputFunction(argc,argv,i,ss0,BMagIn);
-		else if( arg == "--normalised" 	|| arg == "-n" )	InputFunction(argc,argv,i,ss0,NormalisedB);
+		else if( arg == "--normalised" 	|| arg == "-n" )	InputFunction(argc,argv,i,ss0,NormalisedVars);
 		else if( arg == "--etemp" 	|| arg == "-te")	InputFunction(argc,argv,i,ss0,eTemp);
 		else if( arg == "--edensity" 	|| arg == "-ne")	InputFunction(argc,argv,i,ss0,eDensity);
 		else if( arg == "--itemp" 	|| arg == "-ti")	InputFunction(argc,argv,i,ss0,iTemp);
@@ -286,7 +313,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--number"	|| arg == "-no")	InputFunction(argc,argv,i,ss0,num);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
 		else if( arg == "--seed"	|| arg == "-se")	InputFunction(argc,argv,i,ss0,seed);
-		else if( arg == "--saves"	|| arg == "-sa")	InputFunction(argc,argv,i,ss0,saves);
+		else if( arg == "--Saves"	|| arg == "-sa")	InputFunction(argc,argv,i,ss0,Saves);
 		else if( arg == "--output"	|| arg == "-o" )	InputFunction(argc,argv,i,ss0,suffix);
                 else{
 			sources.push_back(argv[i]);
@@ -338,7 +365,7 @@ int main(int argc, char* argv[]){
 	a3 = 1.0/(a3*a3);
 	double MassRatio 	= sqrt(Mp/Me);
 	double DustMass 	= (4.0/3.0)*PI*pow(Radius,3)*Density;
-	if( NormalisedB ){	// If we're using S&L normalised units but iChance is undertermined
+	if( NormalisedVars ){	// If we're using S&L normalised units but iChance is undertermined
 
 		if( iChance == 0.0 ){ // If we are simulating only Electrons
         	        BMag = pow(2.0/PI,2.0)*BMagIn*sqrt(PI*Me*eTemp/(2*echarge))/Radius;	// BMag normalised to Electrons
@@ -399,7 +426,7 @@ int main(int argc, char* argv[]){
 						/(4.0*PI*epsilon0*sqrt(echarge*eTemp/(Me*2.0*PI))*BMag/MAGNETIC)))/Radius;
 
 
-		if( NormalisedB ){
+		if( NormalisedVars ){
 			iRhoTherm	= 1.0/BMagIn;
 			eRhoTherm	= 1.0/BMagIn;
 			
@@ -481,7 +508,7 @@ int main(int argc, char* argv[]){
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
-	RunDataFile << "#Input:\t\tValue\n\nimax:\t\t"<<imax<<"\njmax:\t\t"<<jmax<<"\nElecToIonratio:\t"<<ElecToIonRatio<<"\nProbOfIon:\t"<<ProbabilityOfIon<<"\n\nElectron Gyro:\t"<<eRhoTherm<<"\nElectron Temp:\t"<<eTemp<<"\nElec Density:\t"<<BoltzmanneDensity<<"\nElectron IP:\t"<<eImpactParameter<<"\nElectron zmax:\t"<<ezmax<<"\nElectron zmin:\t"<<ezmin<<"\nElecs Timestep:\t"<<TimeStepe<<"\n\nIon Gyro:\t"<<iRhoTherm<<"\nIon Temp:\t"<<iTemp<<"\nIon Density:\t"<<BoltzmanniDensity<<"\nIon IP:\t\t"<<iImpactParameter<<"\nIon zmax:\t"<<izmax<<"\nIon zmin:\t"<<izmin<<"\nIon Timestep:\t"<<TimeStepi<<"\n\nRadius:\t\t"<<Radius<<"\na1:\t\t"<<(1.0/sqrt(a1))<<"\na2:\t\t"<<(1.0/sqrt(a2))<<"\na3:\t\t"<<(1.0/sqrt(a3))<<"\nDensity:\t"<<Density<<"\nCharge:\t\t"<<PotentialNorm<<"\nB Field:\t"<<BMag<<"\nDebyeLength:\t"<<DebyeLength <<"\nDrift Norm:\t"<<DriftNorm<<"\n\n"<<"RNG Seed:\t"<<seed<<"\nOMP_THREADS:\t"<<omp_get_max_threads()<<"\n\n";
+	RunDataFile << "#Input:\t\tValue\n\nimax (arb #):\t\t"<<imax<<"\njmax (arb #):\t\t"<<jmax<<"\nElecToIonratio (arb):\t"<<ElecToIonRatio<<"\nProbOfIon (arb):\t"<<ProbabilityOfIon<<"\n\nElectron Gyro (1/Radius):\t"<<eRhoTherm<<"\nElectron Temp (eV):\t\t"<<eTemp<<"\nElec Density (m^-^3):\t\t"<<BoltzmanneDensity<<"\nElectron IP (1/Radius):\t\t"<<eImpactParameter<<"\nElectron zmax (1/Radius):\t"<<ezmax<<"\nElectron zmin (1/Radius):\t"<<ezmin<<"\nElecs Timestep (Tau):\t\t"<<TimeStepe<<"\n\nIon Gyro (1/Radius):\t"<<iRhoTherm<<"\nIon Temp (eV):\t\t"<<iTemp<<"\nIon Density (m^-^3):\t"<<BoltzmanniDensity<<"\nIon IP (1/Radius):\t"<<iImpactParameter<<"\nIon zmax (1/Radius):\t"<<izmax<<"\nIon zmin (1/Radius):\t"<<izmin<<"\nIon Timestep (Tau):\t"<<TimeStepi<<"\n\nRadius (m):\t\t"<<Radius<<"\na1 (1/Radius):\t\t"<<(1.0/sqrt(a1))<<"\na2 (1/Radius):\t\t"<<(1.0/sqrt(a2))<<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"<<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm<<"\nB Field (T or Radius/GyroRad):\t"<<BMag<<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm<<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"<<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
 
 	// ************************************************** //
 
@@ -496,13 +523,13 @@ int main(int argc, char* argv[]){
 	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0), TotalNum(0);
 	long long CapturedCharge(0), RegeneratedCharge(0), TrappedCharge(0), MissedCharge(0), TotalCharge(0);
 
-	for( unsigned int s=1; s <= saves; s ++){
-		unsigned long long IMAX = (s*imax)/saves;
+	for( unsigned int s=1; s <= Saves; s ++){
+		unsigned long long IMAX = (s*imax)/Saves;
 		RunDataFile.close();
 		RunDataFile.clear();
 		RunDataFile.open(filename+suffix, std::fstream::app);
 		#pragma omp parallel for shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
-		for( i=(IMAX-imax/saves); i < IMAX; i ++){ 	// Loop over maximum number of particles to generate
+		for( i=(IMAX-imax/Saves); i < IMAX; i ++){ 	// Loop over maximum number of particles to generate
 			if( j <= jmax ){	// Loop until we reach a certain number of particles jmax
 	
 	//			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
@@ -566,19 +593,12 @@ int main(int argc, char* argv[]){
 				INITIAL_POT();						// For energy calculations
 				#ifdef TEST_CLOSEST_APPROACH
 				double C1 = fabs(2.0*echarge*echarge*PotentialNorm/(Mp*4.0*PI*epsilon0));
-				double ri = Position.mag3()*1e-6;
-				double vmag = Velocity.mag3()*1e-6/Tau;
-				double vperp = (Position.getunit()^Velocity).mag3()*1e-6/Tau;
-				double Min_r1 = (-C1+sqrt(C1*C1+4.0*(vmag*vmag+C1/ri)*ri*ri*vperp*vperp))/(2.0*(vmag*vmag+C1/ri));
-				double Min_r2 = (-C1-sqrt(C1*C1+4.0*(vmag*vmag+C1/ri)*ri*ri*vperp*vperp))/(2.0*(vmag*vmag+C1/ri));
-//				std::cout << "\nri = " << ri << "\tC1 = " << C1 << "\tvmag = " << vmag << "\tvperp = " << vperp;
-//				std::cout << "\nmr1 = " << Min_r1 << "\tmr2 = " << Min_r2 << "\n";
-				#pragma omp critical
-				{	
-				if( Min_r1 <= Radius ){//|| fabs(Min_r2) <= Radius){
-					std::cout << "\n" << i << "\t" << j << "\t" << Min_r1 << "\t" << Min_r2;
-				}
-				}
+				double ri = Position.mag3()*Radius;
+				double vmag = Velocity.mag3()*Radius/Tau;
+				double vperp = (Position.getunit()^Velocity).mag3()*Radius/Tau;
+				double Min_r1 = (C1+sqrt(C1*C1+4.0*(vmag*vmag+C1/ri)*ri*ri*vperp*vperp))/(2.0*(vmag*vmag+C1/ri));
+				double Min_r2 = (C1-sqrt(C1*C1+4.0*(vmag*vmag+C1/ri)*ri*ri*vperp*vperp))/(2.0*(vmag*vmag+C1/ri));
+				double MinPos = sqrt(zmax*zmax+ImpactParameter*ImpactParameter);
 				#endif
 
 
@@ -620,7 +640,6 @@ int main(int argc, char* argv[]){
 					//EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
 					EField = CoulombField(Position,PotentialNorm,A_Coulomb);
 					OldPosition = Position; // For Angular Momentum Calculations
-
 					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
 					
 					double PreviousVelocity = Velocity.getz();
@@ -628,7 +647,13 @@ int main(int argc, char* argv[]){
 						(Velocity.getz() < 0.0 && PreviousVelocity >= 0.0) ){
 						reflections ++;
 					}
+
 					Position+=TimeStep*Velocity;
+					#ifdef TEST_CLOSEST_APPROACH
+					if( OldPosition.mag3() > Position.mag3() || Position.mag3() < MinPos ){
+						MinPos = Position.mag3();
+					}
+					#endif
 
 					EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
 					#ifdef SPHERICAL_INJECTION
@@ -693,6 +718,13 @@ int main(int argc, char* argv[]){
 	                                                TrappedCharge += SPEC_CHARGE;
                                         	}
 					}else{ 				// In this case it missed!
+					#ifdef TEST_CLOSEST_APPROACH	
+//					if( Min_r1 <= Radius ){//|| fabs(Min_r2) <= Radius){	
+						std::cout << "\n" << i << "\t" << j << "\t" << MinPos*Radius
+								<< "\t" << Min_r1 << "\t" << Min_r2 << "\t" << std::min(Min_r1,fabs(Min_r2));
+//					}
+					#endif
+
 						LinearMomentumSum += SpeciesMass*Velocity;	
 						AngularMomentumSum += AngularMom;
 						MissedParticles ++;
