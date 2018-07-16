@@ -8,13 +8,13 @@
 #define SAVE_ENDPOS
 #define SAVE_SPECIES
 
-#define SPHERICAL_INJECTION
+//#define SPHERICAL_INJECTION
 //#define POINT_INJECTION
 //#define NO_SPHERE
 
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
-#define TEST_CLOSEST_APPROACH
+//#define TEST_CLOSEST_APPROACH
 //#define TEST_CHARGING
 //#define TEST_ANGMOM
 //#define TEST_ENERGY
@@ -82,7 +82,7 @@ static void show_usage(std::string name){
 	<< "\t-j,--jmax JMAX\t\t\t(int), Specify the number of particles to be collected (not exceeding imax)\n"
 	<< "\t\tjmax(=5000) DEFAULT,\t\tBy Default, stop simulation if 5,000 particles are collected\n\n"
 	<< "\t-t,--timestep TIMESTEP\t\t(double), Specify the multiplicative factor for the time step\n"
-	<< "\t\tTimeStepFactor(=0.001) DEFAULT,\n\n"
+	<< "\t\tTimeStepFactor(=0.0005) DEFAULT,\n\n"
 	<< "\t-no,--number NUMBER\t\t\t(int), Specify the number of particles to be captured before saving\n"
 	<< "\t\tNumber(=1000) DEFAULT,\t\tBy Default, store average values after collecting 1000 particles\n\n"
 	<< "\t-v,--driftvel DRIFTVEL\t\t(m s^-^1), Specify the drift velocity of the plasma\n"
@@ -115,7 +115,7 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 			std::mt19937 &mt){
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
-	std::normal_distribution<double> Gaussdist(DriftNorm,ThermalVel);
+	std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
 	std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
 
 	// ***** RANDOMISE POSITION CYLINDRICALLY ***** //
@@ -133,7 +133,7 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	Position.setz(zmin);
 	if( rad(mt) > 0.5 ){
 		Position.setz(zmax);
-		invel=-invel;
+		invel=-invel+2.0*DriftNorm;
 	}
 	Velocity.setx(Gaussdist(mt));
 	Velocity.sety(Gaussdist(mt));
@@ -141,31 +141,26 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 
 	#ifdef SPHERICAL_INJECTION
 		// ***** RANDOMISE POSITION SPHERICALLY ***** //
-		invel = Gaussdist(mt); 
-		radial_pos = ImpactParameter;
 		theta_pos  = 2.0*PI*rad(mt);
 		double phi_pos    = asin(2.0*rad(mt)-1.0);
-		Position.setx(radial_pos*cos(phi_pos)*cos(theta_pos));
-		Position.sety(radial_pos*cos(phi_pos)*sin(theta_pos));
-		Position.setz(radial_pos*sin(phi_pos));
-	//	Position.setx(0.0);
-	//	Position.sety(0.0);
-	//	Position.setz(radial_pos);
+		Position.setx(ImpactParameter*cos(phi_pos)*cos(theta_pos));
+		Position.sety(ImpactParameter*cos(phi_pos)*sin(theta_pos));
+		Position.setz(ImpactParameter*sin(phi_pos));
 	
 	
 		// ***** RANDOMISE VELOCITY SPHERICALLY ***** //
 		// http://www.astrosurf.com/jephem/library/li110spherCart_en.htm
-		double theta_vel = Gaussdist(mt)/radial_pos;
-		double phi_vel = Gaussdist(mt)/radial_pos;
+//		double theta_vel = Gaussdist(mt)/radial_pos;
+//		double phi_vel = Gaussdist(mt)/radial_pos;
 	
 		Velocity.setx(Gaussdist(mt));
 		Velocity.sety(Gaussdist(mt));
-		Velocity.setz(Gaussdist(mt));
+		Velocity.setz(rand_mwts(DriftNorm,ThermalVel,mt));
 		
-		if( Position*Velocity > 0.0 ){
-			Position.setx(-1.0*Position.getx());
-			Position.sety(-1.0*Position.gety());
-			Position.setz(-1.0*Position.getz());
+		while( Position*Velocity > 0.0 ){
+			Velocity.setx(Gaussdist(mt));
+			Velocity.sety(Gaussdist(mt));
+			Velocity.setz(rand_mwts(DriftNorm,ThermalVel,mt));
 		}
 	#endif
 	#ifdef POINT_INJECTION
@@ -268,7 +263,7 @@ int main(int argc, char* argv[]){
 	unsigned long long imax	= 10000;// Arb, Maximum number of particles to be launched
 	unsigned long long jmax	= 5000; // Arb, Number of particles to be collected
 	unsigned long long num	= 1000; // Arb, Number of particles to be collected before saving
-	double TimeStepFactor	= 0.001;// Arb, Multiplicative factor used to determine size of the timestep
+	double TimeStepFactor	= 0.0005;// Arb, Multiplicative factor used to determine size of the timestep
 	unsigned int Saves(1);		// Arb, Number of Saves to be performed in a run
 	unsigned int reflectionsmax(15);// Arb, Number of reflections before rejecting particles
 
