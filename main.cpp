@@ -89,8 +89,8 @@ static void show_usage(std::string name){
 	<< "\t\tDriftVel(=0.0) DEFAULT,\t\tBy Default, No drift velocity\n\n"
 	<< "\t-se,--seed SEED\t\t\t(double), Specify the seed for the random number generator\n"
 	<< "\t\tSeed(=1.0) DEFAULT,\t\tBy Default, Seed is 1.0\n\n"
-	<< "\t-sa,--Saves SAVES\t\t\t(int), Specify the number of saves in a run\n"
-	<< "\t\tSaves(=1.0) DEFAULT,\tBy Default, Save data to Meta datafile once per run\n\n"
+	<< "\t-sa,--Saves SAVES\t\t\t(int), Specify the number of particles before saving a run\n"
+	<< "\t\tSaves(=1000) DEFAULT,\tBy Default, Save data to Meta datafile once per 1000.0 particles\n\n"
 	<< "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n"
 	<< "\t\tsuffix(='.txt') DEFAULT,\tBy Default, Save data to Data/DiMPl.txt\n\n"
 	<< std::endl;
@@ -230,6 +230,7 @@ int main(int argc, char* argv[]){
 	DECLARE_EPOS();			// Data file for end positions
 	DECLARE_SPEC();			// Data file for the species
 	std::ofstream RunDataFile;	// Data file for containing the run information
+	std::ofstream InputDataFile;	// Data file for containing the input information
 
 	// ************************************************** //
 
@@ -264,7 +265,7 @@ int main(int argc, char* argv[]){
 	unsigned long long jmax	= 5000; // Arb, Number of particles to be collected
 	unsigned long long num	= 1000; // Arb, Number of particles to be collected before saving
 	double TimeStepFactor	= 0.0005;// Arb, Multiplicative factor used to determine size of the timestep
-	unsigned int Saves(1);		// Arb, Number of Saves to be performed in a run
+	unsigned int Saves(1000);	// Arb, Number of particles to be collected before saving in a run
 	unsigned int reflectionsmax(15);// Arb, Number of reflections before rejecting particles
 
 
@@ -344,7 +345,15 @@ int main(int argc, char* argv[]){
 	if( jmax < num )
 		std::cout << "\nWarning! Save interval less than captured particle goal. No Angular data recorded\nnum < jmax : " 
 			<< num << " < " << jmax;
-
+	InputDataFile.open(filename + "_Input" + suffix);
+	InputDataFile << "## Input Data File ##\n";
+	InputDataFile << "#Input:\nr\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
+	InputDataFile << "\n" << Radius << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density << "\t" << Potential 
+		<< "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity << "\t" << iTemp << "\t" 
+		<< iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce << "\t" 
+		<< ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax << "\t" << TimeStepFactor << "\t" 
+		<< num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
+	InputDataFile.close();
 	#ifdef SAVE_TRACKS
 	if( imax >= 1000 ){
 		std::cout << "\nWarning! Attempting to store more than 1000 tracks!\ni = " << imax;
@@ -406,9 +415,14 @@ int main(int argc, char* argv[]){
 
 	double iRhoTherm = 0.0;					// Ion gyro-radii are zero by Default
 	double eRhoTherm = 0.0;					// Electron gyro-radii are zero by Default
-	double TimeStepe = TimeStepFactor/fabs(A_Coulomb*MassRatio*MassRatio); // Normalised time step for electrons
-	double TimeStepi = TimeStepFactor/fabs(A_Coulomb);	// Normalised time step for ions
-
+//	double TimeStepe = TimeStepFactor/fabs(A_Coulomb*MassRatio*MassRatio); // Normalised time step for electrons
+//	double TimeStepi = TimeStepFactor/fabs(A_Coulomb);	// Normalised time step for ions
+	double TimeStepe = TimeStepFactor;
+	double TimeStepi = TimeStepFactor;
+	if( BMag == 0.0 && Potential == 0.0 ){
+		TimeStepi = 0.01/iThermalVel;
+		TimeStepe = 0.01/eThermalVel;
+	}
 	if( BMag != 0.0 ){						// If Magnetic field is non-zero
 		// Calculate thermal GyroRadius for ions and electrons normalised to dust grain radii
 		iRhoTherm	= iThermalVel/(BMag/MAGNETIC); 
@@ -430,10 +444,10 @@ int main(int argc, char* argv[]){
 			}
 		}
 		if( 0.05*eRhoTherm/eThermalVel < TimeStepe || Potential == 0.0 ){
-			TimeStepe       = 0.05*eRhoTherm/eThermalVel;   // 1% of Gyro-radius size
+			TimeStepe       = 0.01*eRhoTherm/eThermalVel;   // 1% of Gyro-radius size
 		}
 		if( 0.05*iRhoTherm/iThermalVel < TimeStepi || Potential == 0.0 ){
-	                TimeStepi       = 0.05*iRhoTherm/iThermalVel;   // 1% of Gyro-radius size
+	                TimeStepi       = 0.01*iRhoTherm/iThermalVel;   // 1% of Gyro-radius size
 		}
 	}
 	
@@ -444,8 +458,8 @@ int main(int argc, char* argv[]){
 	}else{
 		semiaxisDistortion=a2;
 	}
-	double iImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*iRhoTherm+iCoulombImpactParameter;
-	double eImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*eRhoTherm+eCoulombImpactParameter;
+	double iImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(iRhoTherm+iCoulombImpactParameter);
+	double eImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(eRhoTherm+eCoulombImpactParameter);
 	if( ForceImpPar > 0.0 ){
 		iImpactParameter = 1.0+ForceImpPar;
 		eImpactParameter = 1.0+ForceImpPar;
@@ -518,28 +532,49 @@ int main(int argc, char* argv[]){
 	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0), TotalNum(0);
 	long long CapturedCharge(0), RegeneratedCharge(0), TrappedCharge(0), MissedCharge(0), TotalCharge(0);
 
-	for( unsigned int s=1; s <= Saves; s ++){
-		unsigned long long IMAX = (s*imax)/Saves;
+	unsigned long long smax = imax / Saves;
+
+	for( unsigned int s=1; s <= smax; s ++){
+		unsigned long long IMAX = (s*imax)/smax;
 		RunDataFile.close();
 		RunDataFile.clear();
 		RunDataFile.open(filename+suffix, std::fstream::app);
-		#pragma omp parallel for shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
-		for( i=(IMAX-imax/Saves); i < IMAX; i ++){ 	// Loop over maximum number of particles to generate
+
+		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
+		{
+		threevector Position(0.0,0.0,0.0);
+		threevector Velocity(0.0,0.0,0.0);
+		threevector BField(0.0,0.0,0.0);
+		threevector EField(0.0,0.0,0.0);
+		threevector OldPosition(0.0,0.0,0.0);
+		threevector AngularVel(0.0,0.0,0.0);
+		threevector FinalPosition(0.0,0.0,0.0);
+		threevector AngularMom(0.0,0.0,0.0);
+		unsigned int reflections(0);
+
+		double BMagNorm;
+		double ImpactParameter;
+		double ThermalVel;
+		double zmax;   
+		double zmin;   
+		double TimeStep;
+		double SpeciesMass;
+
+		int SPEC_CHARGE=-1;
+
+		bool EdgeCondition = true;
+		bool SphereCondition = true;
+
+		#pragma omp for 
+		for( i=(IMAX-imax/smax); i < IMAX; i ++){ 	// Loop over maximum number of particles to generate
 			if( j <= jmax ){	// Loop until we reach a certain number of particles jmax
 	
 	//			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 	
 				// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
 				// MassRatio is squared because of absence of mass in Boris solver
-				double BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
-				double ImpactParameter=eImpactParameter;
-				double ThermalVel=eThermalVel;
-				double zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
-				double zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
-	 			double TimeStep(TimeStepe);
-				double SpeciesMass = 1.0/pow(MassRatio,2);
-				int SPEC_CHARGE=-1;
-				if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ // If this is the case, we need to generate an ion
+				if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ 
+					// If this is the case, we need to generate an ion
 					BMagNorm = BMag/MAGNETIC;
 					ImpactParameter=iImpactParameter;
 					ThermalVel=iThermalVel;
@@ -548,15 +583,23 @@ int main(int argc, char* argv[]){
 					TimeStep = TimeStepi;
 					SpeciesMass = 1.0;
 					SPEC_CHARGE=1;
-				}		
-				threevector BField = BMagNorm*Bhat;
+				}else{
+					// If this is the case, we need to generate an electron
+					BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
+					ImpactParameter=eImpactParameter;
+					ThermalVel=eThermalVel;
+					zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
+					zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
+		 			TimeStep = TimeStepe;
+					SpeciesMass = 1.0/pow(MassRatio,2);
+					SPEC_CHARGE=-1;
+				}
+				BField = BMagNorm*Bhat;
 	
 				// ************************************************** //
 		
 	
 				// ***** GENERATE AN ORBIT ***** //
-				threevector Position(0.0,0.0,0.0);
-				threevector Velocity(0.0,0.0,0.0);
 				GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,
 						randnumbers[omp_get_thread_num()]);
 	
@@ -606,34 +649,36 @@ int main(int argc, char* argv[]){
 	
 				// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
 				// Calculate Electric Field
-				//threevector EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
-				threevector EField = CoulombField(Position,PotentialNorm,A_Coulomb);
+				EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
+//				EField = CoulombField(Position,PotentialNorm,A_Coulomb);
 				UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);	
 	
 				// ************************************************** //
 	
 	
 				// ***** DO PARTICLE PATH INTEGRATION 		***** //
-				threevector OldPosition(0.0,0.0,0.0);
+				OldPosition.setx(0.0);
+				OldPosition.sety(0.0);
+				OldPosition.setz(0.0);
 				// While we don't exceed a specified number of reflections to catch trapped orbits AND	
 				// while the particle is not inside the sphere and not outside the simulation domain
-				unsigned int reflections(0);
+				reflections=0;
 
-				bool EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
+				EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
 
 				#ifdef SPHERICAL_INJECTION
 				EdgeCondition = ((Position.getx()*Position.getx()+Position.gety()*Position.gety()
 							+Position.getz()*Position.getz()) <= ImpactParameter*ImpactParameter*1.01);
 				#endif
-				bool SphereCondition = (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2
+				SphereCondition = (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2
 								+Position.getz()*Position.getz()*a3) > 1.0);
 				#ifdef NO_SPHERE
 					SphereCondition = true;
 				#endif
 
 				while( SphereCondition && EdgeCondition && reflections < reflectionsmax ){
-					//EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
-					EField = CoulombField(Position,PotentialNorm,A_Coulomb);
+					EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
+//					EField = CoulombField(Position,PotentialNorm,A_Coulomb);
 					OldPosition = Position; // For Angular Momentum Calculations
 					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
 					
@@ -674,13 +719,13 @@ int main(int argc, char* argv[]){
 	
 	
 				// ***** PERFORM MOMENTUM CALCULATIONS 		***** //
-				threevector FinalPosition = 0.5*(OldPosition+Position);
-				threevector AngularMom = SpeciesMass*(FinalPosition^Velocity); 		
+				FinalPosition = 0.5*(OldPosition+Position);
+				AngularMom = SpeciesMass*(FinalPosition^Velocity); 		
 				#pragma omp critical
 				{
 					if( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) < 1.0 || reflections >= reflectionsmax ){ // In this case it was captured!
 						double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
-						threevector AngularVel = (AngVelNorm)*
+						AngularVel = (AngVelNorm)*
 						((FinalPosition^Velocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
 //						ADD_F_AMOM(AngularVel*(2.0*DustMass/5.0));
 
@@ -739,6 +784,7 @@ int main(int argc, char* argv[]){
 				}
 			}
 		} // END OF PARALLELISED FOR LOOP
+		} // END OF PARALLELISED REGION
 		// ***** PRINT ANGULAR MOMENTUM AND CHARGE DATA	***** //
 		RunDataFile << "*****\n\n\nSave : " << s << "\n\n";
 	
@@ -750,17 +796,21 @@ int main(int argc, char* argv[]){
 		SAVE_CHARGE("\n\n")
 	
 		RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";
-//		Calculate currents for cylindrical geometry
+//		Calculate currents for cylindrical geometry with shape factor
 		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 		/(2.0*(1-cos(asin(sqrt(1.0/(1+izmax*izmax/(iImpactParameter*iImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity);
 		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
-		/(2.0*(1-cos(asin(sqrt(1.0/(1+ezmax*ezmax/(eImpactParameter*eImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity) << "\n\n";
-
+		/(2.0*(1-cos(asin(sqrt(1.0/(1+ezmax*ezmax/(eImpactParameter*eImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity) << "\n";
+//		Calculate currents for cylindrical geometry
+		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
+					/((TotalNum+TotalCharge)*iDensity);
+		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
+				/((TotalNum-TotalCharge)*eDensity) << "\n";
 //		Calculate currents for Spherical geometry with Bfield
 		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 					/(0.5*(TotalNum+TotalCharge)*iDensity);
 		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
-				/(0.5*(TotalNum-TotalCharge)*eDensity) << "\n\n";
+				/(0.5*(TotalNum-TotalCharge)*eDensity) << "\n";
 //		Calculate currents for Spherical geometry without Bfield
 		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)
 					/(0.5*(TotalNum+TotalCharge)*iDensity*(1-cos(asin(1.0/iImpactParameter))));
