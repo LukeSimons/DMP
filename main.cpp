@@ -12,6 +12,9 @@
 //#define POINT_INJECTION
 //#define NO_SPHERE
 
+#define COULOMB_POTENTIAL
+//#define DEBYE_POTENTIAL
+
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
 //#define TEST_CLOSEST_APPROACH
@@ -43,6 +46,8 @@ static void show_usage(std::string name){
 	<< "\t-h,--help\t\t\tShow this help message\n\n"
 	<< "\t-r,--radius RADIUS\t\t(m), Specify radius of Dust grain\n"
 	<< "\t\tRadius(=1e-6m) DEFAULT,\t\tBy Default, simulate sphere of size 1um in radius\n\n"
+	<< "\t-s,--spin SPIN\t\t(hz), Specify the initial rotation frequency of Dust grain alligned with magnetic field axis\n"
+	<< "\t\tSpin(=0.0hz) DEFAULT,\t\tBy Default, simulate sphere with initially zero z angular momentum\n\n"
 	<< "\t-a1,--semix SEMIX\t\t(arb), Specify the semi-axis for x in dust radii\n"
 	<< "\t\ta1(=1) DEFAULT,\t\t\tBy Default, simulate perfect sphere\n\n"
 	<< "\t-a2,--semiy SEMIZ\t\t(arb), Specify the semi-axis for y in dust radii\n"
@@ -202,11 +207,14 @@ static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BFi
 	Velocity = v_plus + Efield*0.5*(SPEC_CHARGE/MASS)*dt;
 }
 
+#ifdef COULOMB_POTENTIAL
 threevector CoulombField(threevector Position, double Charge, double COULOMB_NORM){
 	threevector Efield = (COULOMB_NORM*Charge/Position.square())*Position.getunit(); // 0.07, 0.1475
 	return Efield;
 }
+#endif
 
+#ifdef DEBYE_POTENTIAL
 threevector DebyeHuckelField(threevector Position, double Charge, double DebyeLength, double COULOMB_NORM){
 	if(Charge==0.0) return threevector(0.0,0.0,0.0);
 //	threevector Efield = COULOMB_NORM*Charge*(1.0/(Position.mag3()))*exp(-Position.mag3()/DebyeLength)
@@ -216,6 +224,7 @@ threevector DebyeHuckelField(threevector Position, double Charge, double DebyeLe
 				*Position.getunit();
 	return Efield;
 }
+#endif
 
 int main(int argc, char* argv[]){
 	
@@ -237,6 +246,7 @@ int main(int argc, char* argv[]){
 
 	// ***** DEFINE DUST PARAMETERS 		***** //
 	double Radius 		= 1e-6;		// m, Radius of dust
+	double Spin		= 0.0;		// hz, Initial rotation rate
 	double Density 		= 19600;	// kg m^-^3, Tungsten
 	double Potential	= -2.5;		// Normalised Potential, 
 	double BMag 		= 1.0; 		// Tesla, Magnitude of magnetic field
@@ -286,6 +296,7 @@ int main(int argc, char* argv[]){
 		std::string arg = argv[i];
 		if     ( arg == "--help" 	|| arg == "-h" ){	show_usage( argv[0]); return 0; 		}
 		else if( arg == "--radius" 	|| arg == "-r" ) 	InputFunction(argc,argv,i,ss0,Radius);
+		else if( arg == "--spin" 	|| arg == "-s" ) 	InputFunction(argc,argv,i,ss0,Spin);
 		else if( arg == "--semix" 	|| arg == "-a1") 	InputFunction(argc,argv,i,ss0,a1);
 		else if( arg == "--semiy" 	|| arg == "-a2") 	InputFunction(argc,argv,i,ss0,a2);
 		else if( arg == "--semiz" 	|| arg == "-a3") 	InputFunction(argc,argv,i,ss0,a3);
@@ -347,12 +358,12 @@ int main(int argc, char* argv[]){
 			<< num << " < " << jmax;
 	InputDataFile.open(filename + "_Input" + suffix);
 	InputDataFile << "## Input Data File ##\n";
-	InputDataFile << "#Input:\nr\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
-	InputDataFile << "\n" << Radius << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density << "\t" << Potential 
-		<< "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity << "\t" << iTemp << "\t" 
-		<< iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce << "\t" 
-		<< ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax << "\t" << TimeStepFactor << "\t" 
-		<< num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
+	InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
+	InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density 
+		<< "\t" << Potential << "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity 
+		<< "\t" << iTemp << "\t" << iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff 
+		<< "\t" << ZBoundForce << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax 
+		<< "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
 	InputDataFile.close();
 	#ifdef SAVE_TRACKS
 	if( imax >= 1000 ){
@@ -517,13 +528,20 @@ int main(int argc, char* argv[]){
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
-	RunDataFile << "#Input:\t\tValue\n\nimax (arb #):\t\t"<<imax<<"\njmax (arb #):\t\t"<<jmax<<"\nElecToIonratio (arb):\t"<<ElecToIonRatio<<"\nProbOfIon (arb):\t"<<ProbabilityOfIon<<"\n\nElectron Gyro (1/Radius):\t"<<eRhoTherm<<"\nElectron Temp (eV):\t\t"<<eTemp<<"\nElec Density (m^-^3):\t\t"<<BoltzmanneDensity<<"\nElectron IP (1/Radius):\t\t"<<eImpactParameter<<"\nElectron zmax (1/Radius):\t"<<ezmax<<"\nElectron zmin (1/Radius):\t"<<ezmin<<"\nElecs Timestep (Tau):\t\t"<<TimeStepe<<"\n\nIon Gyro (1/Radius):\t"<<iRhoTherm<<"\nIon Temp (eV):\t\t"<<iTemp<<"\nIon Density (m^-^3):\t"<<BoltzmanniDensity<<"\nIon IP (1/Radius):\t"<<iImpactParameter<<"\nIon zmax (1/Radius):\t"<<izmax<<"\nIon zmin (1/Radius):\t"<<izmin<<"\nIon Timestep (Tau):\t"<<TimeStepi<<"\n\nRadius (m):\t\t"<<Radius<<"\na1 (1/Radius):\t\t"<<(1.0/sqrt(a1))<<"\na2 (1/Radius):\t\t"<<(1.0/sqrt(a2))<<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"<<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm<<"\nB Field (T or Radius/GyroRad):\t"<<BMag<<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm<<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"<<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
+	RunDataFile << "#Input:\t\tValue\n\nimax (arb #):\t\t"<<imax<<"\njmax (arb #):\t\t"<<jmax<<"\nElecToIonratio (arb):\t"<<ElecToIonRatio<<"\nProbOfIon (arb):\t"<<ProbabilityOfIon<<"\n\nElectron Gyro (1/Radius):\t"<<eRhoTherm<<"\nElectron Temp (eV):\t\t"<<eTemp<<"\nElec Density (m^-^3):\t\t"<<BoltzmanneDensity<<"\nElectron IP (1/Radius):\t\t"<<eImpactParameter<<"\nElectron zmax (1/Radius):\t"<<ezmax<<"\nElectron zmin (1/Radius):\t"<<ezmin<<"\nElecs Timestep (Tau):\t\t"<<TimeStepe<<"\n\nIon Gyro (1/Radius):\t"<<iRhoTherm<<"\nIon Temp (eV):\t\t"<<iTemp<<"\nIon Density (m^-^3):\t"<<BoltzmanniDensity<<"\nIon IP (1/Radius):\t"<<iImpactParameter<<"\nIon zmax (1/Radius):\t"<<izmax<<"\nIon zmin (1/Radius):\t"<<izmin<<"\nIon Timestep (Tau):\t"<<TimeStepi<<"\n\nRadius (m):\t\t"<<Radius<<"\nSpin (1/Tau):\t\t"<<Spin*Tau<<"\na1 (1/Radius):\t\t"<<(1.0/sqrt(a1))<<"\na2 (1/Radius):\t\t"<<(1.0/sqrt(a2))<<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"<<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm<<"\nB Field (T or Radius/GyroRad):\t"<<BMag<<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm<<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"<<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
+	#ifdef DEBYE_POTENTIAL
+		RunDataFile << "* DEBYE HUCKEL POTENTIAL *\n\n";
+	#endif
+	#ifdef COULOMB_POTENTIAL
+		RunDataFile << "* COULOMB POTENTIAL *\n\n";
+	#endif
 
+	
 	// ************************************************** //
 
 
 	// ***** BEGIN LOOP OVER PARTICLE ORBITS 	***** //
-	threevector TotalAngularVel(0.0,0.0,0.0);
+	threevector TotalAngularVel(0.0,0.0,Spin*Tau);
 	threevector TotalAngularMom(0.0,0.0,0.0);
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
@@ -649,8 +667,12 @@ int main(int argc, char* argv[]){
 	
 				// ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
 				// Calculate Electric Field
-				EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
-//				EField = CoulombField(Position,PotentialNorm,A_Coulomb);
+				#ifdef DEBYE_POTENTIAL
+					EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
+				#endif
+				#ifdef COULOMB_POTENTIAL
+					EField = CoulombField(Position,PotentialNorm,A_Coulomb);
+				#endif
 				UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);	
 	
 				// ************************************************** //
@@ -677,12 +699,17 @@ int main(int argc, char* argv[]){
 				#endif
 
 				while( SphereCondition && EdgeCondition && reflections < reflectionsmax ){
-					EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
-//					EField = CoulombField(Position,PotentialNorm,A_Coulomb);
+					#ifdef DEBYE_POTENTIAL
+						EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
+	                                #endif
+					#ifdef COULOMB_POTENTIAL
+						EField = CoulombField(Position,PotentialNorm,A_Coulomb);
+	                                #endif
 					OldPosition = Position; // For Angular Momentum Calculations
+					double PreviousVelocity = Velocity.getz();
 					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
 					
-					double PreviousVelocity = Velocity.getz();
+
 					if( (Velocity.getz() > 0.0 && PreviousVelocity <= 0.0) || 
 						(Velocity.getz() < 0.0 && PreviousVelocity >= 0.0) ){
 						reflections ++;
