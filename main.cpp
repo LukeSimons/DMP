@@ -1,7 +1,7 @@
 #define CALCULATE_MOM
 //#define SELF_CONS_CHARGE
 
-//#define SAVE_TRACKS 
+#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 #define SAVE_LINEAR_MOM
@@ -275,7 +275,7 @@ int main(int argc, char* argv[]){
 	unsigned long long jmax	= 5000; // Arb, Number of particles to be collected
 	unsigned long long num	= 1000; // Arb, Number of particles to be collected before saving
 	double TimeStepFactor	= 0.0005;// Arb, Multiplicative factor used to determine size of the timestep
-	unsigned int Saves(1000);	// Arb, Number of particles to be collected before saving in a run
+	unsigned int Saves(100);	// Arb, Number of particles to be collected before saving in a run
 	unsigned int reflectionsmax(15);// Arb, Number of reflections before rejecting particles
 
 
@@ -356,6 +356,11 @@ int main(int argc, char* argv[]){
 	if( jmax < num )
 		std::cout << "\nWarning! Save interval less than captured particle goal. No Angular data recorded\nnum < jmax : " 
 			<< num << " < " << jmax;
+	if( Saves > 100 && imax <= 100 ){
+		std::cout << "\nWarning! Saves greater than number of simulated particles. Code won't run!\nSetting Saves = 1";
+		Saves = 1;
+	}
+		
 	InputDataFile.open(filename + "_Input" + suffix);
 	InputDataFile << "## Input Data File ##\n";
 	InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
@@ -583,7 +588,7 @@ int main(int argc, char* argv[]){
 		bool EdgeCondition = true;
 		bool SphereCondition = true;
 
-		#pragma omp for 
+		#pragma omp for
 		for( i=(IMAX-imax/smax); i < IMAX; i ++){ 	// Loop over maximum number of particles to generate
 			if( j <= jmax ){	// Loop until we reach a certain number of particles jmax
 	

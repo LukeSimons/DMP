@@ -125,8 +125,8 @@
 
 #ifdef TEST_ANGMOM
 #define DECLARE_AMOM()	threevector INITIAL_AMOM(0.0,0.0,0.0),FINAL_AMOM(0.0,0.0,0.0);
-#define ADD_I_AMOM(x)	INITIAL_AMOM += x;
-#define ADD_F_AMOM(x)	FINAL_AMOM += x;
+#define ADD_I_AMOM(x)	INITIAL_AMOM = x;
+#define ADD_F_AMOM(x)	FINAL_AMOM = x;
 #define PRINT_AMOM(x)	std::cout << x;
 #else
 #define DECLARE_AMOM()
