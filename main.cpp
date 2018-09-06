@@ -878,8 +878,8 @@ int main(int argc, char* argv[]){
 		// ***** PRINT CHARGE AND PATH COUNTERS 	***** //
 		RunDataFile << "j\tjCharge\tMissed\tMCharge\tRegen\tRCharge\tTrapped\tTCharge\tGross\tGCharge\n"; 
 		RunDataFile << j << "\t" << CapturedCharge << "\t" << MissedParticles << "\t" << MissedCharge << "\t" << RegeneratedParticles << "\t" << RegeneratedCharge << "\t" << TrappedParticles << "\t" << TrappedCharge << "\t" << TotalNum << "\t" << TotalCharge << "\n";
-		if( i_Simulated < NumberOfIons || e_Simulated < NumberOfElectrons ){
-			std::cerr << "\nError! Total particle goal was not reached! Data may be invalid! : ";
+		if( (i_simulated < NumberOfIons || e_simulated < NumberOfElectrons) && s == smax ){
+			std::cerr << "\nError! Total particle goal was not reached! Data may be invalid!";
 			RunDataFile << "\n\n* Error! Total particle goal was not reached! *";
 		}
 		clock_t end = clock();
