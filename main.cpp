@@ -1,7 +1,7 @@
 #define CALCULATE_MOM
 //#define SELF_CONS_CHARGE
 
-#define SAVE_TRACKS 
+//#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 #define SAVE_LINEAR_MOM
@@ -123,30 +123,9 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
 	std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
 
-	// ***** RANDOMISE POSITION CYLINDRICALLY ***** //
-	double radial_pos=ImpactParameter*sqrt(rad(mt));
-	double theta_pos =2*PI*rad(mt);
-	Position.setx(radial_pos*cos(theta_pos));
-	Position.sety(radial_pos*sin(theta_pos));
-
-	// ***** RANDOMISE VELOCITY CYLINDRICALLY ***** //
-// 	Following work from:
-//	Generating equally weighted test particles from the one-way flux of a drifting Maxwellian
-//	T Makkonen, M I Airila & T Kurki-Suonio
-//	http://iopscience.iop.org/article/10.1088/0031-8949/90/1/015204/data
-	double invel = rand_mwts(DriftNorm,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
-	Position.setz(zmin);
-	if( rad(mt) > 0.5 ){
-		Position.setz(zmax);
-		invel=-invel+2.0*DriftNorm;
-	}
-	Velocity.setx(Gaussdist(mt));
-	Velocity.sety(Gaussdist(mt));
-	Velocity.setz(invel);
-
 	#ifdef SPHERICAL_INJECTION
 		// ***** RANDOMISE POSITION SPHERICALLY ***** //
-		theta_pos  = 2.0*PI*rad(mt);
+		double theta_pos  = 2.0*PI*rad(mt);
 		double phi_pos    = asin(2.0*rad(mt)-1.0);
 		Position.setx(ImpactParameter*cos(phi_pos)*cos(theta_pos));
 		Position.sety(ImpactParameter*cos(phi_pos)*sin(theta_pos));
@@ -162,13 +141,10 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 		Velocity.sety(Gaussdist(mt));
 		Velocity.setz(rand_mwts(DriftNorm,ThermalVel,mt));
 		
-		while( Position*Velocity > 0.0 ){
-			Velocity.setx(Gaussdist(mt));
-			Velocity.sety(Gaussdist(mt));
-			Velocity.setz(rand_mwts(DriftNorm,ThermalVel,mt));
+		if( Position*Velocity > 0.0 ){
+			Position = -1.0*Position;
 		}
-	#endif
-	#ifdef POINT_INJECTION
+	#elif defined(POINT_INJECTION)
 		// ***** INJECT AT SINGLE POINT WITH DRIFT VELOCITY ***** //
 		Position.setx(0.0);
 		Position.sety(0.0);
@@ -177,52 +153,66 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 		Velocity.setx(0.0);
 		Velocity.sety(0.0);
 		Velocity.setz(DriftNorm);
+	#else
+		// ***** RANDOMISE POSITION CYLINDRICALLY ***** //
+		double radial_pos=ImpactParameter*sqrt(rad(mt));
+		double theta_pos =2*PI*rad(mt);
+		Position.setx(radial_pos*cos(theta_pos));
+		Position.sety(radial_pos*sin(theta_pos));
+	
+		// ***** RANDOMISE VELOCITY CYLINDRICALLY ***** //
+	// 	Following work from:
+	//	Generating equally weighted test particles from the one-way flux of a drifting Maxwellian
+	//	T Makkonen, M I Airila & T Kurki-Suonio
+	//	http://iopscience.iop.org/article/10.1088/0031-8949/90/1/015204/data
+		double invel = rand_mwts(DriftNorm,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
+		Position.setz(zmin);
+		if( rad(mt) > 0.5 ){
+			Position.setz(zmax);
+			invel=-invel+2.0*DriftNorm;
+		}
+		Velocity.setx(Gaussdist(mt));
+		Velocity.sety(Gaussdist(mt));
+		Velocity.setz(invel);
 	#endif
 }
 
-
 /*updates velocity using the Boris method, Birdsall, Plasma Physics via Computer Simulation, p.62*/
-static void UpdateVelocityBoris(double MASS, threevector Efield, threevector BField, double dt, threevector &Velocity, 
-					const int SPEC_CHARGE){
+static void UpdateVelocityBoris(double MASS, const threevector& Efield, const threevector& BField, double dt, 
+					threevector &Velocity, const int SPEC_CHARGE){
 
-	/*t vector*/
-	threevector t = BField*0.5*SPEC_CHARGE*dt;
-	
 	/*magnitude of t, squared*/
-	double t_mag2 = t.square();
+	double t_mag2 = (BField*0.5*SPEC_CHARGE*dt).square();
 
-	/*s vector*/
-	threevector s = 2.0*t*(1.0/(1.0+t_mag2));
-	
-	/*v minus*/
-	threevector v_minus = Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt; 
+	/*v prime*/
+	threevector v_prime = Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt 
+				+ ((Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt)^BField*0.5*SPEC_CHARGE*dt);
 	
 	/*v prime*/
-	threevector v_prime = v_minus + (v_minus^t);
-	
-	/*v prime*/
-	threevector v_plus = v_minus + (v_prime^s);
+	threevector v_plus = Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt 
+				+ (v_prime^(2.0*BField*0.5*SPEC_CHARGE*dt*(1.0/(1.0+t_mag2))));
 	
 	/*v n+1/2*/
 	Velocity = v_plus + Efield*0.5*(SPEC_CHARGE/MASS)*dt;
 }
 
 #ifdef COULOMB_POTENTIAL
-threevector CoulombField(threevector Position, double Charge, double COULOMB_NORM){
-	threevector Efield = (COULOMB_NORM*Charge/Position.square())*Position.getunit(); // 0.07, 0.1475
-	return Efield;
+threevector CoulombField(const threevector &Position, double Charge, double COULOMB_NORM){
+//	threevector Efield = (COULOMB_NORM*Charge/Position.square())*Position.getunit(); // 0.07, 0.1475
+	return (COULOMB_NORM*Charge/Position.square())*Position.getunit();
 }
 #endif
 
 #ifdef DEBYE_POTENTIAL
-threevector DebyeHuckelField(threevector Position, double Charge, double DebyeLength, double COULOMB_NORM){
+threevector DebyeHuckelField(const threevector &Position, double Charge, double DebyeLength, double COULOMB_NORM){
 	if(Charge==0.0) return threevector(0.0,0.0,0.0);
 //	threevector Efield = COULOMB_NORM*Charge*(1.0/(Position.mag3()))*exp(-Position.mag3()/DebyeLength)
 //				*(1.0/Position.mag3()+1.0/DebyeLength)*Position.getunit();
 
-	threevector Efield = COULOMB_NORM*Charge*(1.0/(Position.square()))*exp(-Position.mag3()/DebyeLength)
-				*Position.getunit();
-	return Efield;
+//	threevector Efield = COULOMB_NORM*Charge*(1.0/(Position.square()))*exp(-Position.mag3()/DebyeLength)
+//				*Position.getunit();
+	return COULOMB_NORM*Charge*(1.0/(Position.square()))*exp(-Position.mag3()/DebyeLength)
+                                *Position.getunit();
 }
 #endif
 
@@ -499,8 +489,17 @@ int main(int argc, char* argv[]){
 //	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(1+eImpactParameter,2)/pow(1+iImpactParameter,2));
 	assert(fabs(ezmax)==fabs(ezmin)); // The min and max heights must match as long as the ProbabilityOfIon is the same for
 	assert(fabs(izmax)==fabs(izmin)); // both the top and bottom surfaces.
-	double BoltzmanneDensity = eDensity*exp(PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
-	double BoltzmanniDensity = iDensity*exp(-PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
+	#ifdef SPHERICAL_INJECTION
+		double BoltzmanneDensity = eDensity
+				*exp(PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*eImpactParameter*Radius*echarge*eTemp));
+		double BoltzmanniDensity = iDensity
+				*exp(-PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*iImpactParameter*Radius*echarge*iTemp));
+	#else
+		double BoltzmanneDensity = eDensity
+				*exp(PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
+		double BoltzmanniDensity = iDensity
+				*exp(-PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
+	#endif
 	double ElecToIonRatio = (BoltzmanneDensity/BoltzmanniDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(eImpactParameter,2)
 					/pow(iImpactParameter,2));
 	double ProbabilityOfIon = 1.0/(1.0+ElecToIonRatio);
@@ -552,7 +551,14 @@ int main(int argc, char* argv[]){
 	DECLARE_AMSUM();
 	DECLARE_AMOM();
 
+	unsigned long long NumberOfIons = ProbabilityOfIon*imax;
+	unsigned long long NumberOfElectrons = (1.0-ProbabilityOfIon)*imax;
+
+	std::cout << "\n#I = " << NumberOfIons;
+	std::cout << "\t#e = " << NumberOfElectrons;
+
 	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0), TotalNum(0);
+	unsigned long long e_simulated(0), i_simulated(0);
 	long long CapturedCharge(0), RegeneratedCharge(0), TrappedCharge(0), MissedCharge(0), TotalCharge(0);
 
 	unsigned long long smax = imax / Saves;
@@ -596,7 +602,7 @@ int main(int argc, char* argv[]){
 	
 				// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
 				// MassRatio is squared because of absence of mass in Boris solver
-				if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon ){ 
+				if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon && i_simulated < NumberOfIons ){ 
 					// If this is the case, we need to generate an ion
 					BMagNorm = BMag/MAGNETIC;
 					ImpactParameter=iImpactParameter;
@@ -606,16 +612,32 @@ int main(int argc, char* argv[]){
 					TimeStep = TimeStepi;
 					SpeciesMass = 1.0;
 					SPEC_CHARGE=1;
-				}else{
-					// If this is the case, we need to generate an electron
-					BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
-					ImpactParameter=eImpactParameter;
-					ThermalVel=eThermalVel;
-					zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
-					zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
-		 			TimeStep = TimeStepe;
-					SpeciesMass = 1.0/pow(MassRatio,2);
-					SPEC_CHARGE=-1;
+					i_simulated = i_simulated + 1;
+					
+				}else{ // If this is the case, we need to generate an electron
+					if( e_simulated < NumberOfElectrons ){
+						BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
+						ImpactParameter=eImpactParameter;
+						ThermalVel=eThermalVel;
+						zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
+						zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
+		 				TimeStep = TimeStepe;
+						SpeciesMass = 1.0/pow(MassRatio,2);
+						SPEC_CHARGE=-1;
+						e_simulated = e_simulated + 1;
+					}else if( i_simulated < NumberOfIons ){
+						BMagNorm = BMag/MAGNETIC;
+						ImpactParameter=iImpactParameter;
+						ThermalVel=iThermalVel;
+						zmax 	= izmax; 
+						zmin 	= izmin ;
+						TimeStep = TimeStepi;
+						SpeciesMass = 1.0;
+						SPEC_CHARGE=1;
+						i_simulated = i_simulated + 1;
+					}else{
+						std::cerr << "\nWARNING! ALL PARTICLES SIMULATED";
+					}
 				}
 				BField = BMagNorm*Bhat;
 	
@@ -856,7 +878,10 @@ int main(int argc, char* argv[]){
 		// ***** PRINT CHARGE AND PATH COUNTERS 	***** //
 		RunDataFile << "j\tjCharge\tMissed\tMCharge\tRegen\tRCharge\tTrapped\tTCharge\tGross\tGCharge\n"; 
 		RunDataFile << j << "\t" << CapturedCharge << "\t" << MissedParticles << "\t" << MissedCharge << "\t" << RegeneratedParticles << "\t" << RegeneratedCharge << "\t" << TrappedParticles << "\t" << TrappedCharge << "\t" << TotalNum << "\t" << TotalCharge << "\n";
-	
+		if( i_Simulated < NumberOfIons || e_Simulated < NumberOfElectrons ){
+			std::cerr << "\nError! Total particle goal was not reached! Data may be invalid! : ";
+			RunDataFile << "\n\n* Error! Total particle goal was not reached! *";
+		}
 		clock_t end = clock();
 		double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
 		RunDataFile << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n\n";

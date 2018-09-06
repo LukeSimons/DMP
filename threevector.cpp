@@ -104,10 +104,11 @@ double threevector::getphi()const
 threevector threevector::getunit()const
 {
 	threevector unitvec(0.0,0.0,0.0);
-	if(mag3()!=0.0){
-		unitvec.setx(xcoord/mag3());
-		unitvec.sety(ycoord/mag3());
-		unitvec.setz(zcoord/mag3());
+	double Magnitude = mag3();
+	if(Magnitude!=0.0){
+		unitvec.setx(xcoord/Magnitude);
+		unitvec.sety(ycoord/Magnitude);
+		unitvec.setz(zcoord/Magnitude);
 	}
 	return unitvec;
 }
@@ -154,6 +155,7 @@ void threevector::operator=(threevector v_old)
 threevector threevector::operator*(double scalar)const
 {
 	threevector v_new(xcoord*scalar,ycoord*scalar,zcoord*scalar);
+
 	return v_new;
 }
 
