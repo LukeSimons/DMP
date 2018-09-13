@@ -1,5 +1,5 @@
 #define CALCULATE_MOM
-//#define SELF_CONS_CHARGE
+#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
@@ -8,7 +8,7 @@
 #define SAVE_ENDPOS
 #define SAVE_SPECIES
 
-//#define SPHERICAL_INJECTION
+#define SPHERICAL_INJECTION
 //#define POINT_INJECTION
 //#define NO_SPHERE
 
@@ -529,10 +529,13 @@ int main(int argc, char* argv[]){
 	OPEN_EPOS();	HEAD_EPOS();
 	OPEN_SPEC();	HEAD_SPEC();
 
+	unsigned long long NumberOfIons = ProbabilityOfIon*imax;
+	unsigned long long NumberOfElectrons = (1.0-ProbabilityOfIon)*imax;
+	
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
-	RunDataFile << "#Input:\t\tValue\n\nimax (arb #):\t\t"<<imax<<"\njmax (arb #):\t\t"<<jmax<<"\nElecToIonratio (arb):\t"<<ElecToIonRatio<<"\nProbOfIon (arb):\t"<<ProbabilityOfIon<<"\n\nElectron Gyro (1/Radius):\t"<<eRhoTherm<<"\nElectron Temp (eV):\t\t"<<eTemp<<"\nElec Density (m^-^3):\t\t"<<BoltzmanneDensity<<"\nElectron IP (1/Radius):\t\t"<<eImpactParameter<<"\nElectron zmax (1/Radius):\t"<<ezmax<<"\nElectron zmin (1/Radius):\t"<<ezmin<<"\nElecs Timestep (Tau):\t\t"<<TimeStepe<<"\n\nIon Gyro (1/Radius):\t"<<iRhoTherm<<"\nIon Temp (eV):\t\t"<<iTemp<<"\nIon Density (m^-^3):\t"<<BoltzmanniDensity<<"\nIon IP (1/Radius):\t"<<iImpactParameter<<"\nIon zmax (1/Radius):\t"<<izmax<<"\nIon zmin (1/Radius):\t"<<izmin<<"\nIon Timestep (Tau):\t"<<TimeStepi<<"\n\nRadius (m):\t\t"<<Radius<<"\nSpin (1/Tau):\t\t"<<Spin*Tau<<"\na1 (1/Radius):\t\t"<<(1.0/sqrt(a1))<<"\na2 (1/Radius):\t\t"<<(1.0/sqrt(a2))<<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"<<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm<<"\nB Field (T or Radius/GyroRad):\t"<<BMag<<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm<<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"<<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
+	RunDataFile << "#Input:\t\tValue\n\nimax (arb #):\t\t"<<imax<<"\njmax (arb #):\t\t"<<jmax<<"\nIon # (arb #):\t\t" << NumberOfIons<<"\nElec # (arb #):\t\t"<<NumberOfElectrons<<"\nElecToIonratio (arb):\t"<<ElecToIonRatio<<"\nProbOfIon (arb):\t"<<ProbabilityOfIon<<"\n\nElectron Gyro (1/Radius):\t"<<eRhoTherm<<"\nElectron Temp (eV):\t\t"<<eTemp<<"\nElec Density (m^-^3):\t\t"<<BoltzmanneDensity<<"\nElectron IP (1/Radius):\t\t"<<eImpactParameter<<"\nElectron zmax (1/Radius):\t"<<ezmax<<"\nElectron zmin (1/Radius):\t"<<ezmin<<"\nElecs Timestep (Tau):\t\t"<<TimeStepe<<"\n\nIon Gyro (1/Radius):\t"<<iRhoTherm<<"\nIon Temp (eV):\t\t"<<iTemp<<"\nIon Density (m^-^3):\t"<<BoltzmanniDensity<<"\nIon IP (1/Radius):\t"<<iImpactParameter<<"\nIon zmax (1/Radius):\t"<<izmax<<"\nIon zmin (1/Radius):\t"<<izmin<<"\nIon Timestep (Tau):\t"<<TimeStepi<<"\n\nRadius (m):\t\t"<<Radius<<"\nSpin (1/Tau):\t\t"<<Spin*Tau<<"\na1 (1/Radius):\t\t"<<(1.0/sqrt(a1))<<"\na2 (1/Radius):\t\t"<<(1.0/sqrt(a2))<<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"<<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm<<"\nB Field (T or Radius/GyroRad):\t"<<BMag<<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm<<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"<<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
 	#ifdef DEBYE_POTENTIAL
 		RunDataFile << "* DEBYE HUCKEL POTENTIAL *\n\n";
 	#endif
@@ -550,12 +553,6 @@ int main(int argc, char* argv[]){
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	DECLARE_AMOM();
-
-	unsigned long long NumberOfIons = ProbabilityOfIon*imax;
-	unsigned long long NumberOfElectrons = (1.0-ProbabilityOfIon)*imax;
-
-	std::cout << "\n#I = " << NumberOfIons;
-	std::cout << "\t#e = " << NumberOfElectrons;
 
 	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0), TotalNum(0);
 	unsigned long long e_simulated(0), i_simulated(0);
@@ -602,6 +599,8 @@ int main(int argc, char* argv[]){
 	
 				// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
 				// MassRatio is squared because of absence of mass in Boris solver
+				#pragma omp critical
+				{
 				if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon && i_simulated < NumberOfIons ){ 
 					// If this is the case, we need to generate an ion
 					BMagNorm = BMag/MAGNETIC;
@@ -638,6 +637,7 @@ int main(int argc, char* argv[]){
 					}else{
 						std::cerr << "\nWARNING! ALL PARTICLES SIMULATED";
 					}
+				}
 				}
 				BField = BMagNorm*Bhat;
 	
@@ -805,7 +805,7 @@ int main(int argc, char* argv[]){
 						}
 						// For SELF_CONS_CHARGE, update the probability of generating ions or electrons
 						#ifdef SELF_CONS_CHARGE
-						UPDATE_PROB();
+						//UPDATE_PROB();
 						#endif
 						if( reflections >= reflectionsmax ){        // In this case it was trapped!
         	                                        TrappedParticles ++;
@@ -881,6 +881,7 @@ int main(int argc, char* argv[]){
 		if( (i_simulated < NumberOfIons || e_simulated < NumberOfElectrons) && s == smax ){
 			std::cerr << "\nError! Total particle goal was not reached! Data may be invalid!";
 			RunDataFile << "\n\n* Error! Total particle goal was not reached! *";
+			RunDataFile << "\n\n*i_sim =  " << i_simulated << "\te_sim = " << e_simulated << "* ";
 		}
 		clock_t end = clock();
 		double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
