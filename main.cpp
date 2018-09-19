@@ -12,8 +12,8 @@
 //#define POINT_INJECTION
 //#define NO_SPHERE
 
-#define COULOMB_POTENTIAL
-//#define DEBYE_POTENTIAL
+//#define COULOMB_POTENTIAL
+#define DEBYE_POTENTIAL
 
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
@@ -206,13 +206,13 @@ threevector CoulombField(const threevector &Position, double Charge, double COUL
 #ifdef DEBYE_POTENTIAL
 threevector DebyeHuckelField(const threevector &Position, double Charge, double DebyeLength, double COULOMB_NORM){
 	if(Charge==0.0) return threevector(0.0,0.0,0.0);
-//	threevector Efield = COULOMB_NORM*Charge*(1.0/(Position.mag3()))*exp(-Position.mag3()/DebyeLength)
-//				*(1.0/Position.mag3()+1.0/DebyeLength)*Position.getunit();
+	return COULOMB_NORM*Charge*(1.0/(Position.mag3()))*exp(-(Position.mag3()-1.0)/DebyeLength)
+				*(1.0/Position.mag3()+1.0/DebyeLength)*Position.getunit();
 
 //	threevector Efield = COULOMB_NORM*Charge*(1.0/(Position.square()))*exp(-Position.mag3()/DebyeLength)
 //				*Position.getunit();
-	return COULOMB_NORM*Charge*(1.0/(Position.square()))*exp(-Position.mag3()/DebyeLength)
-                                *Position.getunit();
+//	return COULOMB_NORM*Charge*(1.0/(Position.square()))*exp(-Position.mag3()/DebyeLength)
+//                                *Position.getunit();
 }
 #endif
 
@@ -490,15 +490,33 @@ int main(int argc, char* argv[]){
 	assert(fabs(ezmax)==fabs(ezmin)); // The min and max heights must match as long as the ProbabilityOfIon is the same for
 	assert(fabs(izmax)==fabs(izmin)); // both the top and bottom surfaces.
 	#ifdef SPHERICAL_INJECTION
+		#ifdef COULOMB_POTENTIAL
 		double BoltzmanneDensity = eDensity
 				*exp(PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*eImpactParameter*Radius*echarge*eTemp));
 		double BoltzmanniDensity = iDensity
 				*exp(-PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*iImpactParameter*Radius*echarge*iTemp));
+		#else
+		double BoltzmanneDensity = eDensity
+				*exp(PotentialNorm*echarge*echarge*exp(-(eImpactParameter-1.0)/DebyeLength)
+				/(4.0*PI*epsilon0*eImpactParameter*Radius*echarge*eTemp));
+		double BoltzmanniDensity = iDensity
+				*exp(-PotentialNorm*echarge*echarge*exp(-(iImpactParameter-1.0)/DebyeLength)
+				/(4.0*PI*epsilon0*iImpactParameter*Radius*echarge*iTemp));
+		#endif
 	#else
+		#ifdef COULOMB_POTENTIAL
 		double BoltzmanneDensity = eDensity
 				*exp(PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
 		double BoltzmanniDensity = iDensity
 				*exp(-PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
+		#else
+		double BoltzmanneDensity = eDensity
+                                *exp(PotentialNorm*echarge*echarge*exp(-(ezmax-1.0)/DebyeLength)
+				/(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
+                double BoltzmanniDensity = iDensity
+                                *exp(-PotentialNorm*echarge*echarge*exp(-(izmax-1.0)/DebyeLength)
+				/(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
+		#endif
 	#endif
 	double ElecToIonRatio = (BoltzmanneDensity/BoltzmanniDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(eImpactParameter,2)
 					/pow(iImpactParameter,2));
