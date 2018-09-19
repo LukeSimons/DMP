@@ -1,5 +1,5 @@
 #define CALCULATE_MOM
-#define SELF_CONS_CHARGE
+//#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
@@ -12,15 +12,15 @@
 //#define POINT_INJECTION
 //#define NO_SPHERE
 
-//#define COULOMB_POTENTIAL
-#define DEBYE_POTENTIAL
+#define COULOMB_POTENTIAL
+//#define DEBYE_POTENTIAL
 
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
 //#define TEST_CLOSEST_APPROACH
 //#define TEST_CHARGING
 //#define TEST_ANGMOM
-//#define TEST_ENERGY
+#define TEST_ENERGY
 
 #include <omp.h>	// For parallelisation
 
@@ -122,7 +122,6 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
 	std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
 	std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
-
 	#ifdef SPHERICAL_INJECTION
 		// ***** RANDOMISE POSITION SPHERICALLY ***** //
 		double theta_pos  = 2.0*PI*rad(mt);
@@ -139,7 +138,7 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	
 		Velocity.setx(Gaussdist(mt));
 		Velocity.sety(Gaussdist(mt));
-		Velocity.setz(rand_mwts(DriftNorm,ThermalVel,mt));
+		Velocity.setz(Gaussdist(mt)+DriftNorm);
 		
 		if( Position*Velocity > 0.0 ){
 			Position = -1.0*Position;
@@ -656,15 +655,13 @@ int main(int argc, char* argv[]){
 						std::cerr << "\nWARNING! ALL PARTICLES SIMULATED";
 					}
 				}
-				}
 				BField = BMagNorm*Bhat;
-	
-				// ************************************************** //
-		
-	
 				// ***** GENERATE AN ORBIT ***** //
+
+				}
 				GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,
 						randnumbers[omp_get_thread_num()]);
+
 	
 				// ************************************************** //
 	
@@ -848,8 +845,19 @@ int main(int argc, char* argv[]){
 					FINAL_POT(); 
 					PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
 					PRINT_ENERGY(100*(Velocity.square()/InitialVel.square()-1.0));  PRINT_ENERGY("\t");
-					PRINT_ENERGY(0.5*Mp*SpeciesMass*Velocity.square()+SPEC_CHARGE*FinalPot-
-							(0.5*Mp*SpeciesMass*InitialVel.square()+SPEC_CHARGE*InitialPot));  
+					PRINT_ENERGY(0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
+					PRINT_ENERGY(0.5*Mp*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
+					PRINT_ENERGY(SPEC_CHARGE*FinalPot);  PRINT_ENERGY("\t");
+					PRINT_ENERGY(SPEC_CHARGE*InitialPot);  PRINT_ENERGY("\t");
+					PRINT_ENERGY(0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
+							+SPEC_CHARGE*InitialPot);  PRINT_ENERGY("\t");
+					PRINT_ENERGY(0.5*Mp*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
+							+SPEC_CHARGE*FinalPot);  PRINT_ENERGY("\t");
+
+					PRINT_ENERGY((0.5*Mp*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
+							+SPEC_CHARGE*FinalPot)/
+							(0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
+							+SPEC_CHARGE*InitialPot) - 1.0);  
 					PRINT_ENERGY("\n");
 					TotalNum ++;
 					TotalCharge += SPEC_CHARGE;
