@@ -1,5 +1,5 @@
 #define CALCULATE_MOM
-//#define SELF_CONS_CHARGE
+#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
@@ -20,7 +20,7 @@
 //#define TEST_CLOSEST_APPROACH
 //#define TEST_CHARGING
 //#define TEST_ANGMOM
-#define TEST_ENERGY
+//#define TEST_ENERGY
 
 #include <omp.h>	// For parallelisation
 
@@ -305,6 +305,7 @@ int main(int argc, char* argv[]){
 		else if( arg == "--forceimppar"	|| arg == "-f" )	InputFunction(argc,argv,i,ss0,ForceImpPar);
 		else if( arg == "--imax"	|| arg == "-i" )	InputFunction(argc,argv,i,ss0,imax);
 		else if( arg == "--jmax"	|| arg == "-j" )	InputFunction(argc,argv,i,ss0,jmax);
+		else if( arg == "--rmax"	|| arg == "-rm" )	InputFunction(argc,argv,i,ss0,reflectionsmax);
 		else if( arg == "--time"	|| arg == "-t" )	InputFunction(argc,argv,i,ss0,TimeStepFactor);
 		else if( arg == "--number"	|| arg == "-no")	InputFunction(argc,argv,i,ss0,num);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
@@ -413,8 +414,10 @@ int main(int argc, char* argv[]){
 	
 
 	// ***** DEFINE SIMULATION SPACE 		***** //
-	double iThermalVel	= sqrt(echarge*iTemp/(Mp*2.0*PI))*(Tau/Radius);		// Normalised Ion Thermal velocity
-	double eThermalVel	= sqrt(echarge*eTemp/(Me*2.0*PI))*(Tau/Radius);	// Normalised Electron Thermal velocity
+	// See : https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
+	// For reasoning on choice of Velocity vector
+	double iThermalVel	= sqrt(3.0*echarge*iTemp/(2.0*Mp))*(Tau/Radius);		// Normalised Ion Thermal velocity
+	double eThermalVel	= sqrt(3.0*echarge*eTemp/(2.0*Me))*(Tau/Radius);	// Normalised Electron Thermal velocity
 	double iCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*iTemp))/Radius; // Balance Coulomb to kinetic energy
 	double eCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*eTemp))/Radius; // Balance Coulomb to kinetic energy
 
@@ -583,7 +586,7 @@ int main(int argc, char* argv[]){
 		RunDataFile.clear();
 		RunDataFile.open(filename+suffix, std::fstream::app);
 
-		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
+		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,j) private(reflectionsmax) PRIVATE_FILES()
 		{
 		threevector Position(0.0,0.0,0.0);
 		threevector Velocity(0.0,0.0,0.0);
@@ -727,6 +730,10 @@ int main(int argc, char* argv[]){
 				// While we don't exceed a specified number of reflections to catch trapped orbits AND	
 				// while the particle is not inside the sphere and not outside the simulation domain
 				reflections=0;
+				double r_max(reflectionsmax);
+				if( PotentialNorm*SPEC_CHARGE > 0.0 ){ // In this case, potential is repulsive
+					r_max = 1.0;
+				}
 
 				EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
 
@@ -740,7 +747,7 @@ int main(int argc, char* argv[]){
 					SphereCondition = true;
 				#endif
 
-				while( SphereCondition && EdgeCondition && reflections < reflectionsmax ){
+				while( SphereCondition && EdgeCondition && reflections < r_max ){
 					#ifdef DEBYE_POTENTIAL
 						EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
 	                                #endif
@@ -792,7 +799,7 @@ int main(int argc, char* argv[]){
 				AngularMom = SpeciesMass*(FinalPosition^Velocity); 		
 				#pragma omp critical
 				{
-					if( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) < 1.0 || reflections >= reflectionsmax ){ // In this case it was captured!
+					if( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) < 1.0 ){ // In this case it was captured!
 						double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
 						AngularVel = (AngVelNorm)*
 						((FinalPosition^Velocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
@@ -822,11 +829,10 @@ int main(int argc, char* argv[]){
 						#ifdef SELF_CONS_CHARGE
 						//UPDATE_PROB();
 						#endif
-						if( reflections >= reflectionsmax ){        // In this case it was trapped!
-        	                                        TrappedParticles ++;
-	                                                TrappedCharge += SPEC_CHARGE;
-                                        	}
-					}else{ 				// In this case it missed!
+					}else if( reflections >= r_max ){        // In this case it was trapped!
+						TrappedParticles ++; 
+						TrappedCharge += SPEC_CHARGE;
+                                        }else{				// In this case it missed!
 					#ifdef TEST_CLOSEST_APPROACH	
 //					if( Min_r1 <= Radius ){//|| fabs(Min_r2) <= Radius){	
 						std::cout << "\n" << i << "\t" << j << "\t" << MinPos*Radius
