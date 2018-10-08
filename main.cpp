@@ -1,12 +1,15 @@
 #define CALCULATE_MOM
+#define CALCULATE_CLOSEST_APPROACH
 //#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 #define SAVE_LINEAR_MOM
+#define SAVE_STARTPOS
 #define SAVE_ENDPOS
 #define SAVE_SPECIES
+#define SAVE_APPROACH
 
 //#define SPHERICAL_INJECTION
 //#define POINT_INJECTION
@@ -17,7 +20,7 @@
 
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
-//#define TEST_CLOSEST_APPROACH
+
 //#define TEST_CHARGING
 //#define TEST_ANGMOM
 //#define TEST_ENERGY
@@ -226,7 +229,9 @@ int main(int argc, char* argv[]){
 	DECLARE_AVEL();			// Data file for angular momentum information
 	DECLARE_LMOM();			// Data file for linear momentum information
 	DECLARE_CHA();			// Data file for charge
+	DECLARE_SPOS();			// Data file for starting positions
 	DECLARE_EPOS();			// Data file for end positions
+	DECLARE_APP();			// Date file for closest approaches
 	DECLARE_SPEC();			// Data file for the species
 	std::ofstream RunDataFile;	// Data file for containing the run information
 	std::ofstream InputDataFile;	// Data file for containing the input information
@@ -527,6 +532,8 @@ int main(int argc, char* argv[]){
 	OPEN_LMOM();	HEAD_LMOM();
 	OPEN_CHA();	HEAD_CHA();
 	OPEN_EPOS();	HEAD_EPOS();
+	OPEN_SPOS();	HEAD_SPOS();
+	OPEN_APP();	HEAD_APP()
 	OPEN_SPEC();	HEAD_SPEC();
 
 	RunDataFile.open(filename + suffix);
@@ -577,6 +584,8 @@ int main(int argc, char* argv[]){
 		threevector EField(0.0,0.0,0.0);
 		threevector OldPosition(0.0,0.0,0.0);
 		threevector AngularVel(0.0,0.0,0.0);
+		threevector InitialPos(0.0,0.0,0.0);
+		threevector InitialVel(0.0,0.0,0.0);
 		threevector FinalPosition(0.0,0.0,0.0);
 		threevector AngularMom(0.0,0.0,0.0);
 		unsigned int reflections(0);
@@ -648,8 +657,9 @@ int main(int argc, char* argv[]){
 				GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,
 						randnumbers[omp_get_thread_num()]);
 	
+				InitialPos = Position;
+				InitialVel = Velocity;
 				// ************************************************** //
-	
 	
 				// ***** TESTING AREA  				***** //
 				// ***** ANGULAR-MOMENTUM TEST 			***** //
@@ -674,7 +684,7 @@ int main(int argc, char* argv[]){
 				// ***** ENERGY TEST: MEASURE INITIAL ENERGY	***** //
 				INITIAL_VEL();						// For energy calculations
 				INITIAL_POT();						// For energy calculations
-				#ifdef TEST_CLOSEST_APPROACH
+				#ifdef CALCULATE_CLOSEST_APPROACH
 				double C1 = fabs(2.0*echarge*echarge*PotentialNorm/(Mp*4.0*PI*epsilon0));
 				double ri = Position.mag3()*Radius;
 				double vmag = Velocity.mag3()*Radius/Tau;
@@ -743,7 +753,7 @@ int main(int argc, char* argv[]){
 					}
 
 					Position+=TimeStep*Velocity;
-					#ifdef TEST_CLOSEST_APPROACH
+					#ifdef CALCULATE_CLOSEST_APPROACH
 					if( OldPosition.mag3() > Position.mag3() || Position.mag3() < MinPos ){
 						MinPos = Position.mag3();
 					}
@@ -800,7 +810,9 @@ int main(int argc, char* argv[]){
 							SAVE_AVEL()
 							SAVE_LMOM()
 							SAVE_CHA()
+							SAVE_SPOS()
 							SAVE_EPOS()
+							SAVE_APP()
 							SAVE_SPEC()
 						}
 						// For SELF_CONS_CHARGE, update the probability of generating ions or electrons
@@ -812,13 +824,15 @@ int main(int argc, char* argv[]){
 	                                                TrappedCharge += SPEC_CHARGE;
                                         	}
 					}else{ 				// In this case it missed!
-					#ifdef TEST_CLOSEST_APPROACH	
+//					#ifdef TEST_CLOSEST_APPROACH	
 //					if( Min_r1 <= Radius ){//|| fabs(Min_r2) <= Radius){	
-						std::cout << "\n" << i << "\t" << j << "\t" << MinPos*Radius
-								<< "\t" << Min_r1 << "\t" << Min_r2 << "\t" << std::min(Min_r1,fabs(Min_r2));
+//						std::cout << "\n" << i << "\t" << j << "\t" << MinPos*Radius
+//								<< "\t" << Min_r1 << "\t" << Min_r2 << "\t" << std::min(Min_r1,fabs(Min_r2));
 //					}
-					#endif
-
+//					#endif
+						SAVE_SPOS()
+						SAVE_EPOS()
+						SAVE_APP()
 						LinearMomentumSum += SpeciesMass*Velocity;	
 						AngularMomentumSum += AngularMom;
 						MissedParticles ++;
@@ -896,6 +910,8 @@ int main(int argc, char* argv[]){
 	CLOSE_LMOM();
 	CLOSE_CHA();
 	CLOSE_EPOS();
+	CLOSE_SPOS();
+	CLOSE_APP();
 	CLOSE_SPEC();
 
 	// ************************************************** //
