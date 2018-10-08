@@ -8,7 +8,7 @@
 #define SAVE_ENDPOS
 #define SAVE_SPECIES
 
-#define SPHERICAL_INJECTION
+//#define SPHERICAL_INJECTION
 //#define POINT_INJECTION
 //#define NO_SPHERE
 
@@ -86,6 +86,8 @@ static void show_usage(std::string name){
 	<< "\t\timax(=10000) DEFAULT,\t\tBy Default, inject 10,000 particles\n\n"
 	<< "\t-j,--jmax JMAX\t\t\t(int), Specify the number of particles to be collected (not exceeding imax)\n"
 	<< "\t\tjmax(=5000) DEFAULT,\t\tBy Default, stop simulation if 5,000 particles are collected\n\n"
+	<< "\t-rm,--rmax RMAX\t\t\t(int), Specify the number of reflections in z axis before assuming orbit misses\n"
+	<< "\t\trmax(=15) DEFAULT,\t\tBy Default, stop simulation if Particle reflects in z axis 15 times\n\n"
 	<< "\t-t,--timestep TIMESTEP\t\t(double), Specify the multiplicative factor for the time step\n"
 	<< "\t\tTimeStepFactor(=0.0005) DEFAULT,\n\n"
 	<< "\t-no,--number NUMBER\t\t\t(int), Specify the number of particles to be captured before saving\n"
@@ -378,9 +380,9 @@ int main(int argc, char* argv[]){
 	if( NormalisedVars ){	// If we're using S&L normalised units but iChance is undertermined
 
 		if( iChance == 0.0 ){ // If we are simulating only Electrons
-        	        BMag = pow(2.0/PI,2.0)*BMagIn*sqrt(PI*Me*eTemp/(2*echarge))/Radius;	// BMag normalised to Electrons
+        	        BMag = sqrt(PI/2.0)*BMagIn*sqrt(3.0*Me*eTemp/(2*echarge))/Radius;	// BMag normalised to Electrons
 		}else{	// If we are simulating only Ions or otherwise Ions and electrons.
-			BMag = pow(2.0/PI,2.0)*BMagIn*sqrt(PI*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
+			BMag = sqrt(PI/2.0)*BMagIn*sqrt(3.0*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
 		}
 
 	}else{
@@ -586,7 +588,7 @@ int main(int argc, char* argv[]){
 		RunDataFile.clear();
 		RunDataFile.open(filename+suffix, std::fstream::app);
 
-		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,j) private(reflectionsmax) PRIVATE_FILES()
+		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
 		{
 		threevector Position(0.0,0.0,0.0);
 		threevector Velocity(0.0,0.0,0.0);
@@ -730,9 +732,9 @@ int main(int argc, char* argv[]){
 				// While we don't exceed a specified number of reflections to catch trapped orbits AND	
 				// while the particle is not inside the sphere and not outside the simulation domain
 				reflections=0;
-				double r_max(reflectionsmax);
+				unsigned int r_max = reflectionsmax;
 				if( PotentialNorm*SPEC_CHARGE > 0.0 ){ // In this case, potential is repulsive
-					r_max = 1.0;
+					r_max = 1;
 				}
 
 				EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
