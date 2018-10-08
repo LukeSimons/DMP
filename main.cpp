@@ -771,8 +771,7 @@ int main(int argc, char* argv[]){
 					UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
 					
 
-					if( (Velocity.getz() > 0.0 && PreviousVelocity <= 0.0) || 
-						(Velocity.getz() < 0.0 && PreviousVelocity >= 0.0) ){
+					if( (Velocity.getz()*PreviousVelocity <= 0.0) ){
 						reflections ++;
 					}
 
