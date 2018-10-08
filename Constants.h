@@ -77,6 +77,20 @@
 #define CLOSE_CHA()
 #endif 
 
+#ifdef SAVE_STARTPOS
+#define DECLARE_SPOS()	std::ofstream StartPosDataFile;
+#define OPEN_SPOS()	StartPosDataFile.open("Data/DiMPl_StartPos.txt");
+#define HEAD_SPOS()	StartPosDataFile << "#Collect num\tSimulated num\tx\ty\tz\tvx\tvy\tvz\tv·r";
+#define SAVE_SPOS()	StartPosDataFile << "\n" << j << "\t" << i << "\t" << InitialPos << "\t" << InitialVel << "\t" << InitialVel*(InitialPos.getunit());
+#define CLOSE_SPOS()	StartPosDataFile.close();
+#else
+#define DECLARE_SPOS()
+#define OPEN_SPOS()
+#define HEAD_SPOS()
+#define SAVE_SPOS()
+#define CLOSE_SPOS()
+#endif 
+
 #ifdef SAVE_ENDPOS
 #define DECLARE_EPOS()	std::ofstream EndPosDataFile;
 #define OPEN_EPOS()	EndPosDataFile.open("Data/DiMPl_EndPos.txt");
@@ -89,7 +103,21 @@
 #define HEAD_EPOS()
 #define SAVE_EPOS()
 #define CLOSE_EPOS()
-#endif 
+#endif
+
+#ifdef SAVE_APPROACH
+#define DECLARE_APP()	std::ofstream ApproachDataFile;
+#define OPEN_APP()	ApproachDataFile.open("Data/DiMPl_Approach.txt");
+#define HEAD_APP()	ApproachDataFile << "#Collect num\tSimulated num\trmin";
+#define SAVE_APP()	ApproachDataFile << "\n" << j << "\t" << i << "\t" << MinPos;
+#define CLOSE_APP()	ApproachDataFile.close();
+#else
+#define DECLARE_APP()
+#define OPEN_APP()
+#define HEAD_APP()
+#define SAVE_APP()
+#define CLOSE_APP()
+#endif  
 
 #ifdef SAVE_SPECIES
 #define DECLARE_SPEC()	std::ofstream SpeciesDataFile;
