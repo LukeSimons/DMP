@@ -1,15 +1,15 @@
 #define CALCULATE_MOM
-#define CALCULATE_CLOSEST_APPROACH
-//#define SELF_CONS_CHARGE
+//#define CALCULATE_CLOSEST_APPROACH
+#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 #define SAVE_LINEAR_MOM
-#define SAVE_STARTPOS
+//#define SAVE_STARTPOS
 #define SAVE_ENDPOS
 #define SAVE_SPECIES
-#define SAVE_APPROACH
+//#define SAVE_APPROACH
 
 //#define SPHERICAL_INJECTION
 //#define POINT_INJECTION
@@ -125,7 +125,9 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 			std::mt19937 &mt){
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
-	std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
+	// See https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
+	// search for "Each component of the velocity vector has a normal distribution"
+
 	std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
 	#ifdef SPHERICAL_INJECTION
 		// ***** RANDOMISE POSITION SPHERICALLY ***** //
@@ -138,13 +140,18 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	
 		// ***** RANDOMISE VELOCITY SPHERICALLY ***** //
 		// http://www.astrosurf.com/jephem/library/li110spherCart_en.htm
-//		double theta_vel = Gaussdist(mt)/radial_pos;
-//		double phi_vel = Gaussdist(mt)/radial_pos;
+		std::normal_distribution<double> Gaussdist(0.0,sqrt(3.0)*ThermalVel);
 	
-		Velocity.setx(Gaussdist(mt));
-		Velocity.sety(Gaussdist(mt));
-		Velocity.setz(Gaussdist(mt)+DriftNorm);
+		double RandVel = Gaussdist(mt);//(1.0/(2.0*PI*ThermalVel*ThermalVel))*Gaussdist(mt);
+
+		double theta_vel  = 2.0*PI*rad(mt);
+                double phi_vel    = asin(2.0*rad(mt)-1.0);
+
+		Velocity.setx(RandVel*cos(phi_vel)*cos(theta_vel));
+		Velocity.sety(RandVel*cos(phi_vel)*sin(theta_vel));
+		Velocity.setz(RandVel*sin(phi_vel)+DriftNorm);
 		
+
 		if( Position*Velocity > 0.0 ){
 			Position = -1.0*Position;
 		}
@@ -175,6 +182,8 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 			Position.setz(zmax);
 			invel=-invel+2.0*DriftNorm;
 		}
+		std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
+
 		Velocity.setx(Gaussdist(mt));
 		Velocity.sety(Gaussdist(mt));
 		Velocity.setz(invel);
@@ -423,8 +432,8 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE SIMULATION SPACE 		***** //
 	// See : https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
 	// For reasoning on choice of Velocity vector
-	double iThermalVel	= sqrt(3.0*echarge*iTemp/(2.0*Mp))*(Tau/Radius);		// Normalised Ion Thermal velocity
-	double eThermalVel	= sqrt(3.0*echarge*eTemp/(2.0*Me))*(Tau/Radius);	// Normalised Electron Thermal velocity
+	double iThermalVel	= sqrt(echarge*iTemp/Mp)*(Tau/Radius);		// Normalised Ion Thermal velocity
+	double eThermalVel	= sqrt(echarge*eTemp/Me)*(Tau/Radius);	// Normalised Electron Thermal velocity
 	double iCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*iTemp))/Radius; // Balance Coulomb to kinetic energy
 	double eCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*eTemp))/Radius; // Balance Coulomb to kinetic energy
 
