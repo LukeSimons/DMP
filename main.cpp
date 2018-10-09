@@ -140,16 +140,14 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	
 		// ***** RANDOMISE VELOCITY SPHERICALLY ***** //
 		// http://www.astrosurf.com/jephem/library/li110spherCart_en.htm
-		std::normal_distribution<double> Gaussdist(0.0,sqrt(3.0)*ThermalVel);
-	
-		double RandVel = Gaussdist(mt);//(1.0/(2.0*PI*ThermalVel*ThermalVel))*Gaussdist(mt);
+		double invel = rand_mwts(0.0,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
 
 		double theta_vel  = 2.0*PI*rad(mt);
                 double phi_vel    = asin(2.0*rad(mt)-1.0);
 
-		Velocity.setx(RandVel*cos(phi_vel)*cos(theta_vel));
-		Velocity.sety(RandVel*cos(phi_vel)*sin(theta_vel));
-		Velocity.setz(RandVel*sin(phi_vel)+DriftNorm);
+		Velocity.setx(invel*cos(phi_vel)*cos(theta_vel));
+		Velocity.sety(invel*cos(phi_vel)*sin(theta_vel));
+		Velocity.setz(invel*sin(phi_vel)+DriftNorm);
 		
 
 		if( Position*Velocity > 0.0 ){
@@ -394,9 +392,9 @@ int main(int argc, char* argv[]){
 	if( NormalisedVars ){	// If we're using S&L normalised units but iChance is undertermined
 
 		if( iChance == 0.0 ){ // If we are simulating only Electrons
-        	        BMag = sqrt(PI/2.0)*BMagIn*sqrt(3.0*Me*eTemp/(2*echarge))/Radius;	// BMag normalised to Electrons
+        	        BMag = sqrt(PI/2.0)*BMagIn*sqrt(Me*eTemp/echarge)/Radius;	// BMag normalised to Electrons
 		}else{	// If we are simulating only Ions or otherwise Ions and electrons.
-			BMag = sqrt(PI/2.0)*BMagIn*sqrt(3.0*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
+			BMag = sqrt(PI/2.0)*BMagIn*sqrt(Mp*iTemp/echarge)/Radius;	// BMag normalised to Ions
 		}
 
 	}else{
