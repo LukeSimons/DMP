@@ -120,6 +120,43 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 
 }
 
+
+#ifdef SPHERICAL_INJECTION
+/* Convert a velocity in spherical coordinates to a velocity in Cartesian
+   coordinates, at a position given in spherical coordinates. */
+void velocity_in_cartesian_coords(double* v, double phi, double theta, double* vx, double* vy, double* vz)
+{
+	*vx = (v[0] * cos(phi) * sin(theta))
+	      - (v[1] * sin(phi)) + (v[2] * cos(phi) * cos(theta));
+	*vy = (v[0] * sin(phi) * sin(theta))
+	      + (v[1] * cos(phi)) + (v[2] * sin(phi) * cos(theta));
+	*vz = (v[0] * cos(theta)) - (v[2] * sin(theta));
+}
+
+/* Generate a pair of normal random variates with mean zero and store them
+   in `nrv1` and `nrv2`. */
+void nrv_pair(double sd, double* nrv1, double* nrv2, std::mt19937 &mt)
+{
+	double r;
+	double theta;
+	long double urv1;
+
+	std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
+
+	long double urv2 = rad(mt);
+	/* Calculate the variates with the Box-Muller transform's polar form. */
+	do {
+		urv1 = rad(mt);
+	} while (urv1 == 0.0);  /* `rnd` very occasionally returns zero! */
+	r = sqrt(-2.0 * (double) logl(urv1));
+	theta = 2.0 * PI * urv2;
+	*nrv1 = sd * r * cos(theta);
+	*nrv2 = sd * r * sin(theta);
+}
+#endif
+
+
+
 void GenerateOrbit(threevector &Position, threevector &Velocity, const double &ImpactParameter, 
 			const double &zmin, const double zmax, const double DriftNorm, const double ThermalVel,
 			std::mt19937 &mt){
@@ -131,34 +168,32 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
 	#ifdef SPHERICAL_INJECTION
 		// ***** RANDOMISE POSITION SPHERICALLY ***** //
-		double theta_pos  = 2.0*PI*rad(mt);
-		double phi_pos    = asin(2.0*rad(mt)-1.0);
-		Position.setx(ImpactParameter*cos(phi_pos)*cos(theta_pos));
-		Position.sety(ImpactParameter*cos(phi_pos)*sin(theta_pos));
-		Position.setz(ImpactParameter*sin(phi_pos));
+		double phi_pos  = 2.0*PI*rad(mt);
+		double theta_pos    = acos(2.0*rad(mt)-1.0);
+		Position.setx(ImpactParameter*sin(theta_pos)*cos(phi_pos));
+		Position.sety(ImpactParameter*sin(theta_pos)*sin(phi_pos));
+		Position.setz(ImpactParameter*cos(theta_pos));
 	
 	
 		// ***** RANDOMISE VELOCITY SPHERICALLY ***** //
-		// http://www.astrosurf.com/jephem/library/li110spherCart_en.htm
-		double invel = rand_mwts(0.0,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
+		double v[3],v_temp[3];  /* 0 is v_r, 1 is v_phi, and 2 is v_theta */
+		nrv_pair(ThermalVel, &(v[0]), &(v[1]),mt);
+		nrv_pair(ThermalVel, &(v[2]), &(v[2]),mt);
 
-		double theta_vel  = 2.0*PI*rad(mt);
-                double phi_vel    = asin(2.0*rad(mt)-1.0);
-
-		Velocity.setx(invel*cos(phi_vel)*cos(theta_vel));
-		Velocity.sety(invel*cos(phi_vel)*sin(theta_vel));
-		Velocity.setz(invel*sin(phi_vel)+DriftNorm);
-		
-
-		while( Position*Velocity > 0.0 ){
-			double theta_vel  = 2.0*PI*rad(mt);
-	                double phi_vel    = asin(2.0*rad(mt)-1.0);
-	
-	                Velocity.setx(invel*cos(phi_vel)*cos(theta_vel));
-	                Velocity.sety(invel*cos(phi_vel)*sin(theta_vel));
-	                Velocity.setz(invel*sin(phi_vel)+DriftNorm);
+		if (v[0] > 0.0) {
+			/* No point injecting a particle at the outer boundary
+			   with positive radial velocity. */
+			v[0] = -v[0];
 		}
+		/* Translate the injection velocity in spherical coordinates into
+		   the desired Cartesian coordinates. Luckily I already had this
+		   worked out for John and me's spherical absorber problem! */
+		velocity_in_cartesian_coords(v, phi_pos, theta_pos, &(v_temp[0]), &(v_temp[1]), &(v_temp[2]));
 
+		Velocity.setx(v_temp[0]);
+		Velocity.sety(v_temp[1]);
+		Velocity.setz(v_temp[2]+DriftNorm);
+		
 	#elif defined(POINT_INJECTION)
 		// ***** INJECT AT SINGLE POINT WITH DRIFT VELOCITY ***** //
 		Position.setx(0.0);
