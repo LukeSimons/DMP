@@ -1,13 +1,13 @@
 #define CALCULATE_MOM
 //#define CALCULATE_CLOSEST_APPROACH
-#define SELF_CONS_CHARGE
+//#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 #define SAVE_LINEAR_MOM
 //#define SAVE_STARTPOS
-#define SAVE_ENDPOS
+//#define SAVE_ENDPOS
 #define SAVE_SPECIES
 //#define SAVE_APPROACH
 
@@ -150,9 +150,15 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 		Velocity.setz(invel*sin(phi_vel)+DriftNorm);
 		
 
-		if( Position*Velocity > 0.0 ){
-			Position = -1.0*Position;
+		while( Position*Velocity > 0.0 ){
+			double theta_vel  = 2.0*PI*rad(mt);
+	                double phi_vel    = asin(2.0*rad(mt)-1.0);
+	
+	                Velocity.setx(invel*cos(phi_vel)*cos(theta_vel));
+	                Velocity.sety(invel*cos(phi_vel)*sin(theta_vel));
+	                Velocity.setz(invel*sin(phi_vel)+DriftNorm);
 		}
+
 	#elif defined(POINT_INJECTION)
 		// ***** INJECT AT SINGLE POINT WITH DRIFT VELOCITY ***** //
 		Position.setx(0.0);
@@ -903,7 +909,7 @@ int main(int argc, char* argv[]){
 		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 		/(2.0*(1-cos(asin(sqrt(1.0/(1+izmax*izmax/(iImpactParameter*iImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity);
 		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
-		/(2.0*(1-cos(asin(sqrt(1.0/(1+ezmax*ezmax/(eImpactParameter*eImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity) << "\n";
+		/(2.0*(1-cos(asin(sqrt(1.0/(1+ezmax*ezmax/(eImpactParameter*eImpactParameter))))))*(0.5*(TotalNum-TotalCharge))*eDensity) << "\n";
 //		Calculate currents for cylindrical geometry
 		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 					/((TotalNum+TotalCharge)*iDensity);
