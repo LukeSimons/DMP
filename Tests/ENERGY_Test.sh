@@ -33,6 +33,19 @@ echo
 gnuplot  -e "filename='Tests/Data/magelec_ENERGY_out.txt'" -e "prefix='fixedcharge'" Tests/PlotScripts/ENERGY.plt
 
 echo
+echo "Test 3:"
+echo "Energy conservation in constant magnetic and electric field normalised"
+
+./main -p -2.5 -b 10.0 -m 10 -n 1 -i 10000 -j 100 -se 1 > Tests/Data/magelecnorm_ENERGY_out.txt
+
+echo
+echo "Complete!"
+echo "Plotting data from Tests/Data/magelecnorm_ENERGY_out.txt"
+echo
+
+gnuplot  -e "filename='Tests/Data/magelecnorm_ENERGY_out.txt'" -e "prefix='fixedchargenorm'" Tests/PlotScripts/ENERGY.plt
+
+echo
 echo "Finished!"
 echo 
 # -e "set logscale y"

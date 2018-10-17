@@ -42,13 +42,13 @@ int MotionTest(std::string MotionType, std::string filename, double timestep, do
 		DiMPlVelocities.push_back(vz);
 		ss.clear();
 		ss.str(std::string());
-		if( imax == 2 ){
+		if( imax == 3 ){
 			EulerPosition.setx(xpos*1e-6);
 			EulerPosition.sety(ypos*1e-6);
 			EulerPosition.setz(zpos*1e-6);
-			EulerVelocity.setx(vx*(Mp/(1e-6*echarge*MAGNETIC)));
-			EulerVelocity.sety(vy*(Mp/(1e-6*echarge*MAGNETIC)));
-			EulerVelocity.setz(vz*(Mp/(1e-6*echarge*MAGNETIC)));
+			EulerVelocity.setx(vx/(Mp/(1e-6*echarge*MAGNETIC)));
+			EulerVelocity.sety(vy/(Mp/(1e-6*echarge*MAGNETIC)));
+			EulerVelocity.setz(vz/(Mp/(1e-6*echarge*MAGNETIC)));
 		}
 	}
 
