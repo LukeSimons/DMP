@@ -1,15 +1,15 @@
 #define CALCULATE_MOM
-#define CALCULATE_CLOSEST_APPROACH
+//#define CALCULATE_CLOSEST_APPROACH
 //#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 #define SAVE_LINEAR_MOM
-#define SAVE_STARTPOS
-#define SAVE_ENDPOS
+//#define SAVE_STARTPOS
+//#define SAVE_ENDPOS
 #define SAVE_SPECIES
-#define SAVE_APPROACH
+//#define SAVE_APPROACH
 
 //#define SPHERICAL_INJECTION
 //#define POINT_INJECTION
@@ -120,34 +120,80 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 
 }
 
+
+#ifdef SPHERICAL_INJECTION
+/* Convert a velocity in spherical coordinates to a velocity in Cartesian
+   coordinates, at a position given in spherical coordinates. */
+void velocity_in_cartesian_coords(double* v, double phi, double theta, double* vx, double* vy, double* vz)
+{
+	*vx = (v[0] * cos(phi) * sin(theta))
+	      - (v[1] * sin(phi)) + (v[2] * cos(phi) * cos(theta));
+	*vy = (v[0] * sin(phi) * sin(theta))
+	      + (v[1] * cos(phi)) + (v[2] * sin(phi) * cos(theta));
+	*vz = (v[0] * cos(theta)) - (v[2] * sin(theta));
+}
+
+/* Generate a pair of normal random variates with mean zero and store them
+   in `nrv1` and `nrv2`. */
+void nrv_pair(double sd, double* nrv1, double* nrv2, std::mt19937 &mt)
+{
+	double r;
+	double theta;
+	long double urv1;
+
+	std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
+
+	long double urv2 = rad(mt);
+	/* Calculate the variates with the Box-Muller transform's polar form. */
+	do {
+		urv1 = rad(mt);
+	} while (urv1 == 0.0);  /* `rnd` very occasionally returns zero! */
+	r = sqrt(-2.0 * (double) logl(urv1));
+	theta = 2.0 * PI * urv2;
+	*nrv1 = sd * r * cos(theta);
+	*nrv2 = sd * r * sin(theta);
+}
+#endif
+
+
+
 void GenerateOrbit(threevector &Position, threevector &Velocity, const double &ImpactParameter, 
 			const double &zmin, const double zmax, const double DriftNorm, const double ThermalVel,
 			std::mt19937 &mt){
 
 	// ***** DEFINE RANDOM NUMBER GENERATOR ***** //
-	std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
+	// See https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
+	// search for "Each component of the velocity vector has a normal distribution"
+
 	std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
 	#ifdef SPHERICAL_INJECTION
 		// ***** RANDOMISE POSITION SPHERICALLY ***** //
-		double theta_pos  = 2.0*PI*rad(mt);
-		double phi_pos    = asin(2.0*rad(mt)-1.0);
-		Position.setx(ImpactParameter*cos(phi_pos)*cos(theta_pos));
-		Position.sety(ImpactParameter*cos(phi_pos)*sin(theta_pos));
-		Position.setz(ImpactParameter*sin(phi_pos));
+		double phi_pos  = 2.0*PI*rad(mt);
+		double theta_pos    = acos(2.0*rad(mt)-1.0);
+		Position.setx(ImpactParameter*sin(theta_pos)*cos(phi_pos));
+		Position.sety(ImpactParameter*sin(theta_pos)*sin(phi_pos));
+		Position.setz(ImpactParameter*cos(theta_pos));
 	
 	
 		// ***** RANDOMISE VELOCITY SPHERICALLY ***** //
-		// http://www.astrosurf.com/jephem/library/li110spherCart_en.htm
-//		double theta_vel = Gaussdist(mt)/radial_pos;
-//		double phi_vel = Gaussdist(mt)/radial_pos;
-	
-		Velocity.setx(Gaussdist(mt));
-		Velocity.sety(Gaussdist(mt));
-		Velocity.setz(Gaussdist(mt)+DriftNorm);
-		
-		if( Position*Velocity > 0.0 ){
-			Position = -1.0*Position;
+		double v[3],v_temp[3];  /* 0 is v_r, 1 is v_phi, and 2 is v_theta */
+		nrv_pair(ThermalVel, &(v[0]), &(v[1]),mt);
+		nrv_pair(ThermalVel, &(v[2]), &(v[2]),mt);
+
+		if (v[0] > 0.0) {
+			/* No point injecting a particle at the outer boundary
+			   with positive radial velocity. */
+			v[0] = -v[0];
 		}
+		/* Translate the injection velocity in spherical coordinates into
+		   the desired Cartesian coordinates. Luckily I already had this
+		   worked out for John and me's spherical absorber problem! */
+		velocity_in_cartesian_coords(v, phi_pos, theta_pos, &(v_temp[0]), &(v_temp[1]), &(v_temp[2]));
+
+		Velocity.setx(v_temp[0]);
+		Velocity.sety(v_temp[1]);
+		Velocity.setz(v_temp[2]+DriftNorm);
+		
 	#elif defined(POINT_INJECTION)
 		// ***** INJECT AT SINGLE POINT WITH DRIFT VELOCITY ***** //
 		Position.setx(0.0);
@@ -175,6 +221,8 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 			Position.setz(zmax);
 			invel=-invel+2.0*DriftNorm;
 		}
+		std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
+
 		Velocity.setx(Gaussdist(mt));
 		Velocity.sety(Gaussdist(mt));
 		Velocity.setz(invel);
@@ -385,9 +433,9 @@ int main(int argc, char* argv[]){
 	if( NormalisedVars ){	// If we're using S&L normalised units but iChance is undertermined
 
 		if( iChance == 0.0 ){ // If we are simulating only Electrons
-        	        BMag = sqrt(PI/2.0)*BMagIn*sqrt(3.0*Me*eTemp/(2*echarge))/Radius;	// BMag normalised to Electrons
+        	        BMag = sqrt(PI/2.0)*BMagIn*sqrt(Me*eTemp/echarge)/Radius;	// BMag normalised to Electrons
 		}else{	// If we are simulating only Ions or otherwise Ions and electrons.
-			BMag = sqrt(PI/2.0)*BMagIn*sqrt(3.0*Mp*iTemp/(2*echarge))/Radius;	// BMag normalised to Ions
+			BMag = sqrt(PI/2.0)*BMagIn*sqrt(Mp*iTemp/echarge)/Radius;	// BMag normalised to Ions
 		}
 
 	}else{
@@ -423,8 +471,8 @@ int main(int argc, char* argv[]){
 	// ***** DEFINE SIMULATION SPACE 		***** //
 	// See : https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
 	// For reasoning on choice of Velocity vector
-	double iThermalVel	= sqrt(3.0*echarge*iTemp/(2.0*Mp))*(Tau/Radius);		// Normalised Ion Thermal velocity
-	double eThermalVel	= sqrt(3.0*echarge*eTemp/(2.0*Me))*(Tau/Radius);	// Normalised Electron Thermal velocity
+	double iThermalVel	= sqrt(echarge*iTemp/Mp)*(Tau/Radius);		// Normalised Ion Thermal velocity
+	double eThermalVel	= sqrt(echarge*eTemp/Me)*(Tau/Radius);	// Normalised Electron Thermal velocity
 	double iCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*iTemp))/Radius; // Balance Coulomb to kinetic energy
 	double eCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*eTemp))/Radius; // Balance Coulomb to kinetic energy
 
@@ -890,7 +938,7 @@ int main(int argc, char* argv[]){
 		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 		/(2.0*(1-cos(asin(sqrt(1.0/(1+izmax*izmax/(iImpactParameter*iImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity);
 		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
-		/(2.0*(1-cos(asin(sqrt(1.0/(1+ezmax*ezmax/(eImpactParameter*eImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity) << "\n";
+		/(2.0*(1-cos(asin(sqrt(1.0/(1+ezmax*ezmax/(eImpactParameter*eImpactParameter))))))*(0.5*(TotalNum-TotalCharge))*eDensity) << "\n";
 //		Calculate currents for cylindrical geometry
 		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 					/((TotalNum+TotalCharge)*iDensity);
