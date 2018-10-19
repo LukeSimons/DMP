@@ -1,4 +1,4 @@
-#!bin/bash
+
 g++ -std=c++14 -fopenmp -o3 -Wall main.cpp Constants.cpp Functions.cpp threevector.cpp rand_mwts.cpp -I. -o main
 #g++ -std=c++14 -o3 -Wall Tests/tmp.cpp threevector.cpp Constants.cpp rand_mwts.cpp -I. -o tmp
 g++ -std=c++14 -o3 -Wall Tests/Tests.cpp threevector.cpp Constants.cpp rand_mwts.cpp -I. -I/Tests/ -o test
