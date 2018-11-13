@@ -767,12 +767,6 @@ int main(int argc, char* argv[]){
 				INITIAL_VEL();						// For energy calculations
 				INITIAL_POT();						// For energy calculations
 				#ifdef CALCULATE_CLOSEST_APPROACH
-				double C1 = fabs(2.0*echarge*echarge*PotentialNorm/(Mp*4.0*PI*epsilon0));
-				double ri = Position.mag3()*Radius;
-				double vmag = Velocity.mag3()*Radius/Tau;
-				double vperp = (Position.getunit()^Velocity).mag3()*Radius/Tau;
-				double Min_r1 = (C1+sqrt(C1*C1+4.0*(vmag*vmag+C1/ri)*ri*ri*vperp*vperp))/(2.0*(vmag*vmag+C1/ri));
-				double Min_r2 = (C1-sqrt(C1*C1+4.0*(vmag*vmag+C1/ri)*ri*ri*vperp*vperp))/(2.0*(vmag*vmag+C1/ri));
 				double MinPos = sqrt(zmax*zmax+ImpactParameter*ImpactParameter);
 				#endif
 
