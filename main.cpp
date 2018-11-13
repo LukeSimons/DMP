@@ -365,7 +365,6 @@ int main(int argc, char* argv[]){
 		else if( arg == "--rmax"	|| arg == "-rm" )	InputFunction(argc,argv,i,ss0,reflectionsmax);
 		else if( arg == "--time"	|| arg == "-t" )	InputFunction(argc,argv,i,ss0,TimeStepFactor);
 		else if( arg == "--number"	|| arg == "-no")	InputFunction(argc,argv,i,ss0,num);
-		else if( arg == "--itmax"	|| arg == "-it")	InputFunction(argc,argv,i,ss0,itmax);
 		else if( arg == "--driftvel"	|| arg == "-v" )	InputFunction(argc,argv,i,ss0,DriftVel);
 		else if( arg == "--seed"	|| arg == "-se")	InputFunction(argc,argv,i,ss0,seed);
 		else if( arg == "--Saves"	|| arg == "-sa")	InputFunction(argc,argv,i,ss0,Saves);
