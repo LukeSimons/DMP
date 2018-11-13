@@ -1,6 +1,6 @@
 #define CALCULATE_MOM
 //#define CALCULATE_CLOSEST_APPROACH
-//#define SELF_CONS_CHARGE
+#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
@@ -17,6 +17,8 @@
 
 #define COULOMB_POTENTIAL
 //#define DEBYE_POTENTIAL
+//#define BOLTZMANN_DENSITY
+
 
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
@@ -491,12 +493,12 @@ int main(int argc, char* argv[]){
 		iRhoTherm	= iThermalVel/(BMag/MAGNETIC); 
 		eRhoTherm	= eThermalVel/(pow(MassRatio,2)*BMag/MAGNETIC); 
 		
-		// Balance electrostatic and magnetic forces to determine height of injection plane
-		iCoulombImpactParameter   = sqrt(fabs(echarge*PotentialNorm
-						/(4.0*PI*epsilon0*sqrt(echarge*iTemp/(Mp*2.0*PI))*BMag/MAGNETIC)))/Radius;
-		eCoulombImpactParameter   = sqrt(fabs(echarge*PotentialNorm
-						/(4.0*PI*epsilon0*sqrt(echarge*eTemp/(Me*2.0*PI))*BMag/MAGNETIC)))/Radius;
+		// Balance electrostatic and magnetic forces to determine impact parameter term
 
+		iCoulombImpactParameter   = sqrt(fabs(echarge*PotentialNorm
+						/(4.0*PI*epsilon0*sqrt(echarge*iTemp/Mp)*BMag)))/Radius;
+		eCoulombImpactParameter   = sqrt(fabs(echarge*PotentialNorm
+						/(4.0*PI*epsilon0*sqrt(echarge*eTemp/Mp)*BMag)))/Radius;
 
 		if( NormalisedVars ){
 			iRhoTherm	= 1.0/BMagIn;
@@ -506,11 +508,11 @@ int main(int argc, char* argv[]){
 				eRhoTherm       = 1.0/(BMagIn*MassRatio);
 			}
 		}
-		if( 0.05*eRhoTherm/eThermalVel < TimeStepe || Potential == 0.0 ){
-			TimeStepe       = 0.01*eRhoTherm/eThermalVel;   // 1% of Gyro-radius size
+		if( TimeStepFactor*eRhoTherm/eThermalVel < TimeStepe || Potential == 0.0 ){
+			TimeStepe       = TimeStepFactor*eRhoTherm/eThermalVel;   // 1% of Gyro-radius size
 		}
-		if( 0.05*iRhoTherm/iThermalVel < TimeStepi || Potential == 0.0 ){
-	                TimeStepi       = 0.01*iRhoTherm/iThermalVel;   // 1% of Gyro-radius size
+		if( TimeStepFactor*iRhoTherm/iThermalVel < TimeStepi || Potential == 0.0 ){
+	                TimeStepi       = TimeStepFactor*iRhoTherm/iThermalVel;   // 1% of Gyro-radius size
 		}
 	}
 	
@@ -546,34 +548,39 @@ int main(int argc, char* argv[]){
 //	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(1+eImpactParameter,2)/pow(1+iImpactParameter,2));
 	assert(fabs(ezmax)==fabs(ezmin)); // The min and max heights must match as long as the ProbabilityOfIon is the same for
 	assert(fabs(izmax)==fabs(izmin)); // both the top and bottom surfaces.
-	#ifdef SPHERICAL_INJECTION
-		#ifdef COULOMB_POTENTIAL
-		double BoltzmanneDensity = eDensity
-				*exp(PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*eImpactParameter*Radius*echarge*eTemp));
-		double BoltzmanniDensity = iDensity
-				*exp(-PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*iImpactParameter*Radius*echarge*iTemp));
+	#ifdef BOLTZMANN_DENSITY
+		#ifdef SPHERICAL_INJECTION
+			#ifdef COULOMB_POTENTIAL
+			double BoltzmanneDensity = eDensity
+					*exp(PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*eImpactParameter*Radius*echarge*eTemp));
+			double BoltzmanniDensity = iDensity
+					*exp(-PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*iImpactParameter*Radius*echarge*iTemp));
+			#else
+			double BoltzmanneDensity = eDensity
+					*exp(PotentialNorm*echarge*echarge*exp(-(eImpactParameter-1.0)/DebyeLength)
+					/(4.0*PI*epsilon0*eImpactParameter*Radius*echarge*eTemp));
+			double BoltzmanniDensity = iDensity
+					*exp(-PotentialNorm*echarge*echarge*exp(-(iImpactParameter-1.0)/DebyeLength)
+					/(4.0*PI*epsilon0*iImpactParameter*Radius*echarge*iTemp));
+			#endif
 		#else
-		double BoltzmanneDensity = eDensity
-				*exp(PotentialNorm*echarge*echarge*exp(-(eImpactParameter-1.0)/DebyeLength)
-				/(4.0*PI*epsilon0*eImpactParameter*Radius*echarge*eTemp));
-		double BoltzmanniDensity = iDensity
-				*exp(-PotentialNorm*echarge*echarge*exp(-(iImpactParameter-1.0)/DebyeLength)
-				/(4.0*PI*epsilon0*iImpactParameter*Radius*echarge*iTemp));
+			#ifdef COULOMB_POTENTIAL
+			double BoltzmanneDensity = eDensity
+					*exp(PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
+			double BoltzmanniDensity = iDensity
+					*exp(-PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
+			#else
+			double BoltzmanneDensity = eDensity
+	                                *exp(PotentialNorm*echarge*echarge*exp(-(ezmax-1.0)/DebyeLength)
+					/(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
+	                double BoltzmanniDensity = iDensity
+	                                *exp(-PotentialNorm*echarge*echarge*exp(-(izmax-1.0)/DebyeLength)
+					/(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
+			#endif
 		#endif
 	#else
-		#ifdef COULOMB_POTENTIAL
-		double BoltzmanneDensity = eDensity
-				*exp(PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
-		double BoltzmanniDensity = iDensity
-				*exp(-PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
-		#else
-		double BoltzmanneDensity = eDensity
-                                *exp(PotentialNorm*echarge*echarge*exp(-(ezmax-1.0)/DebyeLength)
-				/(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
-                double BoltzmanniDensity = iDensity
-                                *exp(-PotentialNorm*echarge*echarge*exp(-(izmax-1.0)/DebyeLength)
-				/(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
-		#endif
+		double BoltzmanneDensity = eDensity;
+		double BoltzmanniDensity = iDensity;
 	#endif
 	double ElecToIonRatio = (BoltzmanneDensity/BoltzmanniDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(eImpactParameter,2)
 					/pow(iImpactParameter,2));
@@ -613,13 +620,20 @@ int main(int argc, char* argv[]){
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
 	RunDataFile << "#Input:\t\tValue\n\nimax (arb #):\t\t"<<imax<<"\njmax (arb #):\t\t"<<jmax<<"\nIon # (arb #):\t\t" << NumberOfIons<<"\nElec # (arb #):\t\t"<<NumberOfElectrons<<"\nElecToIonratio (arb):\t"<<ElecToIonRatio<<"\nProbOfIon (arb):\t"<<ProbabilityOfIon<<"\n\nElectron Gyro (1/Radius):\t"<<eRhoTherm<<"\nElectron Temp (eV):\t\t"<<eTemp<<"\nElec Density (m^-^3):\t\t"<<BoltzmanneDensity<<"\nElectron IP (1/Radius):\t\t"<<eImpactParameter<<"\nElectron zmax (1/Radius):\t"<<ezmax<<"\nElectron zmin (1/Radius):\t"<<ezmin<<"\nElecs Timestep (Tau):\t\t"<<TimeStepe<<"\n\nIon Gyro (1/Radius):\t"<<iRhoTherm<<"\nIon Temp (eV):\t\t"<<iTemp<<"\nIon Density (m^-^3):\t"<<BoltzmanniDensity<<"\nIon IP (1/Radius):\t"<<iImpactParameter<<"\nIon zmax (1/Radius):\t"<<izmax<<"\nIon zmin (1/Radius):\t"<<izmin<<"\nIon Timestep (Tau):\t"<<TimeStepi<<"\n\nRadius (m):\t\t"<<Radius<<"\nSpin (1/Tau):\t\t"<<Spin*Tau<<"\na1 (1/Radius):\t\t"<<(1.0/sqrt(a1))<<"\na2 (1/Radius):\t\t"<<(1.0/sqrt(a2))<<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"<<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm<<"\nB Field (T or Radius/GyroRad):\t"<<BMag<<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm<<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"<<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
+	#ifdef SPHERICAL
+		RunDataFile << "* SPHERICAL INJECTION *\n";
+	#else 
+		RunDataFile << "* CYLINDRICAL INJECTION *\n";
+	#endif
+	#ifdef NO_SPHERE
+		RunDataFile << "* NO SPHERE *\n";
+	#endif
 	#ifdef DEBYE_POTENTIAL
 		RunDataFile << "* DEBYE HUCKEL POTENTIAL *\n\n";
 	#endif
 	#ifdef COULOMB_POTENTIAL
 		RunDataFile << "* COULOMB POTENTIAL *\n\n";
 	#endif
-
 	
 	// ************************************************** //
 
