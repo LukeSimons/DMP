@@ -1,15 +1,15 @@
 #define CALCULATE_MOM
-//#define CALCULATE_CLOSEST_APPROACH
-#define SELF_CONS_CHARGE
+#define CALCULATE_CLOSEST_APPROACH
+//#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 #define SAVE_LINEAR_MOM
-//#define SAVE_STARTPOS
-//#define SAVE_ENDPOS
+#define SAVE_STARTPOS
+#define SAVE_ENDPOS
 #define SAVE_SPECIES
-//#define SAVE_APPROACH
+#define SAVE_APPROACH
 
 //#define SPHERICAL_INJECTION
 //#define POINT_INJECTION
@@ -22,7 +22,6 @@
 
 //#define TEST_VELPOSDIST
 //#define TEST_FINALPOS
-
 //#define TEST_CHARGING
 //#define TEST_ANGMOM
 //#define TEST_ENERGY
@@ -217,11 +216,15 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 	//	Generating equally weighted test particles from the one-way flux of a drifting Maxwellian
 	//	T Makkonen, M I Airila & T Kurki-Suonio
 	//	http://iopscience.iop.org/article/10.1088/0031-8949/90/1/015204/data
-		double invel = rand_mwts(DriftNorm,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
-		Position.setz(zmin);
+
+
+		double invel(0.0);
 		if( rad(mt) > 0.5 ){
 			Position.setz(zmax);
-			invel=-invel+2.0*DriftNorm;
+			invel = -rand_mwts(-DriftNorm,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
+		}else{
+			Position.setz(zmin);
+			invel = rand_mwts(DriftNorm,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
 		}
 		std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
 
@@ -439,7 +442,7 @@ int main(int argc, char* argv[]){
 		}else{	// If we are simulating only Ions or otherwise Ions and electrons.
 			BMag = sqrt(PI/2.0)*BMagIn*sqrt(Mp*iTemp/echarge)/Radius;	// BMag normalised to Ions
 		}
-
+		DriftVel = DriftVel*sqrt(echarge*iTemp/Mp);
 	}else{
 		BMag = BMagIn;
                 Potential = Potential*echarge/(echarge*eTemp);	// Convert from SI Potential to normalised potential
@@ -475,8 +478,6 @@ int main(int argc, char* argv[]){
 	// For reasoning on choice of Velocity vector
 	double iThermalVel	= sqrt(echarge*iTemp/Mp)*(Tau/Radius);		// Normalised Ion Thermal velocity
 	double eThermalVel	= sqrt(echarge*eTemp/Me)*(Tau/Radius);	// Normalised Electron Thermal velocity
-	double iCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*iTemp))/Radius; // Balance Coulomb to kinetic energy
-	double eCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*eTemp))/Radius; // Balance Coulomb to kinetic energy
 
 	double iRhoTherm = 0.0;					// Ion gyro-radii are zero by Default
 	double eRhoTherm = 0.0;					// Electron gyro-radii are zero by Default
@@ -495,10 +496,10 @@ int main(int argc, char* argv[]){
 		
 		// Balance electrostatic and magnetic forces to determine impact parameter term
 
-		iCoulombImpactParameter   = sqrt(fabs(echarge*PotentialNorm
-						/(4.0*PI*epsilon0*sqrt(echarge*iTemp/Mp)*BMag)))/Radius;
-		eCoulombImpactParameter   = sqrt(fabs(echarge*PotentialNorm
-						/(4.0*PI*epsilon0*sqrt(echarge*eTemp/Mp)*BMag)))/Radius;
+//		iCoulombImpactParameter   = sqrt(fabs(echarge*PotentialNorm
+//						/(4.0*PI*epsilon0*sqrt(echarge*iTemp/Mp)*BMag)))/Radius;
+//		eCoulombImpactParameter   = sqrt(fabs(echarge*PotentialNorm
+//						/(4.0*PI*epsilon0*sqrt(echarge*eTemp/Mp)*BMag)))/Radius;
 
 		if( NormalisedVars ){
 			iRhoTherm	= 1.0/BMagIn;
@@ -523,12 +524,15 @@ int main(int argc, char* argv[]){
 	}else{
 		semiaxisDistortion=a2;
 	}
-	double iImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(iRhoTherm+iCoulombImpactParameter);
-	double eImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(eRhoTherm+eCoulombImpactParameter);
+	double iImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(iRhoTherm+DebyeLength);
+	double eImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(eRhoTherm+DebyeLength);
 	if( ForceImpPar > 0.0 ){
 		iImpactParameter = 1.0+ForceImpPar;
 		eImpactParameter = 1.0+ForceImpPar;
 	}
+
+	double iCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*iTemp))/Radius; // Balance Coulomb to kinetic energy
+	double eCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*eTemp))/Radius; // Balance Coulomb to kinetic energy
 
 	double ezmax = 1.05/sqrt(a3)+zMaxCoeff*eCoulombImpactParameter;
 	double ezmin = -1.05/sqrt(a3)-zMinCoeff*eCoulombImpactParameter;
@@ -795,13 +799,7 @@ int main(int argc, char* argv[]){
 				OldPosition.setx(0.0);
 				OldPosition.sety(0.0);
 				OldPosition.setz(0.0);
-				// While we don't exceed a specified number of reflections to catch trapped orbits AND	
-				// while the particle is not inside the sphere and not outside the simulation domain
-				reflections=0;
-				unsigned int r_max = reflectionsmax;
-				if( PotentialNorm*SPEC_CHARGE > 0.0 ){ // In this case, potential is repulsive
-					r_max = 1;
-				}
+
 
 				EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
 
@@ -814,6 +812,31 @@ int main(int argc, char* argv[]){
 				#ifdef NO_SPHERE
 					SphereCondition = true;
 				#endif
+
+				// While we don't exceed a specified number of reflections to catch trapped orbits AND	
+				// while the particle is not inside the sphere and not outside the simulation domain
+				reflections=0;
+				unsigned int r_max = reflectionsmax;
+				if( PotentialNorm*SPEC_CHARGE > 0.0 ){ // In this case, potential is repulsive
+					r_max = 1;
+					// Compare vertical kinetic energy to potential. If it's smaller, reject orbit
+					// immediately before simulating
+					#ifdef DEBYE_POTENTIAL
+						if( (PotentialNorm*echarge*echarge*exp(-zmax/DebyeLength)
+							/(4.0*PI*epsilon0*Radius))*(1.0-(1.0/zmax)) 
+							> 0.5*SpeciesMass*Mp*Velocity.getz()*Velocity.getz() )
+							EdgeCondition = false;
+
+
+					#endif
+					#ifdef COULOMB_POTENTIAL
+						if( (PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius))*(1.0-(1.0/zmax)) 
+							> 0.5*SpeciesMass*Mp*Velocity.getz()*Velocity.getz() )
+							EdgeCondition = false;
+
+					#endif
+				}
+
 
 				while( SphereCondition && EdgeCondition && reflections < r_max ){
 					#ifdef DEBYE_POTENTIAL
