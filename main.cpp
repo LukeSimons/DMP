@@ -19,9 +19,8 @@
 //#define DEBYE_POTENTIAL
 //#define BOLTZMANN_DENSITY
 
-
 //#define TEST_VELPOSDIST
-//#define TEST_FINALPOS
+#define TEST_FINALPOS
 //#define TEST_CHARGING
 //#define TEST_ANGMOM
 //#define TEST_ENERGY
@@ -509,11 +508,23 @@ int main(int argc, char* argv[]){
 				eRhoTherm       = 1.0/(BMagIn*MassRatio);
 			}
 		}
-		if( TimeStepFactor*eRhoTherm/eThermalVel < TimeStepe || Potential == 0.0 ){
+		// Time step limited by gyro-motion
+		if( TimeStepFactor*eRhoTherm/eThermalVel < TimeStepe ){
 			TimeStepe       = TimeStepFactor*eRhoTherm/eThermalVel;   // 1% of Gyro-radius size
 		}
-		if( TimeStepFactor*iRhoTherm/iThermalVel < TimeStepi || Potential == 0.0 ){
+		if( TimeStepFactor*iRhoTherm/iThermalVel < TimeStepi ){
 	                TimeStepi       = TimeStepFactor*iRhoTherm/iThermalVel;   // 1% of Gyro-radius size
+		}
+		if( Potential == 0.0 ){
+			// Uncharged sphere, time step limited by gyro-motion or thermal velocity
+			TimeStepe       = TimeStepFactor*eRhoTherm/eThermalVel;   // 1% of Gyro-radius size
+	                TimeStepi       = TimeStepFactor*iRhoTherm/iThermalVel;   // 1% of Gyro-radius size
+			if( TimeStepFactor/iThermalVel < TimeStepi ){
+				TimeStepi	= TimeStepFactor/iThermalVel;  // Check timestep less than dust radius
+			}
+			if( TimeStepFactor/eThermalVel < TimeStepe ){
+				TimeStepe	= TimeStepFactor/eThermalVel;  // Check timestep less than dust radius
+			}
 		}
 	}
 
