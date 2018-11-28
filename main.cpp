@@ -10,6 +10,8 @@
 #define SAVE_ENDPOS
 #define SAVE_SPECIES
 #define SAVE_APPROACH
+#define SAVE_CURRENTS
+#define SAVE_TOTALS
 
 //#define SPHERICAL_INJECTION
 //#define POINT_INJECTION
@@ -20,7 +22,7 @@
 //#define BOLTZMANN_DENSITY
 
 //#define TEST_VELPOSDIST
-#define TEST_FINALPOS
+//#define TEST_FINALPOS
 //#define TEST_CHARGING
 //#define TEST_ANGMOM
 //#define TEST_ENERGY
@@ -157,7 +159,7 @@ void nrv_pair(double sd, double* nrv1, double* nrv2, std::mt19937 &mt)
 
 
 
-void GenerateOrbit(threevector &Position, threevector &Velocity, const double &ImpactParameter, 
+void GenerateOrbit(threevector &Position, threevector &Velocity, const double &ImpactParameter, const double &ProbUpper,
 			const double &zmin, const double zmax, const double DriftNorm, const double ThermalVel,
 			std::mt19937 &mt){
 
@@ -218,7 +220,8 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 
 
 		double invel(0.0);
-		if( rad(mt) > 0.5 ){
+
+		if( rad(mt) > ProbUpper ){
 			Position.setz(zmax);
 			invel = -rand_mwts(-DriftNorm,ThermalVel,mt);	// Generate z-velocity here to determine starting position 
 		}else{
@@ -279,13 +282,16 @@ int main(int argc, char* argv[]){
 	std::string filename = "Data/DiMPl";
 	std::string suffix	= ".txt";
 	DECLARE_TRACK();
-	DECLARE_AVEL();			// Data file for angular momentum information
-	DECLARE_LMOM();			// Data file for linear momentum information
+	DECLARE_MOM();			// Data file for momentum information of missed particles
+	DECLARE_AVEL();			// Data file for collected angular momentum information
+	DECLARE_LMOM();			// Data file for collected linear momentum information
 	DECLARE_CHA();			// Data file for charge
 	DECLARE_SPOS();			// Data file for starting positions
 	DECLARE_EPOS();			// Data file for end positions
 	DECLARE_APP();			// Date file for closest approaches
 	DECLARE_SPEC();			// Data file for the species
+	DECLARE_CURR();			// Data file for the Currents
+	DECLARE_TOT();			// Data file for the particle totals
 	std::ofstream RunDataFile;	// Data file for containing the run information
 	std::ofstream InputDataFile;	// Data file for containing the input information
 
@@ -560,7 +566,6 @@ int main(int argc, char* argv[]){
 
 	// ***** DEFINE PROBABILITY OF ION GENERATION	***** //
 	// Define ratio of flux of electrons to ions
-//	double ElecToIonRatio = (eDensity/iDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(1+eImpactParameter,2)/pow(1+iImpactParameter,2));
 	assert(fabs(ezmax)==fabs(ezmin)); // The min and max heights must match as long as the ProbabilityOfIon is the same for
 	assert(fabs(izmax)==fabs(izmin)); // both the top and bottom surfaces.
 	#ifdef BOLTZMANN_DENSITY
@@ -597,9 +602,24 @@ int main(int argc, char* argv[]){
 		double BoltzmanneDensity = eDensity;
 		double BoltzmanniDensity = iDensity;
 	#endif
-	double ElecToIonRatio = (BoltzmanneDensity/BoltzmanniDensity)*sqrt(eTemp*Mp/(iTemp*Me))*(pow(eImpactParameter,2)
-					/pow(iImpactParameter,2));
-	double ProbabilityOfIon = 1.0/(1.0+ElecToIonRatio);
+
+	double PosFluxi = BoltzmanniDensity*((iThermalVel/sqrt(2.0*PI))*exp(-0.5*DriftNorm*DriftNorm/(iThermalVel*iThermalVel))
+			+DriftNorm*0.5*(1.0+erf(DriftNorm/(sqrt(2.0)*iThermalVel))))*pow(iImpactParameter,2);
+	double NegFluxi = BoltzmanniDensity*((iThermalVel/sqrt(2.0*PI))*exp(-0.5*DriftNorm*DriftNorm/(iThermalVel*iThermalVel))
+			-DriftNorm*0.5*(1.0+erf(-DriftNorm/(sqrt(2.0)*iThermalVel))))*pow(iImpactParameter,2);
+	double PosFluxe = BoltzmanneDensity*((eThermalVel/sqrt(2.0*PI))*exp(-0.5*DriftNorm*DriftNorm/(eThermalVel*eThermalVel))
+			+DriftNorm*0.5*(1.0+erf(DriftNorm/(sqrt(2.0)*eThermalVel))))*pow(eImpactParameter,2);
+	double NegFluxe = BoltzmanneDensity*((eThermalVel/sqrt(2.0*PI))*exp(-0.5*DriftNorm*DriftNorm/(eThermalVel*eThermalVel))
+			-DriftNorm*0.5*(1.0+erf(-DriftNorm/(sqrt(2.0)*eThermalVel))))*pow(eImpactParameter,2);
+
+	double TotalFluxProbability = PosFluxi + NegFluxi + PosFluxe + NegFluxe;
+
+	double ProbOfPosFluxe = PosFluxe / TotalFluxProbability;
+	double ProbOfNegFluxe = NegFluxe / TotalFluxProbability;
+	double ProbOfPosFluxi = PosFluxi / TotalFluxProbability;
+	double ProbOfNegFluxi = NegFluxi / TotalFluxProbability;
+
+	double ProbabilityOfIon = ProbOfPosFluxi+ProbOfNegFluxi;
 	if( iChance >= 0.0 && iChance <= 1.0 )
 		ProbabilityOfIon = iChance;
 
@@ -621,12 +641,15 @@ int main(int argc, char* argv[]){
 	time_t now = time(0);		// Get the time of simulation
 	char * dt = ctime(&now);
 	OPEN_AVEL();	HEAD_AVEL();
+	OPEN_MOM();	HEAD_MOM();
 	OPEN_LMOM();	HEAD_LMOM();
 	OPEN_CHA();	HEAD_CHA();
 	OPEN_EPOS();	HEAD_EPOS();
 	OPEN_SPOS();	HEAD_SPOS();
 	OPEN_APP();	HEAD_APP()
 	OPEN_SPEC();	HEAD_SPEC();
+	OPEN_CURR();	HEAD_CURR();
+	OPEN_TOT();	HEAD_TOT();
 
 	unsigned long long NumberOfIons = ProbabilityOfIon*imax;
 	unsigned long long NumberOfElectrons = (1.0-ProbabilityOfIon)*imax;
@@ -634,7 +657,7 @@ int main(int argc, char* argv[]){
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
 	RunDataFile << "#Date: " << dt;
-	RunDataFile << "#Input:\t\tValue\n\nimax (arb #):\t\t"<<imax<<"\njmax (arb #):\t\t"<<jmax<<"\nIon # (arb #):\t\t" << NumberOfIons<<"\nElec # (arb #):\t\t"<<NumberOfElectrons<<"\nElecToIonratio (arb):\t"<<ElecToIonRatio<<"\nProbOfIon (arb):\t"<<ProbabilityOfIon<<"\n\nElectron Gyro (1/Radius):\t"<<eRhoTherm<<"\nElectron Temp (eV):\t\t"<<eTemp<<"\nElec Density (m^-^3):\t\t"<<BoltzmanneDensity<<"\nElectron IP (1/Radius):\t\t"<<eImpactParameter<<"\nElectron zmax (1/Radius):\t"<<ezmax<<"\nElectron zmin (1/Radius):\t"<<ezmin<<"\nElecs Timestep (Tau):\t\t"<<TimeStepe<<"\n\nIon Gyro (1/Radius):\t"<<iRhoTherm<<"\nIon Temp (eV):\t\t"<<iTemp<<"\nIon Density (m^-^3):\t"<<BoltzmanniDensity<<"\nIon IP (1/Radius):\t"<<iImpactParameter<<"\nIon zmax (1/Radius):\t"<<izmax<<"\nIon zmin (1/Radius):\t"<<izmin<<"\nIon Timestep (Tau):\t"<<TimeStepi<<"\n\nRadius (m):\t\t"<<Radius<<"\nSpin (1/Tau):\t\t"<<Spin*Tau<<"\na1 (1/Radius):\t\t"<<(1.0/sqrt(a1))<<"\na2 (1/Radius):\t\t"<<(1.0/sqrt(a2))<<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"<<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm<<"\nB Field (T or Radius/GyroRad):\t"<<BMag<<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm<<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"<<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
+	RunDataFile << "#Input:\t\tValue\n\nimax (arb #):\t\t"<<imax<<"\njmax (arb #):\t\t"<<jmax<<"\nIon # (arb #):\t\t" << NumberOfIons<<"\nElec # (arb #):\t\t"<<NumberOfElectrons<<"\nProbOfIon (arb):\t"<<ProbabilityOfIon<<"\n\nElectron Gyro (1/Radius):\t"<<eRhoTherm<<"\nElectron Temp (eV):\t\t"<<eTemp<<"\nElec Density (m^-^3):\t\t"<<BoltzmanneDensity<<"\nElectron IP (1/Radius):\t\t"<<eImpactParameter<<"\nElectron zmax (1/Radius):\t"<<ezmax<<"\nElectron zmin (1/Radius):\t"<<ezmin<<"\nElecs Timestep (Tau):\t\t"<<TimeStepe<<"\nProbOfPosFluxe (arb):\t\t"<<ProbOfPosFluxe<<"\nProbOfNegFluxe (arb):\t\t"<<ProbOfNegFluxe<<"\n\nIon Gyro (1/Radius):\t"<<iRhoTherm<<"\nIon Temp (eV):\t\t"<<iTemp<<"\nIon Density (m^-^3):\t"<<BoltzmanniDensity<<"\nIon IP (1/Radius):\t"<<iImpactParameter<<"\nIon zmax (1/Radius):\t"<<izmax<<"\nIon zmin (1/Radius):\t"<<izmin<<"\nIon Timestep (Tau):\t"<<TimeStepi<<"\nProbOfPosFluxi (arb):\t"<<ProbOfPosFluxi<<"\nProbOfNegFluxi (arb):\t"<<ProbOfNegFluxi<<"\n\nRadius (m):\t\t"<<Radius<<"\nSpin (1/Tau):\t\t"<<Spin*Tau<<"\na1 (1/Radius):\t\t"<<(1.0/sqrt(a1))<<"\na2 (1/Radius):\t\t"<<(1.0/sqrt(a2))<<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"<<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm<<"\nB Field (T or Radius/GyroRad):\t"<<BMag<<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm<<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"<<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
 	#ifdef SPHERICAL
 		RunDataFile << "* SPHERICAL INJECTION *\n";
 	#else 
@@ -649,7 +672,9 @@ int main(int argc, char* argv[]){
 	#ifdef COULOMB_POTENTIAL
 		RunDataFile << "* COULOMB POTENTIAL *\n\n";
 	#endif
-	
+	#ifdef BOLTZMANN_DENSITY
+		RunDataFile << "* BOLTZMANN DENSITY *\n\n";
+	#endif	
 	// ************************************************** //
 
 
@@ -693,6 +718,7 @@ int main(int argc, char* argv[]){
 		double zmin;   
 		double TimeStep;
 		double SpeciesMass;
+		double ProbUpper;
 
 		int SPEC_CHARGE=-1;
 
@@ -718,6 +744,7 @@ int main(int argc, char* argv[]){
 					zmin 	= izmin ;
 					TimeStep = TimeStepi;
 					SpeciesMass = 1.0;
+					ProbUpper = ProbOfPosFluxi/(ProbOfPosFluxi+ProbOfNegFluxi);
 					SPEC_CHARGE=1;
 					i_simulated = i_simulated + 1;
 					
@@ -730,6 +757,7 @@ int main(int argc, char* argv[]){
 						zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
 		 				TimeStep = TimeStepe;
 						SpeciesMass = 1.0/pow(MassRatio,2);
+						ProbUpper = ProbOfPosFluxe/(ProbOfPosFluxe+ProbOfNegFluxe);
 						SPEC_CHARGE=-1;
 						e_simulated = e_simulated + 1;
 					}else if( i_simulated < NumberOfIons ){
@@ -740,6 +768,8 @@ int main(int argc, char* argv[]){
 						zmin 	= izmin ;
 						TimeStep = TimeStepi;
 						SpeciesMass = 1.0;
+						ProbUpper = ProbOfPosFluxi/(ProbOfPosFluxi+ProbOfNegFluxi);
+						SPEC_CHARGE=-1;
 						SPEC_CHARGE=1;
 						i_simulated = i_simulated + 1;
 					}else{
@@ -750,7 +780,7 @@ int main(int argc, char* argv[]){
 				// ***** GENERATE AN ORBIT ***** //
 
 				}
-				GenerateOrbit(Position,Velocity,ImpactParameter,zmin,zmax,DriftNorm,ThermalVel,
+				GenerateOrbit(Position,Velocity,ImpactParameter,ProbUpper,zmin,zmax,DriftNorm,ThermalVel,
 						randnumbers[omp_get_thread_num()]);
 
 	
@@ -834,20 +864,20 @@ int main(int argc, char* argv[]){
 					// immediately before simulating
 					#ifdef DEBYE_POTENTIAL
 						if( (PotentialNorm*echarge*echarge*exp(-zmax/DebyeLength)
-							/(4.0*PI*epsilon0*Radius))*(1.0-(1.0/zmax)) 
-							> 0.5*SpeciesMass*Mp*Velocity.getz()*Velocity.getz() )
+						/(4.0*PI*epsilon0*Radius))*(1.0-(1.0/zmax)) 
+						> 0.5*SpeciesMass*Mp*Velocity.getz()*Velocity.getz()*Radius*Radius/(Tau*Tau) ){
 							EdgeCondition = false;
+						}
 
 
 					#endif
 					#ifdef COULOMB_POTENTIAL
-						if( (PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius))*(1.0-(1.0/zmax)) 
-							> 0.5*SpeciesMass*Mp*Velocity.getz()*Velocity.getz() )
+						if( fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius))*(1.0-(1.0/zmax)))
+						> (0.5*SpeciesMass*Mp*Velocity.getz()*Velocity.getz()*Radius*Radius/(Tau*Tau)) ){
 							EdgeCondition = false;
-
+						}
 					#endif
 				}
-
 
 				while( SphereCondition && EdgeCondition && reflections < r_max ){
 					#ifdef DEBYE_POTENTIAL
@@ -975,58 +1005,48 @@ int main(int argc, char* argv[]){
 		} // END OF PARALLELISED FOR LOOP
 		} // END OF PARALLELISED REGION
 		// ***** PRINT ANGULAR MOMENTUM AND CHARGE DATA	***** //
-		RunDataFile << "*****\n\n\nSave : " << s << "\n\n";
+		clock_t end = clock();
+		double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
+		RunDataFile << "\n\n***** Save : " << s << " Completed in " << elapsd_secs << "s\n\n";
 	
-		SAVE_MOM("LinMom\t\t\t\tAngMom\n");
-		SAVE_MOM(LinearMomentumSum); SAVE_MOM("\t"); SAVE_MOM(AngularMomentumSum); SAVE_MOM("\n\n");
-		// Save the Charge in units of electron charges and normalised potential.
-		SAVE_CHARGE("Charge\tPotential\n")
-		SAVE_CHARGE(PotentialNorm) SAVE_CHARGE("\t") SAVE_CHARGE(PotentialNorm*echarge) 
-		SAVE_CHARGE("\n\n")
-	
-		RunDataFile << "Normalised Ion Current:\tNormalised Electron current\n";
 //		Calculate currents for cylindrical geometry with shape factor
-		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
+		double CyliCurr = 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 		/(2.0*(1-cos(asin(sqrt(1.0/(1+izmax*izmax/(iImpactParameter*iImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity);
-		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
-		/(2.0*(1-cos(asin(sqrt(1.0/(1+ezmax*ezmax/(eImpactParameter*eImpactParameter))))))*(0.5*(TotalNum-TotalCharge))*eDensity) << "\n";
+		double CyleCurr = 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
+		/(2.0*(1-cos(asin(sqrt(1.0/(1+ezmax*ezmax/(eImpactParameter*eImpactParameter))))))*(0.5*(TotalNum-TotalCharge))*eDensity);
 //		Calculate currents for cylindrical geometry
-		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
+		double CylGeoiCurr = 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 					/((TotalNum+TotalCharge)*iDensity);
-		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
-				/((TotalNum-TotalCharge)*eDensity) << "\n";
+		double CylGeoeCurr = 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
+				/((TotalNum-TotalCharge)*eDensity);
 //		Calculate currents for Spherical geometry with Bfield
-		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
+		double SphiCurr = 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
 					/(0.5*(TotalNum+TotalCharge)*iDensity);
-		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
-				/(0.5*(TotalNum-TotalCharge)*eDensity) << "\n";
+		double SpheCurr = 0.5*BoltzmanneDensity*(j-CapturedCharge)*pow(eImpactParameter,2.0)
+				/(0.5*(TotalNum-TotalCharge)*eDensity);
 //		Calculate currents for Spherical geometry without Bfield
-		RunDataFile << 0.5*BoltzmanniDensity*(j+CapturedCharge)
+		double SphGeoiCurr = 0.5*BoltzmanniDensity*(j+CapturedCharge)
 					/(0.5*(TotalNum+TotalCharge)*iDensity*(1-cos(asin(1.0/iImpactParameter))));
-		RunDataFile << "\t\t" << 0.5*BoltzmanneDensity*(j-CapturedCharge)
-				/(0.5*(TotalNum-TotalCharge)*eDensity*(1-cos(asin(1.0/eImpactParameter)))) << "\n\n";
+		double SphGeoeCurr = 0.5*BoltzmanneDensity*(j-CapturedCharge)
+				/(0.5*(TotalNum-TotalCharge)*eDensity*(1-cos(asin(1.0/eImpactParameter))));
 
+		SAVE_MOM();
+		SAVE_CURR();
+		SAVE_TOT();
 
 		// ************************************************** //
 	
 	
 		// ***** PRINT CHARGE AND PATH COUNTERS 	***** //
-		RunDataFile << "j\tjCharge\tMissed\tMCharge\tRegen\tRCharge\tTrapped\tTCharge\tGross\tGCharge\n"; 
-		RunDataFile << j << "\t" << CapturedCharge << "\t" << MissedParticles << "\t" << MissedCharge << "\t" << RegeneratedParticles << "\t" << RegeneratedCharge << "\t" << TrappedParticles << "\t" << TrappedCharge << "\t" << TotalNum << "\t" << TotalCharge << "\n";
 		if( (i_simulated < NumberOfIons || e_simulated < NumberOfElectrons) && s == smax ){
 			std::cerr << "\nError! Total particle goal was not reached! Data may be invalid!";
 			RunDataFile << "\n\n* Error! Total particle goal was not reached! *";
 			RunDataFile << "\n\n*i_sim =  " << i_simulated << "\te_sim = " << e_simulated << "* ";
 		}
-		clock_t end = clock();
-		double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
-		RunDataFile << "\n\n*****\n\nCompleted in " << elapsd_secs << "s\n\n";
 	
 		// ************************************************** //
-	
-	
-		// ***** CLOSE DATA FILES 			***** //
 		RunDataFile.close();
+		// ***** CLOSE DATA FILES 			***** //
 	}
 	CLOSE_AVEL();
 	CLOSE_LMOM();
@@ -1035,6 +1055,9 @@ int main(int argc, char* argv[]){
 	CLOSE_SPOS();
 	CLOSE_APP();
 	CLOSE_SPEC();
+	CLOSE_MOM();
+	CLOSE_CURR();
+	CLOSE_TOT();
 
 	// ************************************************** //
 

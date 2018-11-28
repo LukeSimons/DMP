@@ -2,23 +2,27 @@
 #define __CONSTANTS_H_INCLUDED__
 
 #ifdef CALCULATE_MOM
+#define DECLARE_MOM()	std::ofstream MomentumDataFile;
+#define OPEN_MOM()	MomentumDataFile.open("Data/DiMPl_Momentum.txt");
+#define HEAD_MOM()	MomentumDataFile << "#Collect num\tSimulated num\tPx\tPy\tPz\tLx\tLy\tLz";
+#define SAVE_MOM()	MomentumDataFile << "\n" << j << "\t" << i << "\t" << LinearMomentumSum << "\t" << AngularMomentumSum;
 #define DECLARE_LMSUM()	threevector LinearMomentumSum(0.0,0.0,0.0);
 #define DECLARE_AMSUM()	threevector AngularMomentumSum(0.0,0.0,0.0);
-#define SAVE_MOM(x)	RunDataFile << x
+#define CLOSE_MOM()	AngularDataFile.close();
 #else
+#define DECLARE_MOM()
+#define OPEN_MOM()
+#define HEAD_MOM()
+#define SAVE_MOM()
 #define DECLARE_LMSUM()
 #define DECLARE_AMSUM()
-#define SAVE_MOM(x)
+#define CLOSE_MOM()
 #endif
 
 #ifdef SELF_CONS_CHARGE
 #define ADD_CHARGE()	PotentialNorm += SPEC_CHARGE;
-#define UPDATE_PROB()	ProbabilityOfIon = 1.0/(1.0+(sqrt(eTemp*Mp/(iTemp*Me))*(eDensity*exp(Potential/ezmax)*pow(eImpactParameter,2)/(pow(iImpactParameter,2)*iDensity*exp(-Potential/izmax)))));
-#define SAVE_CHARGE(x)	RunDataFile << x;
 #else
 #define ADD_CHARGE()
-#define UPDATE_PROB()
-#define SAVE_CHARGE(x)
 #endif
 
 #ifdef SAVE_TRACKS 
@@ -131,6 +135,34 @@
 #define HEAD_SPEC()
 #define SAVE_SPEC()
 #define CLOSE_SPEC()
+#endif 
+
+#ifdef SAVE_CURRENTS
+#define DECLARE_CURR()	std::ofstream CurrentDataFile;
+#define OPEN_CURR()	CurrentDataFile.open("Data/DiMPl_Currents.txt");
+#define HEAD_CURR()	CurrentDataFile << "#Collect num\tSimulated num\tCylindrical Ii\tCylindrical Ie\tCylindrical Geo Ii\tCylindrical Geo Ie\tSpherical Ii\tSpherical Ie\tSpherical Geo Ii\tSpherical Geo Ie\t";
+#define SAVE_CURR()	CurrentDataFile << "\n" << j << "\t" << i << "\t" << CyliCurr << "\t" << CyleCurr << "\t" << CylGeoiCurr << "\t" << CylGeoeCurr << "\t" << SphiCurr << "\t" << SpheCurr << "\t" << SphGeoiCurr << "\t" << SphGeoeCurr;
+#define CLOSE_CURR()	CurrentDataFile.close();
+#else
+#define DECLARE_CURR()
+#define OPEN_CURR()
+#define HEAD_CURR()
+#define SAVE_CURR()
+#define CLOSE_CURR()
+#endif 
+
+#ifdef SAVE_TOTALS
+#define DECLARE_TOT()	std::ofstream TotalDataFile;
+#define OPEN_TOT()	TotalDataFile.open("Data/DiMPl_Totals.txt");
+#define HEAD_TOT()	TotalDataFile << "#Collect num\tSimulated num\tjCharge\tMissed\tMCharge\tRegen\tRCharge\tTrapped\tTCharge\tGross\tGCharge\n";
+#define SAVE_TOT()	TotalDataFile << "\n" << j << "\t" << i << "\t" << CapturedCharge << "\t" << MissedParticles << "\t" << MissedCharge << "\t" << RegeneratedParticles << "\t" << RegeneratedCharge << "\t" << TrappedParticles << "\t" << TrappedCharge << "\t" << TotalNum << "\t" << TotalCharge << "\n";
+#define CLOSE_TOT()	TotalDataFile.close();
+#else
+#define DECLARE_TOT()
+#define OPEN_TOT()
+#define HEAD_TOT()
+#define SAVE_TOT()
+#define CLOSE_TOT()
 #endif 
 
 #ifdef TEST_VELPOSDIST
