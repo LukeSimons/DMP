@@ -154,8 +154,8 @@
 #ifdef SAVE_TOTALS
 #define DECLARE_TOT()	std::ofstream TotalDataFile;
 #define OPEN_TOT()	TotalDataFile.open("Data/DiMPl_Totals.txt");
-#define HEAD_TOT()	TotalDataFile << "#Collect num\tSimulated num\tjCharge\tMissed\tMCharge\tRegen\tRCharge\tTrapped\tTCharge\tGross\tGCharge\n";
-#define SAVE_TOT()	TotalDataFile << "\n" << j << "\t" << i << "\t" << CapturedCharge << "\t" << MissedParticles << "\t" << MissedCharge << "\t" << RegeneratedParticles << "\t" << RegeneratedCharge << "\t" << TrappedParticles << "\t" << TrappedCharge << "\t" << TotalNum << "\t" << TotalCharge << "\n";
+#define HEAD_TOT()	TotalDataFile << "#Collect num\tSimulated num\tjCharge\tMissed\tMCharge\tRegen\tRCharge\tTrapped\tTCharge\tGross\tGCharge";
+#define SAVE_TOT()	TotalDataFile << "\n" << j << "\t" << i << "\t" << CapturedCharge << "\t" << MissedParticles << "\t" << MissedCharge << "\t" << RegeneratedParticles << "\t" << RegeneratedCharge << "\t" << TrappedParticles << "\t" << TrappedCharge << "\t" << TotalNum << "\t" << TotalCharge;
 #define CLOSE_TOT()	TotalDataFile.close();
 #else
 #define DECLARE_TOT()
@@ -195,21 +195,31 @@
 #define PRINT_AMOM(x)
 #endif
 
-#if defined TEST_ENERGY 
-#define INITIAL_VEL()	threevector InitialVel = Velocity;
-#define INITIAL_POT()	double InitialPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*Position.mag3()*Radius);
-#define RESET_VEL()	InitialVel = Velocity;
-#define RESET_POT()	InitialPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*Position.mag3()*Radius);
-#define FINAL_POT()	double FinalPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*FinalPosition.mag3()*Radius);
+#if defined TEST_COULOMB_ENERGY 
+#define C_INITIAL_VEL()	threevector InitialVel = Velocity;
+#define C_INITIAL_POT()	double InitialPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*Position.mag3()*Radius);
+#define C_FINAL_POT()	double FinalPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*FinalPosition.mag3()*Radius);
 #define PRINT_ENERGY(x)	std::cout << x
 #else
-#define INITIAL_VEL()
-#define INITIAL_POT()
-#define RESET_VEL()
-#define RESET_POT()
-#define FINAL_POT()
+#define C_INITIAL_VEL()
+#define C_INITIAL_POT()
+#define C_FINAL_POT()
 #define PRINT_ENERGY(x)
 #endif
+
+#if defined TEST_DEBYE_ENERGY 
+#define D_INITIAL_VEL()	threevector InitialVel = Velocity;
+#define D_INITIAL_POT()	double InitialPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*Position.mag3()))*exp((Position.mag3()/DebyeLength)-(1.0/DebyeLength)));
+#define D_FINAL_POT()	double FinalPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*FinalPosition.mag3()))*exp((FinalPosition.mag3()/DebyeLength)-(1.0/DebyeLength)));
+#define PRINT_ENERGY(x)	std::cout << x
+#else
+#define D_INITIAL_VEL()
+#define D_INITIAL_POT()
+#define D_FINAL_POT()
+#define PRINT_ENERGY(x)
+#endif
+
+
 
 #ifdef PAUSE
 #define Pause(); std::cin.get();

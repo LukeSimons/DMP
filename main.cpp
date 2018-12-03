@@ -1,5 +1,5 @@
+//#define CALCULATE_CLOSEST_APPROACH
 #define CALCULATE_MOM
-#define CALCULATE_CLOSEST_APPROACH
 //#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
@@ -9,7 +9,7 @@
 #define SAVE_STARTPOS
 #define SAVE_ENDPOS
 #define SAVE_SPECIES
-#define SAVE_APPROACH
+//#define SAVE_APPROACH
 #define SAVE_CURRENTS
 #define SAVE_TOTALS
 
@@ -25,7 +25,8 @@
 //#define TEST_FINALPOS
 //#define TEST_CHARGING
 //#define TEST_ANGMOM
-//#define TEST_ENERGY
+//#define TEST_COULOMB_ENERGY
+//#define TEST_DEBYE_ENERGY
 
 #include <omp.h>	// For parallelisation
 
@@ -652,7 +653,7 @@ int main(int argc, char* argv[]){
 	OPEN_TOT();	HEAD_TOT();
 
 	unsigned long long NumberOfIons = ProbabilityOfIon*imax;
-	unsigned long long NumberOfElectrons = (1.0-ProbabilityOfIon)*imax;
+	unsigned long long NumberOfElectrons = imax-NumberOfIons;
 	
 	RunDataFile.open(filename + suffix);
 	RunDataFile << "## Run Data File ##\n";
@@ -773,7 +774,10 @@ int main(int argc, char* argv[]){
 						SPEC_CHARGE=1;
 						i_simulated = i_simulated + 1;
 					}else{
-						std::cerr << "\nWARNING! ALL PARTICLES SIMULATED";
+						std::cerr << "\nWARNING! EXCESS PARTICLES SIMULATED";
+						zmax 	= 1000.0;
+						zmin 	= 999.0;
+						ImpactParameter = 1.0;
 					}
 				}
 				BField = BMagNorm*Bhat;
@@ -809,8 +813,8 @@ int main(int argc, char* argv[]){
 				}
 				#endif
 				// ***** ENERGY TEST: MEASURE INITIAL ENERGY	***** //
-				INITIAL_VEL();						// For energy calculations
-				INITIAL_POT();						// For energy calculations
+				C_INITIAL_VEL(); D_INITIAL_VEL();	// For energy calculations
+				C_INITIAL_POT(); D_INITIAL_POT();	// For energy calculations
 				#ifdef CALCULATE_CLOSEST_APPROACH
 				double MinPos = sqrt(zmax*zmax+ImpactParameter*ImpactParameter);
 				#endif
@@ -858,18 +862,16 @@ int main(int argc, char* argv[]){
 				// while the particle is not inside the sphere and not outside the simulation domain
 				reflections=0;
 				unsigned int r_max = reflectionsmax;
-				if( PotentialNorm*SPEC_CHARGE > 0.0 ){ // In this case, potential is repulsive
+/*				if( PotentialNorm*SPEC_CHARGE > 0.0 ){ // In this case, potential is repulsive
 					r_max = 1;
 					// Compare vertical kinetic energy to potential. If it's smaller, reject orbit
 					// immediately before simulating
 					#ifdef DEBYE_POTENTIAL
-						if( (PotentialNorm*echarge*echarge*exp(-zmax/DebyeLength)
-						/(4.0*PI*epsilon0*Radius))*(1.0-(1.0/zmax)) 
+					if( fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius))
+                                               *(1.0-exp((zmax/DebyeLength)-(1.0/DebyeLength))/zmax))
 						> 0.5*SpeciesMass*Mp*Velocity.getz()*Velocity.getz()*Radius*Radius/(Tau*Tau) ){
 							EdgeCondition = false;
 						}
-
-
 					#endif
 					#ifdef COULOMB_POTENTIAL
 						if( fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius))*(1.0-(1.0/zmax)))
@@ -877,7 +879,7 @@ int main(int argc, char* argv[]){
 							EdgeCondition = false;
 						}
 					#endif
-				}
+				}*/
 
 				while( SphereCondition && EdgeCondition && reflections < r_max ){
 					#ifdef DEBYE_POTENTIAL
@@ -981,7 +983,7 @@ int main(int argc, char* argv[]){
 
 					ADD_F_AMOM(SpeciesMass*(Position^Velocity));
 					PRINT_AMOM("FMom = "); PRINT_AMOM(FINAL_AMOM); PRINT_AMOM("\n");
-					FINAL_POT(); 
+					C_FINAL_POT(); D_FINAL_POT();
 					PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
 					PRINT_ENERGY(100*(Velocity.square()/InitialVel.square()-1.0));  PRINT_ENERGY("\t");
 					PRINT_ENERGY(0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
