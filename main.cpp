@@ -412,10 +412,11 @@ int main(int argc, char* argv[]){
 	if( jmax < num )
 		std::cout << "\nWarning! Save interval less than captured particle goal. No Angular data recorded\nnum < jmax : " 
 			<< num << " < " << jmax;
-	if( Saves > 100 && imax <= 100 ){
-		std::cout << "\nWarning! Saves greater than number of simulated particles. Code won't run!\nSetting Saves = 1";
+	if( Saves > imax ){
+		std::cout << "\nwarning! Saves greater than number of simulated particles. code won't run!\nsetting Saves = 1";
 		Saves = 1;
 	}
+
 		
 	InputDataFile.open(filename + "_Input" + suffix);
 	InputDataFile << "## Input Data File ##\n";
@@ -621,8 +622,15 @@ int main(int argc, char* argv[]){
 	double ProbOfNegFluxi = NegFluxi / TotalFluxProbability;
 
 	double ProbabilityOfIon = ProbOfPosFluxi+ProbOfNegFluxi;
-	if( iChance >= 0.0 && iChance <= 1.0 )
+	if( iChance >= 0.0 && iChance <= 1.0 ){
 		ProbabilityOfIon = iChance;
+		TotalFluxProbability = ProbabilityOfIon*(PosFluxi + NegFluxi) + (1.0-ProbabilityOfIon)*(PosFluxe + NegFluxe);
+
+		ProbOfPosFluxe = (1.0-ProbabilityOfIon)*PosFluxe / TotalFluxProbability;
+		ProbOfNegFluxe = (1.0-ProbabilityOfIon)*NegFluxe / TotalFluxProbability;
+		ProbOfPosFluxi = ProbabilityOfIon*PosFluxi / TotalFluxProbability;
+		ProbOfNegFluxi = ProbabilityOfIon*NegFluxi / TotalFluxProbability;
+	}
 
 	// ************************************************** //
 
@@ -694,6 +702,7 @@ int main(int argc, char* argv[]){
 
 	for( unsigned int s=1; s <= smax; s ++){
 		unsigned long long IMAX = (s*imax)/smax;
+
 		RunDataFile.close();
 		RunDataFile.clear();
 		RunDataFile.open(filename+suffix, std::fstream::app);
@@ -730,7 +739,7 @@ int main(int argc, char* argv[]){
 		for( i=(IMAX-imax/smax); i < IMAX; i ++){ 	// Loop over maximum number of particles to generate
 			if( j <= jmax ){	// Loop until we reach a certain number of particles jmax
 	
-	//			std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
+				//std::cout << "\n" << omp_get_thread_num() << "/" << omp_get_num_threads();
 	
 				// ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
 				// MassRatio is squared because of absence of mass in Boris solver
@@ -862,9 +871,9 @@ int main(int argc, char* argv[]){
 				// while the particle is not inside the sphere and not outside the simulation domain
 				reflections=0;
 				unsigned int r_max = reflectionsmax;
-/*				if( PotentialNorm*SPEC_CHARGE > 0.0 ){ // In this case, potential is repulsive
+				if( PotentialNorm*SPEC_CHARGE > 0.0 ){ // In this case, potential is repulsive
 					r_max = 1;
-					// Compare vertical kinetic energy to potential. If it's smaller, reject orbit
+/*					// Compare vertical kinetic energy to potential. If it's smaller, reject orbit
 					// immediately before simulating
 					#ifdef DEBYE_POTENTIAL
 					if( fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius))
@@ -878,8 +887,8 @@ int main(int argc, char* argv[]){
 						> (0.5*SpeciesMass*Mp*Velocity.getz()*Velocity.getz()*Radius*Radius/(Tau*Tau)) ){
 							EdgeCondition = false;
 						}
-					#endif
-				}*/
+					#endif*/
+				}
 
 				while( SphereCondition && EdgeCondition && reflections < r_max ){
 					#ifdef DEBYE_POTENTIAL
