@@ -1,13 +1,13 @@
 //#define CALCULATE_CLOSEST_APPROACH
 #define CALCULATE_MOM
-//#define SELF_CONS_CHARGE
+#define SELF_CONS_CHARGE
 
 //#define SAVE_TRACKS 
 #define SAVE_ANGULAR_VEL
 #define SAVE_CHARGING
 #define SAVE_LINEAR_MOM
-#define SAVE_STARTPOS
-#define SAVE_ENDPOS
+//#define SAVE_STARTPOS
+//#define SAVE_ENDPOS
 #define SAVE_SPECIES
 //#define SAVE_APPROACH
 #define SAVE_CURRENTS
@@ -17,8 +17,8 @@
 //#define POINT_INJECTION
 //#define NO_SPHERE
 
-#define COULOMB_POTENTIAL
-//#define DEBYE_POTENTIAL
+//#define COULOMB_POTENTIAL
+#define DEBYE_POTENTIAL
 //#define BOLTZMANN_DENSITY
 
 //#define TEST_VELPOSDIST
@@ -690,6 +690,8 @@ int main(int argc, char* argv[]){
 	// ***** BEGIN LOOP OVER PARTICLE ORBITS 	***** //
 	threevector TotalAngularVel(0.0,0.0,Spin*Tau);
 	threevector TotalAngularMom(0.0,0.0,0.0);
+	threevector TotalInjectedMom(0.0,0.0,0.0);
+	threevector TotalLostMom(0.0,0.0,0.0);
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	DECLARE_AMOM();
@@ -707,7 +709,7 @@ int main(int argc, char* argv[]){
 		RunDataFile.clear();
 		RunDataFile.open(filename+suffix, std::fstream::app);
 
-		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,j) PRIVATE_FILES()
+		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,TotalInjectedMom,TotalLostMom,j) PRIVATE_FILES()
 		{
 		threevector Position(0.0,0.0,0.0);
 		threevector Velocity(0.0,0.0,0.0);
@@ -795,7 +797,6 @@ int main(int argc, char* argv[]){
 				}
 				GenerateOrbit(Position,Velocity,ImpactParameter,ProbUpper,zmin,zmax,DriftNorm,ThermalVel,
 						randnumbers[omp_get_thread_num()]);
-
 	
 				InitialPos = Position;
 				InitialVel = Velocity;
@@ -941,6 +942,7 @@ int main(int argc, char* argv[]){
 				AngularMom = SpeciesMass*(FinalPosition^Velocity); 		
 				#pragma omp critical
 				{
+					TotalInjectedMom += SpeciesMass*InitialVel;
 					if( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) < 1.0 ){ // In this case it was captured!
 						double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
 						AngularVel = (AngVelNorm)*
@@ -960,14 +962,13 @@ int main(int argc, char* argv[]){
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AMOM("\t");
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AMOM("\n");
 						ADD_CHARGE()
+						SAVE_SPOS()
 						SAVE_EPOS()
+						//SAVE_LMOM()
 						SAVE_SPEC()
 						if(j % num == 0){
 							SAVE_AVEL()
-							SAVE_LMOM()
 							SAVE_CHA()
-							SAVE_SPOS()
-							SAVE_EPOS()
 							SAVE_APP()
 							SAVE_SPEC()
 						}
@@ -986,6 +987,8 @@ int main(int argc, char* argv[]){
 						SAVE_APP()
 						LinearMomentumSum += SpeciesMass*Velocity;	
 						AngularMomentumSum += AngularMom;
+						TotalLostMom += SpeciesMass*Velocity;
+						//SAVE_LMOM()
 						MissedParticles ++;
 						MissedCharge += SPEC_CHARGE;
 					} // END OF if ( Position.mag3() < 1.0 )
@@ -1044,6 +1047,7 @@ int main(int argc, char* argv[]){
 		SAVE_MOM();
 		SAVE_CURR();
 		SAVE_TOT();
+		SAVE_LMOM()
 
 		// ************************************************** //
 	

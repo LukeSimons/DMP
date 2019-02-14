@@ -56,8 +56,8 @@
 #ifdef SAVE_LINEAR_MOM
 #define DECLARE_LMOM()	std::ofstream LinearDataFile;
 #define OPEN_LMOM()	LinearDataFile.open("Data/DiMPl_LinMom.txt");
-#define HEAD_LMOM()	LinearDataFile << "#Collect num\tSimulated num\tPx\tPy\tPz";
-#define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << i << "\t" << SpeciesMass*Velocity;
+#define HEAD_LMOM()	LinearDataFile << "#Collect num\tSimulated num\tPx_i\tPy_i\tPz_i\tPx_l\tPy_l\tPz_l";
+#define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << i << "\t" << TotalInjectedMom << "\t" << TotalLostMom;
 #define CLOSE_LMOM()	LinearDataFile.close();
 #else
 #define DECLARE_LMOM()
