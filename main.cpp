@@ -283,6 +283,7 @@ int main(int argc, char* argv[]){
 	std::string filename = "Data/DiMPl";
 	std::string suffix	= ".txt";
 	DECLARE_TRACK();
+	DECLARE_CHARGE();		// Data file for recording dynamic charging behaviour
 	DECLARE_MOM();			// Data file for momentum information of missed particles
 	DECLARE_AVEL();			// Data file for collected angular momentum information
 	DECLARE_LMOM();			// Data file for collected linear momentum information
@@ -413,8 +414,8 @@ int main(int argc, char* argv[]){
 		std::cout << "\nWarning! Save interval less than captured particle goal. No Angular data recorded\nnum < jmax : " 
 			<< num << " < " << jmax;
 	if( Saves > imax ){
-		std::cout << "\nwarning! Saves greater than number of simulated particles. code won't run!\nsetting Saves = 1";
-		Saves = 1;
+		std::cout << "\nwarning! Saves greater than number of simulated particles. Code won't run!\nsetting Saves = imax";
+		Saves = imax;
 	}
 
 		
@@ -470,6 +471,8 @@ int main(int argc, char* argv[]){
 	double DriftNorm	= DriftVel*Tau/(Radius);
 	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2.0)))/Radius;
 	double A_Coulomb	= Mp/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
+	double ChargeScale 	= eTemp*4.0*PI*epsilon0*Radius/echarge;
+	double AngularScale 	= eTemp*4.0*PI*epsilon0*Radius/echarge;
 
 	// ************************************************** //
 
@@ -649,6 +652,7 @@ int main(int argc, char* argv[]){
 	// ***** OPEN DATA FILE WITH HEADER 		***** //
 	time_t now = time(0);		// Get the time of simulation
 	char * dt = ctime(&now);
+	OPEN_CHARGE();	HEAD_CHARGE();
 	OPEN_AVEL();	HEAD_AVEL();
 	OPEN_MOM();	HEAD_MOM();
 	OPEN_LMOM();	HEAD_LMOM();
@@ -689,15 +693,23 @@ int main(int argc, char* argv[]){
 
 	// ***** BEGIN LOOP OVER PARTICLE ORBITS 	***** //
 	threevector TotalAngularVel(0.0,0.0,Spin*Tau);
+
+	threevector MeanAngularVel(0.0,0.0,Spin*Tau);
+	threevector TotalAngularVelThisStep(0.0,0.0,Spin*Tau);
+	threevector MeanAngularVelDiff(0.0,0.0,0.0);
+
 	threevector TotalAngularMom(0.0,0.0,0.0);
 	threevector TotalInjectedMom(0.0,0.0,0.0);
 	threevector TotalLostMom(0.0,0.0,0.0);
+	double MeanChargeSave = PotentialNorm;	// Initialise the mean charge as starting charge
+	double TotalChargeInSave=PotentialNorm;// Initialise the charge collected in this save
+	double MeanChargeDiff(0.0);  		// Initial Mean charge diff is zero
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	DECLARE_AMOM();
 
 	unsigned long long j(0), i(0), RegeneratedParticles(0), TrappedParticles(0), MissedParticles(0), TotalNum(0);
-	unsigned long long e_simulated(0), i_simulated(0);
+	unsigned long long j_ThisSave(0), e_simulated(0), i_simulated(0);
 	long long CapturedCharge(0), RegeneratedCharge(0), TrappedCharge(0), MissedCharge(0), TotalCharge(0);
 
 	unsigned long long smax = imax / Saves;
@@ -708,8 +720,14 @@ int main(int argc, char* argv[]){
 		RunDataFile.close();
 		RunDataFile.clear();
 		RunDataFile.open(filename+suffix, std::fstream::app);
+		REOPEN_CHARGE();
+		REOPEN_MOM();
+		REOPEN_CURR();
+		REOPEN_TOT();
+		REOPEN_LMOM();
+		REOPEN_AVEL();
 
-		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,TotalInjectedMom,TotalLostMom,j) PRIVATE_FILES()
+		#pragma omp parallel shared(TotalChargeInSave,TotalAngularVel,TotalAngularMom,TotalInjectedMom,TotalLostMom,j) PRIVATE_FILES()
 		{
 		threevector Position(0.0,0.0,0.0);
 		threevector Velocity(0.0,0.0,0.0);
@@ -951,17 +969,21 @@ int main(int argc, char* argv[]){
 
 
 						PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
-						TotalAngularVel += AngularVel;
+						TotalAngularVel += AngularScale*AngularVel;
+/						TotalAngularVelThisStep += AngularVel;
+						
 						TotalAngularMom += AngularMom;
 
-						j ++;
+						j ++; j_ThisSave ++;
 						CapturedCharge += SPEC_CHARGE;
+
 						PRINT_CHARGE(j)			PRINT_CHARGE("\t")
 						PRINT_CHARGE(PotentialNorm) 	PRINT_CHARGE("\t")
 						PRINT_CHARGE(SPEC_CHARGE);	PRINT_CHARGE("\n")
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AMOM("\t");
 //						PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AMOM("\n");
 						ADD_CHARGE()
+						TotalChargeInSave += PotentialNorm;
 						SAVE_SPOS()
 						SAVE_EPOS()
 						//SAVE_LMOM()
@@ -1044,13 +1066,38 @@ int main(int argc, char* argv[]){
 		double SphGeoeCurr = 0.5*BoltzmanneDensity*(j-CapturedCharge)
 				/(0.5*(TotalNum-TotalCharge)*eDensity*(1-cos(asin(1.0/eImpactParameter))));
 
+		if( j_ThisSave != 0.0 ){ // Handle no charges captured this save
+			MeanChargeDiff = TotalChargeInSave/(j_ThisSave)-MeanChargeSave;
+			MeanChargeSave = TotalChargeInSave/(j_ThisSave);
+			TotalChargeInSave = 0.0;
+
+			MeanAngularVelDiff = TotalAngularVelThisStep*(1.0/j_ThisSave)-MeanAngularVel;
+			MeanAngularVel = TotalAngularVelThisStep*(1.0/j_ThisSave);
+			TotalAngularVelThisStep = TotalAngularVelThisStep*0.0;
+		}else{
+			MeanChargeDiff = 0.0;
+
+			MeanAngularVelDiff = 0.0*MeanAngularVelDiff;
+		}
+
+		SAVE_CHARGE();
+		UPDATE_CSCALE();
+		UPDATE_ASCALE();
+		j_ThisSave = 0;
+
+
 		SAVE_MOM();
 		SAVE_CURR();
 		SAVE_TOT();
 		SAVE_LMOM()
 
 		// ************************************************** //
-	
+
+		// If Mean Charge is deviating by less than 0.1%
+		if( fabs(MeanChargeDiff/Potential) < 0.001 && MeanChargeDiff != 0.0 ){ 
+			RunDataFile << "\n\n* Equilibrium Reached! after saves = " << s << " *";
+			s = smax;
+		}
 	
 		// ***** PRINT CHARGE AND PATH COUNTERS 	***** //
 		if( (i_simulated < NumberOfIons || e_simulated < NumberOfElectrons) && s == smax ){
@@ -1061,18 +1108,21 @@ int main(int argc, char* argv[]){
 	
 		// ************************************************** //
 		RunDataFile.close();
+		CLOSE_CHARGE();
+		CLOSE_MOM();
+		CLOSE_CURR();
+		CLOSE_TOT();
+		CLOSE_LMOM()
+		CLOSE_AVEL();
+
 		// ***** CLOSE DATA FILES 			***** //
 	}
-	CLOSE_AVEL();
-	CLOSE_LMOM();
+
 	CLOSE_CHA();
 	CLOSE_EPOS();
 	CLOSE_SPOS();
 	CLOSE_APP();
 	CLOSE_SPEC();
-	CLOSE_MOM();
-	CLOSE_CURR();
-	CLOSE_TOT();
 
 	// ************************************************** //
 

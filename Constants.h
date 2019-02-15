@@ -4,6 +4,7 @@
 #ifdef CALCULATE_MOM
 #define DECLARE_MOM()	std::ofstream MomentumDataFile;
 #define OPEN_MOM()	MomentumDataFile.open("Data/DiMPl_Momentum.txt");
+#define REOPEN_MOM()    MomentumDataFile.close(); MomentumDataFile.clear(); MomentumDataFile.open("Data/DiMPl_Momentum.txt", std::fstream::app); 
 #define HEAD_MOM()	MomentumDataFile << "#Collect num\tSimulated num\tPx\tPy\tPz\tLx\tLy\tLz";
 #define SAVE_MOM()	MomentumDataFile << "\n" << j << "\t" << i << "\t" << LinearMomentumSum << "\t" << AngularMomentumSum;
 #define DECLARE_LMSUM()	threevector LinearMomentumSum(0.0,0.0,0.0);
@@ -11,6 +12,7 @@
 #define CLOSE_MOM()	AngularDataFile.close();
 #else
 #define DECLARE_MOM()
+#define REOPEN_MOM()
 #define OPEN_MOM()
 #define HEAD_MOM()
 #define SAVE_MOM()
@@ -20,9 +22,23 @@
 #endif
 
 #ifdef SELF_CONS_CHARGE
-#define ADD_CHARGE()	PotentialNorm += SPEC_CHARGE;
+#define DECLARE_CHARGE()std::ofstream DynamicChargeDataFile;
+#define OPEN_CHARGE()	DynamicChargeDataFile.open("Data/DiMPl_DynamCharge.txt");
+#define REOPEN_CHARGE() DynamicChargeDataFile.close(); DynamicChargeDataFile.clear(); DynamicChargeDataFile.open("Data/DiMPl_DynamCharge.txt", std::fstream::app); 
+#define HEAD_CHARGE()	DynamicChargeDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tChargeScale\tMean\tMeanDiff";
+#define SAVE_CHARGE()	DynamicChargeDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << ChargeScale << "\t" << MeanChargeSave << "\t" << MeanChargeDiff;
+#define ADD_CHARGE()	PotentialNorm += SPEC_CHARGE*ChargeScale/(2.0);
+#define UPDATE_CSCALE()	ChargeScale = ChargeScale/(10.0);
+#define CLOSE_CHARGE()	DynamicChargeDataFile.close();
 #else
-#define ADD_CHARGE()
+#define DECLARE_CHARGE()	
+#define OPEN_CHARGE()	
+#define REOPEN_CHARGE()
+#define HEAD_CHARGE()	
+#define SAVE_CHARGE()	
+#define ADD_CHARGE()	
+#define UPDATE_CSCALE()
+#define CLOSE_CHARGE()
 #endif
 
 #ifdef SAVE_TRACKS 
@@ -42,26 +58,32 @@
 #ifdef SAVE_ANGULAR_VEL
 #define DECLARE_AVEL()	std::ofstream AngularDataFile;
 #define OPEN_AVEL()	AngularDataFile.open("Data/DiMPl_AngVel.txt");
-#define HEAD_AVEL()	AngularDataFile << "#Collect num\tSimulated num\tLx\tLy\tLz";
-#define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << i << "\t" << TotalAngularVel;
+#define REOPEN_AVEL() AngularDataFile.close(); AngularDataFile.clear(); AngularDataFile.open("Data/DiMPl_AngVel.txt", std::fstream::app); 
+#define HEAD_AVEL()	AngularDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tAngularScale\tLx\tLy\tLz";
+#define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << AngularScale << "\t" << MeanAngularVel << "\t" << MeanAngularVelDiff << "\t" << TotalAngularVel;
+#define UPDATE_CSCALE()	AngularScale = AngularScale/(10.0);
 #define CLOSE_AVEL()	AngularDataFile.close();
 #else
 #define DECLARE_AVEL()
-#define HEAD_AVEL()
 #define OPEN_AVEL()
+#define REOPEN_AVEL()
+#define HEAD_AVEL()
 #define SAVE_AVEL()
+#define UPDATE_ASCALE()
 #define CLOSE_AVEL()
 #endif 
 
 #ifdef SAVE_LINEAR_MOM
 #define DECLARE_LMOM()	std::ofstream LinearDataFile;
 #define OPEN_LMOM()	LinearDataFile.open("Data/DiMPl_LinMom.txt");
+#define REOPEN_LMOM()   LinearDataFile.close(); LinearDataFile.clear(); LinearDataFile.open("Data/DiMPl_LinMom.txt", std::fstream::app); 
 #define HEAD_LMOM()	LinearDataFile << "#Collect num\tSimulated num\tPx_i\tPy_i\tPz_i\tPx_l\tPy_l\tPz_l";
 #define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << i << "\t" << TotalInjectedMom << "\t" << TotalLostMom;
 #define CLOSE_LMOM()	LinearDataFile.close();
 #else
 #define DECLARE_LMOM()
 #define OPEN_LMOM()
+#define REOPEN_LMOM()
 #define HEAD_LMOM()
 #define SAVE_LMOM()
 #define CLOSE_LMOM()
@@ -140,11 +162,13 @@
 #ifdef SAVE_CURRENTS
 #define DECLARE_CURR()	std::ofstream CurrentDataFile;
 #define OPEN_CURR()	CurrentDataFile.open("Data/DiMPl_Currents.txt");
+#define REOPEN_CURR()   CurrentDataFile.close(); CurrentDataFile.clear(); CurrentDataFile.open("Data/DiMPl_Currents.txt", std::fstream::app); 
 #define HEAD_CURR()	CurrentDataFile << "#Collect num\tSimulated num\tCylindrical Ii\tCylindrical Ie\tCylindrical Geo Ii\tCylindrical Geo Ie\tSpherical Ii\tSpherical Ie\tSpherical Geo Ii\tSpherical Geo Ie\t";
 #define SAVE_CURR()	CurrentDataFile << "\n" << j << "\t" << i << "\t" << CyliCurr << "\t" << CyleCurr << "\t" << CylGeoiCurr << "\t" << CylGeoeCurr << "\t" << SphiCurr << "\t" << SpheCurr << "\t" << SphGeoiCurr << "\t" << SphGeoeCurr;
 #define CLOSE_CURR()	CurrentDataFile.close();
 #else
 #define DECLARE_CURR()
+#define REOPEN_CURR()
 #define OPEN_CURR()
 #define HEAD_CURR()
 #define SAVE_CURR()
@@ -154,12 +178,14 @@
 #ifdef SAVE_TOTALS
 #define DECLARE_TOT()	std::ofstream TotalDataFile;
 #define OPEN_TOT()	TotalDataFile.open("Data/DiMPl_Totals.txt");
+#define REOPEN_TOT()    TotalDataFile.close(); TotalDataFile.clear(); TotalDataFile.open("Data/DiMPl_Totals.txt", std::fstream::app); 
 #define HEAD_TOT()	TotalDataFile << "#Collect num\tSimulated num\tjCharge\tMissed\tMCharge\tRegen\tRCharge\tTrapped\tTCharge\tGross\tGCharge";
 #define SAVE_TOT()	TotalDataFile << "\n" << j << "\t" << i << "\t" << CapturedCharge << "\t" << MissedParticles << "\t" << MissedCharge << "\t" << RegeneratedParticles << "\t" << RegeneratedCharge << "\t" << TrappedParticles << "\t" << TrappedCharge << "\t" << TotalNum << "\t" << TotalCharge;
 #define CLOSE_TOT()	TotalDataFile.close();
 #else
 #define DECLARE_TOT()
 #define OPEN_TOT()
+#define REOPEN_TOT()
 #define HEAD_TOT()
 #define SAVE_TOT()
 #define CLOSE_TOT()
