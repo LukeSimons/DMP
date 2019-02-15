@@ -970,7 +970,7 @@ int main(int argc, char* argv[]){
 
 						PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
 						TotalAngularVel += AngularScale*AngularVel;
-/						TotalAngularVelThisStep += AngularVel;
+						TotalAngularVelThisStep += TotalAngularVel;
 						
 						TotalAngularMom += AngularMom;
 
@@ -1094,7 +1094,7 @@ int main(int argc, char* argv[]){
 		// ************************************************** //
 
 		// If Mean Charge is deviating by less than 0.1%
-		if( fabs(MeanChargeDiff/Potential) < 0.001 && MeanChargeDiff != 0.0 ){ 
+		if( fabs(MeanChargeDiff/PotentialNorm) < 0.001 && MeanChargeDiff != 0.0 ){ 
 			RunDataFile << "\n\n* Equilibrium Reached! after saves = " << s << " *";
 			s = smax;
 		}

@@ -61,7 +61,7 @@
 #define REOPEN_AVEL() AngularDataFile.close(); AngularDataFile.clear(); AngularDataFile.open("Data/DiMPl_AngVel.txt", std::fstream::app); 
 #define HEAD_AVEL()	AngularDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tAngularScale\tLx\tLy\tLz";
 #define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << AngularScale << "\t" << MeanAngularVel << "\t" << MeanAngularVelDiff << "\t" << TotalAngularVel;
-#define UPDATE_CSCALE()	AngularScale = AngularScale/(10.0);
+#define UPDATE_ASCALE()	AngularScale = AngularScale/(10.0);
 #define CLOSE_AVEL()	AngularDataFile.close();
 #else
 #define DECLARE_AVEL()
