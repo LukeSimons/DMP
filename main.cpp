@@ -1067,10 +1067,22 @@ int main(int argc, char* argv[]){
 				/(0.5*(TotalNum-TotalCharge)*eDensity*(1-cos(asin(1.0/eImpactParameter))));
 
 		if( j_ThisSave != 0.0 ){ // Handle no charges captured this save
+			// If change of sign in Mean Diff
+			if( (MeanChargeDiff < 0 && (TotalChargeInSave/(j_ThisSave)-MeanChargeSave)) > 0 
+				|| (MeanChargeDiff > 0 && (TotalChargeInSave/(j_ThisSave)-MeanChargeSave) < 0)  ){
+				UPDATE_CSCALE();
+			}
+
 			MeanChargeDiff = TotalChargeInSave/(j_ThisSave)-MeanChargeSave;
 			MeanChargeSave = TotalChargeInSave/(j_ThisSave);
 			TotalChargeInSave = 0.0;
 
+			if( (MeanAngularVelDiff.getz() < 0 && 
+				TotalAngularVelThisStep.getz()*(1.0/j_ThisSave)-MeanAngularVel.getz() > 0 )
+				|| (MeanAngularVelDiff.getz() > 0 && 
+				TotalAngularVelThisStep.getz()*(1.0/j_ThisSave)-MeanAngularVel.getz() < 0 ) ){
+				UPDATE_ASCALE();
+			}
 			MeanAngularVelDiff = TotalAngularVelThisStep*(1.0/j_ThisSave)-MeanAngularVel;
 			MeanAngularVel = TotalAngularVelThisStep*(1.0/j_ThisSave);
 			TotalAngularVelThisStep = TotalAngularVelThisStep*0.0;
@@ -1081,8 +1093,8 @@ int main(int argc, char* argv[]){
 		}
 
 		SAVE_CHARGE();
-		UPDATE_CSCALE();
-		UPDATE_ASCALE();
+
+
 		j_ThisSave = 0;
 
 
