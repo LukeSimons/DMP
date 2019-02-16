@@ -472,7 +472,7 @@ int main(int argc, char* argv[]){
 	double DebyeLength 	= sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2.0)))/Radius;
 	double A_Coulomb	= Mp/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
 	double ChargeScale 	= eTemp*4.0*PI*epsilon0*Radius/echarge;
-	double AngularScale 	= eTemp*4.0*PI*epsilon0*Radius/echarge;
+	double AngularScale 	= echarge*eTemp*PI*Radius*sqrt(echarge*eTemp/Me)/(Tau*DustMass);
 
 	// ************************************************** //
 
