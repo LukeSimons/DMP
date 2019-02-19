@@ -28,7 +28,7 @@
 #define HEAD_CHARGE()	DynamicChargeDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tChargeScale\tMean\tMeanDiff";
 #define SAVE_CHARGE()	DynamicChargeDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << ChargeScale << "\t" << MeanChargeSave << "\t" << MeanChargeDiff;
 #define ADD_CHARGE()	PotentialNorm += SPEC_CHARGE*ChargeScale/(2.0);
-#define UPDATE_CSCALE()	ChargeScale = ChargeScale/(10.0);
+#define UPDATE_CSCALE()	ChargeScale = ChargeScale/(2.0);
 #define CLOSE_CHARGE()	DynamicChargeDataFile.close();
 #else
 #define DECLARE_CHARGE()	
@@ -61,7 +61,7 @@
 #define REOPEN_AVEL() AngularDataFile.close(); AngularDataFile.clear(); AngularDataFile.open("Data/DiMPl_AngVel.txt", std::fstream::app); 
 #define HEAD_AVEL()	AngularDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tAngularScale\tLx\tLy\tLz";
 #define SAVE_AVEL()	AngularDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << AngularScale << "\t" << MeanAngularVel << "\t" << MeanAngularVelDiff << "\t" << TotalAngularVel;
-#define UPDATE_ASCALE()	AngularScale = AngularScale/(10.0);
+#define UPDATE_ASCALE()	AngularScale = AngularScale/(2.0);
 #define CLOSE_AVEL()	AngularDataFile.close();
 #else
 #define DECLARE_AVEL()

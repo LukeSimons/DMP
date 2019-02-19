@@ -17,8 +17,8 @@
 //#define POINT_INJECTION
 //#define NO_SPHERE
 
-//#define COULOMB_POTENTIAL
-#define DEBYE_POTENTIAL
+#define COULOMB_POTENTIAL
+//#define DEBYE_POTENTIAL
 //#define BOLTZMANN_DENSITY
 
 //#define TEST_VELPOSDIST
@@ -704,6 +704,7 @@ int main(int argc, char* argv[]){
 	double MeanChargeSave = PotentialNorm;	// Initialise the mean charge as starting charge
 	double TotalChargeInSave=PotentialNorm;// Initialise the charge collected in this save
 	double MeanChargeDiff(0.0);  		// Initial Mean charge diff is zero
+	double OldMeanChargeDiff(0.0); 		// Initial Mean charge diff is zero
 	DECLARE_LMSUM();
 	DECLARE_AMSUM();
 	DECLARE_AMOM();
@@ -1066,14 +1067,18 @@ int main(int argc, char* argv[]){
 		double SphGeoeCurr = 0.5*BoltzmanneDensity*(j-CapturedCharge)
 				/(0.5*(TotalNum-TotalCharge)*eDensity*(1-cos(asin(1.0/eImpactParameter))));
 
-		if( j_ThisSave != 0.0 ){ // Handle no charges captured this save
-			// If change of sign in Mean Diff
-			if( (MeanChargeDiff < 0 && (TotalChargeInSave/(j_ThisSave)-MeanChargeSave)) > 0 
-				|| (MeanChargeDiff > 0 && (TotalChargeInSave/(j_ThisSave)-MeanChargeSave) < 0)  ){
-				UPDATE_CSCALE();
-			}
-
+		if( j_ThisSave > 20.0 ){ // Handle no charges captured this save
+			
 			MeanChargeDiff = TotalChargeInSave/(j_ThisSave)-MeanChargeSave;
+			// If change of sign in Mean Diff
+			if( (MeanChargeDiff < 0 && OldMeanChargeDiff > 0 )
+				|| (MeanChargeDiff > 0 && OldMeanChargeDiff < 0)  ){
+				UPDATE_CSCALE();
+				if( fabs(ChargeScale) <= 2.0 )
+					ChargeScale = 2.0;
+			}
+			OldMeanChargeDiff = MeanChargeDiff;
+
 			MeanChargeSave = TotalChargeInSave/(j_ThisSave);
 			TotalChargeInSave = 0.0;
 
@@ -1086,16 +1091,13 @@ int main(int argc, char* argv[]){
 			MeanAngularVelDiff = TotalAngularVelThisStep*(1.0/j_ThisSave)-MeanAngularVel;
 			MeanAngularVel = TotalAngularVelThisStep*(1.0/j_ThisSave);
 			TotalAngularVelThisStep = TotalAngularVelThisStep*0.0;
-		}else{
-			MeanChargeDiff = 0.0;
-
-			MeanAngularVelDiff = 0.0*MeanAngularVelDiff;
+			j_ThisSave = 0;
 		}
 
 		SAVE_CHARGE();
 
 
-		j_ThisSave = 0;
+
 
 
 		SAVE_MOM();
@@ -1106,10 +1108,12 @@ int main(int argc, char* argv[]){
 		// ************************************************** //
 
 		// If Mean Charge is deviating by less than 0.1%
-		if( fabs(MeanChargeDiff/PotentialNorm) < 0.001 && MeanChargeDiff != 0.0 ){ 
-			RunDataFile << "\n\n* Equilibrium Reached! after saves = " << s << " *";
-			s = smax;
-		}
+		// and this is smaller than charge scale length
+		//if( fabs(MeanChargeDiff/PotentialNorm) < 0.001 && MeanChargeDiff != 0.0 
+		//	&& ChargeScale/PotentialNorm < 0.01 ){ 
+		//	RunDataFile << "\n\n* Equilibrium Reached! after saves = " << s << " *";
+		//	s = smax;
+		//}
 	
 		// ***** PRINT CHARGE AND PATH COUNTERS 	***** //
 		if( (i_simulated < NumberOfIons || e_simulated < NumberOfElectrons) && s == smax ){
