@@ -37,6 +37,14 @@
 #define CLOSE_CHARGE()
 #endif
 #else
+#define DECLARE_CHARGE()	
+#define OPEN_CHARGE()	
+#define REOPEN_CHARGE()
+#define HEAD_CHARGE()
+#define SAVE_CHARGE()	
+#define ADD_CHARGE();
+#define UPDATE_CSCALE()
+#define CLOSE_CHARGE()
 #endif
 
 #ifdef CALCULATE_MOM
