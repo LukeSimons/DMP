@@ -16,6 +16,8 @@
 
 #include "Constants.h"
 
+using namespace dimplconsts;
+
 /** @class threevector 
  *  @brief Class defining a threevector object for use in physics models
  *
@@ -250,12 +252,12 @@ class threevector{
 
         /**@brief Overload bitwise leftshit operator
          *
-         * return the outer product of this vector and v_old threevector
+         * return write the data of the three vector to ostream
          * @param os out stream to send threevector data to
-         * @param vec threevector to be sent to ostream
+         * @param v threevector to be sent to ostream
          */
         friend std::ostream& operator<<(std::ostream& os, 
-            const threevector& vec);
+            const threevector& v);
         ///@}
 };
 

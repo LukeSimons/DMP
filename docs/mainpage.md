@@ -1,0 +1,106 @@
+\*! \mainpage DiMPL
+Author :    Luke Simons\n
+Date :    06/02/2019\n
+Email:    ls5115@ic.ac.uk\n\n
+
+\section dimpl DiMPl - Dust In Magnetised Plasma
+
+Simulates trajectories of ions and electrons in a magnetised plasma around a charged dust grain.
+Rate of collection of ions and electrons is calculated with a focus on calculating the torque on the sphere.
+
+This code calculates the angular and linear momentum transfer to a charged sphere with either a Debye-Huckel or Coulomb electric potential in a constant magnetic field. Output is in files in subdirectory Data. Optional full tracking of particles, including their change in energy and net linear and angular momentum can be calculated by defining the relevant pre-processor directives. Command line input is available with the following options:
+
+\section cmd_line Command Line Options
+Below are listed the command line options available for DiMPl and displayed when typing ./main -h
+
+Options:	-h,--help			Show this help message
+
+	-r,--radius RADIUS		(m), Specify radius of Dust grain
+		Radius(=1e-6m) DEFAULT,		By Default, simulate sphere of size 1um in radius
+
+	-s,--spin SPIN		(hz), Specify the initial rotation frequency of Dust grain alligned with magnetic field axis
+		Spin(=0.0hz) DEFAULT,		By Default, simulate sphere with initially zero z angular momentum
+
+	-a1,--semix SEMIX		(arb), Specify the semi-axis for x in dust radii
+		a1(=1) DEFAULT,			By Default, simulate perfect sphere
+
+	-a2,--semiy SEMIZ		(arb), Specify the semi-axis for y in dust radii
+		a2(=1) DEFAULT,			By Default, simulate perfect sphere
+
+	-a3,--semiz SEMIY		(arb), Specify the semi-axis for z in dust radii
+		a3(=1) DEFAULT,			By Default, simulate perfect sphere
+
+	-d,--density DENSITY		(kgm^-^3), Specify density of Dust grain
+		Density(=19600kgm^-^3) DEFAULT,	By Default, Tungsten Density
+
+	-p,--potential POTENTIAL	(double), Specify the potential of Dust grain normalised to electron temperature
+		Potential(=-2.5eV) DEFAULT,	By Default, OML Potential in Ti=Te Hydrogen plasma
+
+	-m,--magfield MAGFIELD		(T), Specify the magnetic field (z direction)
+		BMag(=1.0T) DEFAULT,		By Default, magnetic field is 1.0T upwards in vertical z
+
+	-n,--normalised NORMALISED	(bool), whether normalisation (following Sonmor & Laframboise) is on or off
+		NormalisedVars(=0) DEFAULT,	False, By Default use Tesla and electron volts
+
+	-te,--etemp ETEMP		(eV), Specify the temperature of plasma electrons
+		eTemp(=1eV) DEFAULT,
+
+	-ne,--edensity EDENSITY		(m^-^3), Specify the plasma electron density
+		eDensity(=1e18m^-^3) DEFAULT,	Tokamak density
+
+	-ti,--itemp ITEMP		(eV), Specify the temperature of Ions
+		iTemp(=1eV) DEFAULT,
+
+	-ni,--idensity IDENSITY		(m^-^3), Specify the plasma ion density
+		iDensity(=1e18m^-^3) DEFAULT,	Tokamak density
+
+	-c,--ichance ICHANCE			(eV), Specify the probability of generating an Ion
+		iChance(=-0.5) DEFAULT,	Ficticious ion generation probability: i.e Self-consistently generate ions & electrons
+
+	-u,--zmaxcoeff ZMAXCOEFF	(double), The upper limit of simulation domain as number of Coulomb Interaction lengths
+		zMaxCoeff(=1.0) DEFAULT,	Number of Interaction distances from (0,0,Radius) plane to max of simulation domain
+
+	-l,--zmincoeff ZMINCOEFF	(double), The lower limit of simulation domain as number of Coulomb Interaction lengths
+		zMaxCoeff(=1.0) DEFAULT,	Number of Interaction distances from (0,0,Radius) plane to min of simulation domain
+
+	-z,--zboundforce ZBOUNDFORCE	(double), Force the absolute value of simulation domain upper and lower boundaries
+		ZBoundForce(=0.0) DEFAULT,	By Default, use -u and -l to determine height of injection plane
+
+	-b,--impactpar IMPACTPAR	(double), Specify the radial limit of simulation domain as number of distances
+		ImpactPar(=2.0) DEFAULT,	By Default, Radial extent of injection is three gyro-radii from centre
+
+	-f,--forceimppar FORCEIMPPAR	(double), Force the absolute value of simulation radial distance
+		ForceImpPar(=0.0) DEFAULT,	By Default, use -b to determine radial extent of injection plane
+
+	-i,--imax IMAX			(int), Specify the number of particles to be launched
+		imax(=10000) DEFAULT,		By Default, inject 10,000 particles
+
+	-j,--jmax JMAX			(int), Specify the number of particles to be collected (not exceeding imax)
+		jmax(=5000) DEFAULT,		By Default, stop simulation if 5,000 particles are collected
+
+	-rm,--rmax RMAX			(int), Specify the number of reflections in z axis before assuming orbit misses
+		rmax(=15) DEFAULT,		By Default, stop simulation if Particle reflects in z axis 15 times
+
+	-t,--timestep TIMESTEP		(double), Specify the multiplicative factor for the time step
+		TimeStepFactor(=0.0005) DEFAULT,
+
+	-no,--number NUMBER			(int), Specify the number of particles to be captured before saving
+		Number(=1000) DEFAULT,		By Default, store average values after collecting 1000 particles
+
+	-v,--driftvel DRIFTVEL		(m s^-^1), Specify the drift velocity of the plasma
+		DriftVel(=0.0) DEFAULT,		By Default, No drift velocity
+
+	-se,--seed SEED			(double), Specify the seed for the random number generator
+		Seed(=1.0) DEFAULT,		By Default, Seed is 1.0
+
+	-sa,--Saves SAVES			(int), Specify the number of particles before saving a run
+		Saves(=1000) DEFAULT,		By Default, Save data to Meta datafile once per 1000.0 particles
+
+	-o,--output OUTPUT		(string), Specify the suffix of the output file
+		suffix(='.txt') DEFAULT,	By Default, Save data to Data/DiMPl.txt
+
+	-jm,--jmin JMIN			(int), Specify the number of particles to be collected before saving charge
+		jmin(=20) DEFAULT,		By Default, re-assess charging scale after collecting 20 charges
+
+	-jf,--jfin JMIN			(int), Specify the number of particles to be collected in final save
+		jfin(=100) DEFAULT,		By Default, collect 100 particles in the final save
