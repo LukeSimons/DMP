@@ -1,3 +1,8 @@
+// 	Following work from:
+//	Generating equally weighted test particles from the one-way flux of a drifting Maxwellian
+//	T Makkonen, M I Airila & T Kurki-Suonio
+//	http://iopscience.iop.org/article/10.1088/0031-8949/90/1/015204/data
+
 // We need these headers
 #include <cmath>
 #include <cstdlib>
