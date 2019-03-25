@@ -7,7 +7,6 @@
  */
 
 
-
 //#define SAVE_TRACKS //!< Switch: save all particle trajectories
 #define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
 #define VARIABLE_CSCALE //!< Switch: make particle charges weighted
@@ -23,7 +22,7 @@
 #define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
 #define SAVE_TOTALS //!< Switch: write to file the total currents
 
-//#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
+#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
 //#define POINT_INJECTION //!< Switch: inject particles at single point
 //#define NO_SPHERE //!< Switch: remove inner simulation boundary of sphere
 
@@ -76,6 +75,9 @@ static void show_usage(std::string name){
     << "\t\ta3(=1) DEFAULT,\t\t\tBy Default, simulate perfect sphere\n\n"
     << "\t-d,--density DENSITY\t\t(kgm^-^3), Specify density of Dust grain\n"
     << "\t\tDensity(=19600kgm^-^3) DEFAULT,\tBy Default, Tungsten Density\n\n"
+    << "\t-ex,--efieldx EFIELDX\t(double), Specify the x component of a background electric field\n"
+    << "\t-ey,--efieldx EFIELDY\t(double), Specify the y component of a background electric field\n"
+    << "\t-ez,--efieldx EFIELDZ\t(double), Specify the z component of a background electric field\n"
     << "\t-p,--potential POTENTIAL\t(double), Specify the potential of Dust grain normalised to electron temperature\n"
     << "\t\tPotential(=-2.5eV) DEFAULT,\tBy Default, OML Potential in Ti=Te Hydrogen plasma\n\n"
     << "\t-m,--magfield MAGFIELD\t\t(T), Specify the magnetic field (z direction)\n"
@@ -232,23 +234,33 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
     std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
     #ifdef SPHERICAL_INJECTION
         // ***** RANDOMISE POSITION SPHERICALLY ***** //
-        double phi_pos  = 2.0*PI*rad(mt);
-        double theta_pos    = acos(2.0*rad(mt)-1.0);
+        double phi_pos   = 2.0*PI*rad(mt);
+        double theta_pos = acos(2.0*rad(mt)-1.0);
         Position.setx(ImpactParameter*sin(theta_pos)*cos(phi_pos));
         Position.sety(ImpactParameter*sin(theta_pos)*sin(phi_pos));
         Position.setz(ImpactParameter*cos(theta_pos));
     
     
         // ***** RANDOMISE VELOCITY SPHERICALLY ***** //
-        double v[3],v_temp[3];  /* 0 is v_r, 1 is v_phi, and 2 is v_theta */
+/*	POT Style velocity generation
+        double v[3],v_temp[3];  //!< 0 is v_r, 1 is v_phi, and 2 is v_theta
         nrv_pair(ThermalVel, &(v[0]), &(v[1]),mt);
         nrv_pair(ThermalVel, &(v[2]), &(v[2]),mt);
 
         if (v[0] > 0.0) {
-            /* No point injecting a particle at the outer boundary
-               with positive radial velocity. */
+            //!< No point injecting a particle at the outer boundary
+            //!<   with positive radial velocity. 
             v[0] = -v[0];
         }
+*/
+        
+        double invel = rand_mwts(0.0,ThermalVel,mt);
+        std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
+        double v[3], v_temp[3];
+        v[0]= -invel;
+        v[1]= Gaussdist(mt);
+        v[2]= Gaussdist(mt);
+
         /* Translate the injection velocity in spherical coordinates into
            the desired Cartesian coordinates. Luckily I already had this
            worked out for John and me's spherical absorber problem! */
@@ -406,6 +418,9 @@ int main(int argc, char* argv[]){
 
 
     // ***** DEFINE PLASMA PARAMETERS       ***** //
+    double EFieldx      = 0.0;  //!< V/m, x component of electric field
+    double EFieldy      = 0.0;  //!< V/m, x component of electric field
+    double EFieldz      = 0.0;  //!< V/m, x component of electric field
     double iTemp        = 1.0;  //!< Ion Temperature, eV
     double eTemp        = 1.0;  //!< Electron Temperature, eV
     double eDensity     = 1e18; //!< m^(-3), Electron density
@@ -419,8 +434,10 @@ int main(int argc, char* argv[]){
     double iChance      = -0.5; //!< Manually set probability of Generating an ion, negative will cause self-consistent
     unsigned long long imax = 10000;//!< Arb, Maximum number of particles to be launched
     unsigned long long jmax = 5000; //!< Arb, Number of particles to be collected
+    #ifdef VARIABLE_CSCALE
     unsigned long long jmin = 20;   //!< Arb, Minimum number of particles collected before summing mean of charge
     unsigned long long jfin = 100;  //!< Arb, Minimum number of particles collected in the final save for averaging
+    #endif
     unsigned long long num  = 1000; //!< Arb, Number of particles to be collected before saving
     double TimeStepFactor   = 0.0005; //!< Arb, Multiplicative factor used to determine size of the timestep
     unsigned int Saves(100);    //!<Arb, Number of particles to be collected before saving in a run
@@ -456,6 +473,12 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,a3);
         else if( arg == "--density"     || arg == "-d" )    
             InputStatus = InputFunction(argc,argv,i,ss0,Density);
+        else if( arg == "--efieldx"   || arg == "-ex" )    
+            InputStatus = InputFunction(argc,argv,i,ss0,EFieldx);
+        else if( arg == "--efieldy"   || arg == "-ey" )    
+            InputStatus = InputFunction(argc,argv,i,ss0,EFieldy);
+        else if( arg == "--efieldz"   || arg == "-ez" )    
+            InputStatus = InputFunction(argc,argv,i,ss0,EFieldz);
         else if( arg == "--potential"   || arg == "-p" )    
             InputStatus = InputFunction(argc,argv,i,ss0,Potential);
         else if( arg == "--magfield"    || arg == "-m" )    
@@ -557,7 +580,8 @@ int main(int argc, char* argv[]){
         Saves = imax;
     }
 
-        
+    // ***** WRITE INPUT DATA FILE        ***** //
+    //!< Save program configuration to a file with Input
     InputDataFile.open(filename + "_Input" + suffix);
     InputDataFile << "## Input Data File ##\n";
     InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
@@ -571,21 +595,24 @@ int main(int argc, char* argv[]){
     }
     #endif
 
-    // If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
-    double MASS         = Mp;       // kg, This is the Mass to which quantities are normalised 
+    // ************************************************** //
+
+
+    //!< If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
+    double MASS = dimplconsts::Mp;  //!< kg, This is the Mass to which quantities are normalised 
     a1 = 1.0/(a1*a1);
     a2 = 1.0/(a2*a2);
     a3 = 1.0/(a3*a3);
-    double MassRatio    = sqrt(Mp/Me);
+    double MassRatio    = sqrt(MASS/Me);
     double DustMass     = (4.0/3.0)*PI*pow(Radius,3)*Density;
     if( NormalisedVars ){   // If we're using S&L normalised units but iChance is undertermined
 
         if( iChance == 0.0 ){ // If we are simulating only Electrons
                     BMag = sqrt(PI/2.0)*BMagIn*sqrt(Me*eTemp/echarge)/Radius;   // BMag normalised to Electrons
         }else{  // If we are simulating only Ions or otherwise Ions and electrons.
-            BMag = sqrt(PI/2.0)*BMagIn*sqrt(Mp*iTemp/echarge)/Radius;   // BMag normalised to Ions
+            BMag = sqrt(PI/2.0)*BMagIn*sqrt(MASS*iTemp/echarge)/Radius;   // BMag normalised to Ions
         }
-        DriftVel = DriftVel*sqrt(echarge*iTemp/Mp);
+        DriftVel = DriftVel*sqrt(echarge*iTemp/MASS);
     }else{
         BMag = BMagIn;
                 Potential = Potential*echarge/(echarge*eTemp);  // Convert from SI Potential to normalised potential
@@ -605,7 +632,7 @@ int main(int argc, char* argv[]){
     double PotentialNorm    = Potential*(eTemp*echarge)*4*PI*epsilon0*Radius/pow(echarge,2.0);  // Normalised Charge,
     double DriftNorm    = DriftVel*Tau/(Radius);
     double DebyeLength  = sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2.0)))/Radius;
-    double A_Coulomb    = Mp/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
+    double A_Coulomb    = MASS/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
 
     #ifdef VARIABLE_CSCALE
     double ChargeScale  = eTemp*4.0*PI*epsilon0*Radius/(2.0*echarge); // Divide by 2 as we don't want full scale
@@ -616,6 +643,7 @@ int main(int argc, char* argv[]){
 
 
     // ***** DEFINE FIELD PARAMETERS        ***** //
+    threevector EField_Background(EFieldx,EFieldy,EFieldz);
     threevector Bhat(0.0,0.0,1.0);  // Direction of magnetic field, z dir.
 
     // ************************************************** //
@@ -624,7 +652,7 @@ int main(int argc, char* argv[]){
     // ***** DEFINE SIMULATION SPACE        ***** //
     // See : https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
     // For reasoning on choice of Velocity vector
-    double iThermalVel  = sqrt(echarge*iTemp/Mp)*(Tau/Radius);      // Normalised Ion Thermal velocity
+    double iThermalVel  = sqrt(echarge*iTemp/MASS)*(Tau/Radius); // Normalised Ion Thermal velocity
     double eThermalVel  = sqrt(echarge*eTemp/Me)*(Tau/Radius);  // Normalised Electron Thermal velocity
 
     double iRhoTherm = 0.0;                 // Ion gyro-radii are zero by Default
@@ -809,7 +837,7 @@ int main(int argc, char* argv[]){
     RunDataFile << "## Run Data File ##\n";
     RunDataFile << "#Date: " << dt;
     RunDataFile << "#Input:\t\tValue\n\nimax (arb #):\t\t"<<imax<<"\njmax (arb #):\t\t"<<jmax<<"\nIon # (arb #):\t\t" << NumberOfIons<<"\nElec # (arb #):\t\t"<<NumberOfElectrons<<"\nProbOfIon (arb):\t"<<ProbabilityOfIon<<"\n\nElectron Gyro (1/Radius):\t"<<eRhoTherm<<"\nElectron Temp (eV):\t\t"<<eTemp<<"\nElec Density (m^-^3):\t\t"<<BoltzmanneDensity<<"\nElectron IP (1/Radius):\t\t"<<eImpactParameter<<"\nElectron zmax (1/Radius):\t"<<ezmax<<"\nElectron zmin (1/Radius):\t"<<ezmin<<"\nElecs Timestep (Tau):\t\t"<<TimeStepe<<"\nProbOfPosFluxe (arb):\t\t"<<ProbOfPosFluxe<<"\nProbOfNegFluxe (arb):\t\t"<<ProbOfNegFluxe<<"\n\nIon Gyro (1/Radius):\t"<<iRhoTherm<<"\nIon Temp (eV):\t\t"<<iTemp<<"\nIon Density (m^-^3):\t"<<BoltzmanniDensity<<"\nIon IP (1/Radius):\t"<<iImpactParameter<<"\nIon zmax (1/Radius):\t"<<izmax<<"\nIon zmin (1/Radius):\t"<<izmin<<"\nIon Timestep (Tau):\t"<<TimeStepi<<"\nProbOfPosFluxi (arb):\t"<<ProbOfPosFluxi<<"\nProbOfNegFluxi (arb):\t"<<ProbOfNegFluxi<<"\n\nRadius (m):\t\t"<<Radius<<"\nSpin (1/Tau):\t\t"<<Spin*Tau<<"\na1 (1/Radius):\t\t"<<(1.0/sqrt(a1))<<"\na2 (1/Radius):\t\t"<<(1.0/sqrt(a2))<<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"<<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm<<"\nB Field (T or Radius/GyroRad):\t"<<BMag<<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm<<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"<<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
-    #ifdef SPHERICAL
+    #ifdef SPHERICAL_INJECTION
         RunDataFile << "* SPHERICAL INJECTION *\n";
     #else 
         RunDataFile << "* CYLINDRICAL INJECTION *\n";
@@ -970,8 +998,7 @@ int main(int argc, char* argv[]){
                 // ***** GENERATE AN ORBIT ***** //
 
                 }
-                GenerateOrbit(Position,Velocity,ImpactParameter,ProbUpper,zmin,zmax,DriftNorm,ThermalVel,
-                        randnumbers[omp_get_thread_num()]);
+                GenerateOrbit(Position,Velocity,ImpactParameter,ProbUpper,zmin,zmax,DriftNorm,ThermalVel,randnumbers[omp_get_thread_num()]);
     
                 InitialPos = Position;
                 InitialVel = Velocity;
@@ -1001,7 +1028,7 @@ int main(int argc, char* argv[]){
                 C_INITIAL_VEL(); D_INITIAL_VEL();   // For energy calculations
                 C_INITIAL_POT(); D_INITIAL_POT();   // For energy calculations
                 #ifdef SAVE_APPROACH
-                double MinPos = sqrt(zmax*zmax+ImpactParameter*ImpactParameter);
+                    double MinPos = sqrt(zmax*zmax+ImpactParameter*ImpactParameter);
                 #endif
 
 
@@ -1015,10 +1042,10 @@ int main(int argc, char* argv[]){
                 // ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
                 // Calculate Electric Field
                 #ifdef DEBYE_POTENTIAL
-                    EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
+                    EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb)+EField_Background;
                 #endif
                 #ifdef COULOMB_POTENTIAL
-                    EField = CoulombField(Position,PotentialNorm,A_Coulomb);
+                    EField = CoulombField(Position,PotentialNorm,A_Coulomb) +EField_Background;
                 #endif
                 UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);  
     
@@ -1030,17 +1057,16 @@ int main(int argc, char* argv[]){
                 OldPosition.sety(0.0);
                 OldPosition.setz(0.0);
 
-
-                EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
-
                 #ifdef SPHERICAL_INJECTION
-                EdgeCondition = ((Position.getx()*Position.getx()+Position.gety()*Position.gety()
-                            +Position.getz()*Position.getz()) <= ImpactParameter*ImpactParameter*1.01);
+                    EdgeCondition = ((Position.getx()*Position.getx()+Position.gety()*Position.gety()+Position.getz()*Position.getz()) <= ImpactParameter*ImpactParameter*1.01);
+                #else
+                    EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
                 #endif
-                SphereCondition = (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2
-                                +Position.getz()*Position.getz()*a3) > 1.0);
+                
                 #ifdef NO_SPHERE
                     SphereCondition = true;
+                #else
+                    SphereCondition = (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) > 1.0);
                 #endif
 
                 // While we don't exceed a specified number of reflections to catch trapped orbits AND  
@@ -1068,12 +1094,12 @@ int main(int argc, char* argv[]){
 
                 while( SphereCondition && EdgeCondition && reflections < r_max ){
                     #ifdef DEBYE_POTENTIAL
-                        EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb);
-                                    #endif
+                        EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb)+EField_Background;
+                    #endif
                     #ifdef COULOMB_POTENTIAL
-                        EField = CoulombField(Position,PotentialNorm,A_Coulomb);
-                                    #endif
-                    OldPosition = Position; // For Angular Momentum Calculations
+                        EField = CoulombField(Position,PotentialNorm,A_Coulomb)+EField_Background;
+                    #endif
+                    OldPosition = Position;
                     double PreviousVelocity = Velocity.getz();
                     UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
                     
@@ -1089,17 +1115,17 @@ int main(int argc, char* argv[]){
                     }
                     #endif
 
-                    EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
                     #ifdef SPHERICAL_INJECTION
-                                        EdgeCondition = ((Position.getx()*Position.getx()+Position.gety()*Position.gety()
-                                                +Position.getz()*Position.getz()) <= ImpactParameter*ImpactParameter*1.01);
-                                    #endif
-                    SphereCondition = (sqrt(Position.getx()*Position.getx()*a1
-                            +Position.gety()*Position.gety()*a2
-                                                        +Position.getz()*Position.getz()*a3) > 1.0);
+                        EdgeCondition = ((Position.getx()*Position.getx()+Position.gety()*Position.gety()+Position.getz()*Position.getz()) <= ImpactParameter*ImpactParameter*1.01);
+                    #else 
+                        EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
+                    #endif
+                    SphereCondition = (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) > 1.0);
                 
                     #ifdef NO_SPHERE
                         SphereCondition = true;
+                    #else
+                        SphereCondition = (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) > 1.0);
                     #endif
 
 
@@ -1173,18 +1199,18 @@ int main(int argc, char* argv[]){
                     C_FINAL_POT(); D_FINAL_POT();
                     PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
                     PRINT_ENERGY(100*(Velocity.square()/InitialVel.square()-1.0));  PRINT_ENERGY("\t");
-                    PRINT_ENERGY(0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
-                    PRINT_ENERGY(0.5*Mp*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
+                    PRINT_ENERGY(0.5*MASS*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
+                    PRINT_ENERGY(0.5*MASS*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
                     PRINT_ENERGY(SPEC_CHARGE*FinalPot);  PRINT_ENERGY("\t");
                     PRINT_ENERGY(SPEC_CHARGE*InitialPot);  PRINT_ENERGY("\t");
-                    PRINT_ENERGY(0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
+                    PRINT_ENERGY(0.5*MASS*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
                             +SPEC_CHARGE*InitialPot);  PRINT_ENERGY("\t");
-                    PRINT_ENERGY(0.5*Mp*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
+                    PRINT_ENERGY(0.5*MASS*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
                             +SPEC_CHARGE*FinalPot);  PRINT_ENERGY("\t");
 
-                    PRINT_ENERGY((0.5*Mp*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
+                    PRINT_ENERGY((0.5*MASS*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
                             +SPEC_CHARGE*FinalPot)/
-                            (0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
+                            (0.5*MASS*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
                             +SPEC_CHARGE*InitialPot) - 1.0);  
                     PRINT_ENERGY("\n");
                     TotalNum ++;
