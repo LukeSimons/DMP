@@ -3,3 +3,5 @@ CX1DATA
 *.txt
 main
 test
+docs/latex
+docs/html

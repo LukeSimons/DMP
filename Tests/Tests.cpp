@@ -5,6 +5,8 @@
 
 #include "MotionTest.h" // CHARGING TESTS
 
+using namespace dimplconsts;
+
 static void show_usage(std::string name){
 	std::cerr << "Usage: int main(int argc, char* argv[]) <option(s)> SOURCES"
 	<< "\n\nOptions:\n"
