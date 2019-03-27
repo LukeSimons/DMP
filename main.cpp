@@ -1,6 +1,6 @@
 //#define SAVE_TRACKS 
-#define SELF_CONS_CHARGE
-#define VARIABLE_CSCALE
+//#define SELF_CONS_CHARGE
+//#define VARIABLE_CSCALE
 
 #define CALCULATE_MOM
 #define SAVE_ANGULAR_VEL
@@ -723,7 +723,8 @@ int main(int argc, char* argv[]){
 	threevector MeanAngularVelDiff(0.0,0.0,0.0);
 
 	threevector TotalAngularMom(0.0,0.0,0.0);
-	threevector TotalInjectedMom(0.0,0.0,0.0);
+	threevector TotalInjectedMomCaptured(0.0,0.0,0.0);
+	threevector TotalInjectedMomMissed(0.0,0.0,0.0);
 	threevector TotalLostMom(0.0,0.0,0.0);
 
 	#ifdef VARIABLE_CSCALE
@@ -770,7 +771,7 @@ int main(int argc, char* argv[]){
 
 		// ************************************************** //
 
-		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,TotalInjectedMom,TotalLostMom,j) PRIVATE_FILES()
+		#pragma omp parallel shared(TotalAngularVel,TotalAngularMom,TotalInjectedMomCaptured,TotalInjectedMomMissed,TotalLostMom,j) PRIVATE_FILES()
 		{
 		threevector Position(0.0,0.0,0.0);
 		threevector Velocity(0.0,0.0,0.0);
@@ -1003,13 +1004,14 @@ int main(int argc, char* argv[]){
 				AngularMom = SpeciesMass*(FinalPosition^Velocity); 		
 				#pragma omp critical
 				{
-					TotalInjectedMom += SpeciesMass*InitialVel;
+					
 					if( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) < 1.0 ){ // In this case it was captured!
 						double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
 						AngularVel = (AngVelNorm)*
 						((FinalPosition^Velocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
 //						ADD_F_AMOM(AngularVel*(2.0*DustMass/5.0));
 
+						TotalInjectedMomCaptured += SpeciesMass*InitialVel;
 
 						PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
 						TotalAngularVel += AngularScale*AngularVel;
@@ -1049,6 +1051,7 @@ int main(int argc, char* argv[]){
 						AngularMomentumSum += AngularMom;
 						#endif
 						TotalLostMom += SpeciesMass*Velocity;
+						TotalInjectedMomMissed += SpeciesMass*InitialVel;
 						//SAVE_LMOM()
 						MissedParticles ++;
 						MissedCharge += SPEC_CHARGE;
