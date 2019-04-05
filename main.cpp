@@ -8,8 +8,8 @@
 
 
 //#define SAVE_TRACKS //!< Switch: save all particle trajectories
-#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
-#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
+//#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
+//#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
 //#define VARIABLE_ASCALE //!< Switch: make particle momentum weighted
 
 #define SAVE_MISSED_MOM //!< Switch: write to file missing particles momentum
@@ -269,7 +269,13 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
         Velocity.setx(v_temp[0]);
         Velocity.sety(v_temp[1]);
         Velocity.setz(v_temp[2]+DriftNorm);
-        
+
+	//!< For case of flow, if the injected particle is 
+	//!< expected to leave the simulation domain immediately,
+	//!< reflect the position
+        if( Velocity.getz()*Position.getz() > 0.0 )
+		Position.setz(-1.0*Position.getz());
+
     #elif defined(POINT_INJECTION)
         // ***** INJECT AT SINGLE POINT WITH DRIFT VELOCITY ***** //
         Position.setx(0.0);
@@ -638,7 +644,10 @@ int main(int argc, char* argv[]){
     #ifdef VARIABLE_CSCALE
     double ChargeScale  = eTemp*4.0*PI*epsilon0*Radius/(2.0*echarge); // Divide by 2 as we don't want full scale
     #endif
-    double AngularScale     = 1.0;//echarge*eTemp*PI*Radius*sqrt(echarge*eTemp/Me)/(Tau*DustMass);
+    #ifdef VARIABLE_ASCALE
+    double AngularScalei = MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau*0.01/(Radius);
+    DustMass = DustMass*AngularScalei;
+    #endif
 
     // ************************************************** //
 
@@ -1153,7 +1162,7 @@ int main(int argc, char* argv[]){
 						TotalInjectedMomCaptured += SpeciesMass*InitialVel;
 
                         PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
-                        TotalAngularVel += AngularScale*AngularVel;
+                        TotalAngularVel += AngularVel;
                         TotalAngularVelThisStep += TotalAngularVel;
                         
                         TotalAngularMom += AngularMom;
@@ -1248,7 +1257,7 @@ int main(int argc, char* argv[]){
                 /(0.5*(TotalNum-TotalCharge)*eDensity*(1-cos(asin(1.0/eImpactParameter))));
 
         #ifdef VARIABLE_CSCALE
-        if( j_ThisSave > jmin ){ // Handle no charges captured this save            
+        if( j_ThisSave > jmin ){ // Handle no charges captured this save
             MeanChargeDiff = TotalChargeInSave/(j_ThisSave)-MeanChargeSave;
             // If change of sign in Mean Diff, then approaching equilibrium
             if( (MeanChargeDiff < 0 && OldMeanChargeDiff > 0 )
@@ -1271,17 +1280,17 @@ int main(int argc, char* argv[]){
         }
         #endif
         #ifdef VARIABlE_ASCALE
-        if( j_ThisSave > jmin ){
-            MeanAngularVelDiff = TotalAngularVelThisStep*(1.0/j_ThisSave)-MeanAngularVel;
+        if( j_ThisSave > jmin ){ // Handle no charges captured this save
+            MeanAngularVelDiff = TotalAngularVelThisStep*(1.0/j_ThisSave)-MeanAngularVelSave;
 
             if( (MeanAngularVelDiff.getz() < 0 && 
-                TotalAngularVelThisStep.getz()*(1.0/j_ThisSave)-MeanAngularVel.getz() > 0 )
+                TotalAngularVelThisStep.getz()*(1.0/j_ThisSave)-MeanAngularVelSave.getz() > 0 )
                 || (MeanAngularVelDiff.getz() > 0 && 
-                TotalAngularVelThisStep.getz()*(1.0/j_ThisSave)-MeanAngularVel.getz() < 0 ) ){
+                TotalAngularVelThisStep.getz()*(1.0/j_ThisSave)-MeanAngularVelSave.getz() < 0 ) ){
                 UPDATE_ASCALE();
             }
 
-            MeanAngularVel = TotalAngularVelThisStep*(1.0/j_ThisSave);
+            MeanAngularVelSave = TotalAngularVelThisStep*(1.0/j_ThisSave);
             TotalAngularVelThisStep = TotalAngularVelThisStep*0.0;
             j_ThisSave = 0;
         }
