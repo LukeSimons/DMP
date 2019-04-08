@@ -12,8 +12,8 @@
 //#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
 //#define VARIABLE_ASCALE //!< Switch: make particle momentum weighted
 
-#define SAVE_MISSED_MOM //!< Switch: write to file missing particles momentum
-#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
+//#define SAVE_MISSED_MOM //!< Switch: write to file missing particles momentum
+//#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
 #define SAVE_LINEAR_MOM  //!< Switch: write to file momentum change
 #define SAVE_CHARGING //!< Switch: write to file the charge collected
 //#define SAVE_STARTPOS //!< Switch: write to file the initial positions
@@ -22,7 +22,7 @@
 #define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
 #define SAVE_TOTALS //!< Switch: write to file the total currents
 
-//#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
+#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
 //#define POINT_INJECTION //!< Switch: inject particles at single point
 //#define NO_SPHERE //!< Switch: remove inner simulation boundary of sphere
 
@@ -806,6 +806,9 @@ int main(int argc, char* argv[]){
     #ifdef SPHERICAL_INJECTION
     double iThetaPDFMax = thetaPDFMax(DriftNorm,iThermalVel);
     double eThetaPDFMax = thetaPDFMax(DriftNorm,eThermalVel);
+    #else
+    double iThetaPDFMax = 0.0;
+    double eThetaPDFMax = 0.0;
     #endif
     
     // ************************************************** //
