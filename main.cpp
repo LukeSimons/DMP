@@ -16,7 +16,7 @@
 //#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
 #define SAVE_LINEAR_MOM  //!< Switch: write to file momentum change
 #define SAVE_CHARGING //!< Switch: write to file the charge collected
-//#define SAVE_STARTPOS //!< Switch: write to file the initial positions
+#define SAVE_STARTPOS //!< Switch: write to file the initial positions
 //#define SAVE_ENDPOS //!< Switch: write to file the final positions
 //#define SAVE_APPROACH //!< Switch: write to file the closest approach pos
 #define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
@@ -211,14 +211,14 @@ void nrv_pair(double sd, double* nrv1, double* nrv2, std::mt19937 &mt)
 // probability distribution from inclination angle theta, under a flow mach 'u'
 double thetaPDF(double theta, double u, double sigma)
 {
-	return (exp(-0.5*u*u*cos(theta)*cos(theta)/(sigma*sigma)) + 0.5*u*cos(theta)*(1.0+erf(u*cos(theta)/(sqrt(2.0)*sigma))))*sin(theta);
+	return (sigma/sqrt(2.0*PI)*exp(-0.5*u*u*cos(theta)*cos(theta)/(sigma*sigma)) + 0.5*u*cos(theta)*(1.0+erf(u*cos(theta)/(sqrt(2.0)*sigma))))*sin(theta);
 }
 
 // gradient of aforementioned pdf
 double thetaPDFGrad(double theta, double u, double sigma)
 {
-	return exp(-0.5*u*u*cos(theta)*cos(theta)/(sigma*sigma))*(cos(theta)+(1.0-sigma/sqrt(2.0*PI))*u*u/(sigma*sigma)*sin(theta)*sin(theta)*cos(theta)) 
-	+ 0.5*u*(1.0+erf(u*cos(theta)/(sqrt(2.0)*sigma)))*cos(2.0*theta);
+	return exp(-0.5*u*u*cos(theta)*cos(theta)/(sigma*sigma))*sigma/sqrt(2.0*PI)*cos(theta)
+    + 0.5*u*(1.0+erf(u*cos(theta)/(sqrt(2.0)*sigma)))*cos(2.0*theta);
 }
 
 // evaluate maximum value of theta pdf, for use in rejection sampling
@@ -277,7 +277,7 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
     std::uniform_real_distribution<double> rad(0.0, 1.0); // IONS
     #ifdef SPHERICAL_INJECTION
         // ***** RANDOMISE POSITION SPHERICALLY ***** //
-        double phi_pos   = 2.0*PI*rad(mt);
+        double phi_pos = 2.0*PI*rad(mt);
         double theta_pos;
         bool accepted = false;
 
@@ -286,12 +286,11 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
         {
         	theta_pos = PI*rad(mt);
         	double x = xThetaPDFMax*rad(mt);
-        	if (x < thetaPDF(theta_pos,DriftNorm,ThermalVel))
+        	if (x < thetaPDF(theta_pos,-1*DriftNorm,ThermalVel))
         	{
         		accepted = true;
         	}
         }
-
 
         Position.setx(ImpactParameter*sin(theta_pos)*cos(phi_pos));
         Position.sety(ImpactParameter*sin(theta_pos)*sin(phi_pos));
@@ -804,8 +803,8 @@ int main(int argc, char* argv[]){
     // ***** CONFIGURE SPHERICAL INJECTION        ***** //
     // find the maximum value of the theta pdf
     #ifdef SPHERICAL_INJECTION
-    double iThetaPDFMax = thetaPDFMax(DriftNorm,iThermalVel);
-    double eThetaPDFMax = thetaPDFMax(DriftNorm,eThermalVel);
+    double iThetaPDFMax = thetaPDFMax(fabs(DriftNorm),iThermalVel);
+    double eThetaPDFMax = thetaPDFMax(fabs(DriftNorm),eThermalVel);
     #else
     double iThetaPDFMax = 0.0;
     double eThetaPDFMax = 0.0;
