@@ -8,21 +8,21 @@
 
 
 //#define SAVE_TRACKS //!< Switch: save all particle trajectories
-#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
-#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
+//#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
+//#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
 //#define VARIABLE_ASCALE //!< Switch: make particle momentum weighted
 
 #define SAVE_MISSED_MOM //!< Switch: write to file missing particles momentum
 #define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
 #define SAVE_LINEAR_MOM  //!< Switch: write to file momentum change
 #define SAVE_CHARGING //!< Switch: write to file the charge collected
-#define SAVE_STARTPOS //!< Switch: write to file the initial positions
-#define SAVE_ENDPOS //!< Switch: write to file the final positions
+//#define SAVE_STARTPOS //!< Switch: write to file the initial positions
+//#define SAVE_ENDPOS //!< Switch: write to file the final positions
 //#define SAVE_APPROACH //!< Switch: write to file the closest approach pos
 #define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
 #define SAVE_TOTALS //!< Switch: write to file the total currents
 
-#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
+//#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
 //#define POINT_INJECTION //!< Switch: inject particles at single point
 //#define NO_SPHERE //!< Switch: remove inner simulation boundary of sphere
 
@@ -207,6 +207,49 @@ void nrv_pair(double sd, double* nrv1, double* nrv2, std::mt19937 &mt)
     *nrv1 = sd * r * cos(theta);
     *nrv2 = sd * r * sin(theta);
 }
+
+// probability distribution from inclination angle theta, under a flow mach 'u'
+double thetaPDF(double theta, double u, double sigma)
+{
+	return (exp(-0.5*u*u*cos(theta)*cos(theta)/(sigma*sigma)) + 0.5*u*cos(theta)*(1.0+erf(u*cos(theta)/(sqrt(2.0)*sigma))))*sin(theta);
+}
+
+// gradient of aforementioned pdf
+double thetaPDFGrad(double theta, double u, double sigma)
+{
+	return exp(-0.5*u*u*cos(theta)*cos(theta)/(sigma*sigma))*(cos(theta)+(1.0-sigma/sqrt(2.0*PI))*u*u/(sigma*sigma)*sin(theta)*sin(theta)*cos(theta)) 
+	+ 0.5*u*(1.0+erf(u*cos(theta)/(sqrt(2.0)*sigma)))*cos(2.0*theta);
+}
+
+// evaluate maximum value of theta pdf, for use in rejection sampling
+double thetaPDFMax(double u, double sigma, double tol=1e-6)
+{
+	double d_theta = 0.1;
+	double theta_0 = 0.0;
+	double theta_1 = PI;
+	double theta = 0.0;
+	while (d_theta > tol)
+	{
+		theta = theta_0;
+		while (theta < theta_1)
+		{
+			if (thetaPDFGrad(theta,u,sigma) > 0.0 && thetaPDFGrad(theta+d_theta,u,sigma) <= 0.0)
+			{
+				theta_0 = theta;
+				theta_1 = theta+d_theta;
+				d_theta /= 10.0;
+				break;
+			}
+			else
+			{
+				theta += d_theta;
+			}
+		}
+	}
+	return thetaPDF(theta_1,u,sigma);
+}
+
+
 #endif
 
 /** @brief Generate randomly distributed initial positions and velocities
@@ -225,7 +268,7 @@ void nrv_pair(double sd, double* nrv1, double* nrv2, std::mt19937 &mt)
  *  positions over circular area with velocities given by rand_mwts(). 
  *  Spherical injection and point injection are also possible
  */
-void GenerateOrbit(threevector &Position, threevector &Velocity, const double &ImpactParameter, const double &ProbUpper, const double &zmin, const double zmax, const double DriftNorm, const double ThermalVel, std::mt19937 &mt){
+void GenerateOrbit(threevector &Position, threevector &Velocity, const double &ImpactParameter, const double &ProbUpper, const double &zmin, const double zmax, const double DriftNorm, const double ThermalVel, const double xThetaPDFMax, std::mt19937 &mt){
 
     // ***** DEFINE RANDOM NUMBER GENERATOR ***** //
     //!< See https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
@@ -235,7 +278,21 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
     #ifdef SPHERICAL_INJECTION
         // ***** RANDOMISE POSITION SPHERICALLY ***** //
         double phi_pos   = 2.0*PI*rad(mt);
-        double theta_pos = acos(2.0*rad(mt)-1.0);
+        double theta_pos;
+        bool accepted = false;
+
+        // rejection sampling to select theta coordinate
+        while (!accepted)
+        {
+        	theta_pos = PI*rad(mt);
+        	double x = xThetaPDFMax*rad(mt);
+        	if (x < thetaPDF(theta_pos,DriftNorm,ThermalVel))
+        	{
+        		accepted = true;
+        	}
+        }
+
+
         Position.setx(ImpactParameter*sin(theta_pos)*cos(phi_pos));
         Position.sety(ImpactParameter*sin(theta_pos)*sin(phi_pos));
         Position.setz(ImpactParameter*cos(theta_pos));
@@ -452,7 +509,6 @@ int main(int argc, char* argv[]){
     double seed     = 1.0;
     
     // ************************************************** //
-
 
     // ***** DETERMINE USER INPUT ***** //
     std::vector <std::string> sources;
@@ -736,6 +792,15 @@ int main(int argc, char* argv[]){
 
     // ************************************************** //
 
+    // ***** CONFIGURE SPHERICAL INJECTION        ***** //
+    // find the maximum value of the theta pdf
+    #ifdef SPHERICAL_INJECTION
+    double iThetaPDFMax = thetaPDFMax(DriftNorm,iThermalVel);
+    double eThetaPDFMax = thetaPDFMax(DriftNorm,eThermalVel);
+    #endif
+    
+    // ************************************************** //
+
     // ***** DEFINE PROBABILITY OF ION GENERATION   ***** //
     // Define ratio of flux of electrons to ions
     assert(fabs(ezmax)==fabs(ezmin)); // The min and max heights must match as long as the ProbabilityOfIon is the same for
@@ -931,6 +996,7 @@ int main(int argc, char* argv[]){
         double BMagNorm;
         double ImpactParameter;
         double ThermalVel;
+        double xThetaPDFMax;
         double zmax;   
         double zmin;   
         double TimeStep;
@@ -957,6 +1023,7 @@ int main(int argc, char* argv[]){
                     BMagNorm = BMag/MAGNETIC;
                     ImpactParameter=iImpactParameter;
                     ThermalVel=iThermalVel;
+                    xThetaPDFMax=iThetaPDFMax;
                     zmax    = izmax; 
                     zmin    = izmin ;
                     TimeStep = TimeStepi;
@@ -970,6 +1037,7 @@ int main(int argc, char* argv[]){
                         BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
                         ImpactParameter=eImpactParameter;
                         ThermalVel=eThermalVel;
+                        xThetaPDFMax=eThetaPDFMax;
                         zmax= ezmax;        // Top of Simulation Domain, in Dust Radii
                         zmin= ezmin;        // Top of Simulation Domain, in Dust Radii
                         TimeStep = TimeStepe;
@@ -981,6 +1049,7 @@ int main(int argc, char* argv[]){
                         BMagNorm = BMag/MAGNETIC;
                         ImpactParameter=iImpactParameter;
                         ThermalVel=iThermalVel;
+                        xThetaPDFMax=iThetaPDFMax;
                         zmax    = izmax; 
                         zmin    = izmin ;
                         TimeStep = TimeStepi;
@@ -1000,7 +1069,7 @@ int main(int argc, char* argv[]){
                 // ***** GENERATE AN ORBIT ***** //
 
                 }
-                GenerateOrbit(Position,Velocity,ImpactParameter,ProbUpper,zmin,zmax,DriftNorm,ThermalVel,randnumbers[omp_get_thread_num()]);
+                GenerateOrbit(Position,Velocity,ImpactParameter,ProbUpper,zmin,zmax,DriftNorm,ThermalVel,xThetaPDFMax,randnumbers[omp_get_thread_num()]);
     
                 InitialPos = Position;
                 InitialVel = Velocity;
