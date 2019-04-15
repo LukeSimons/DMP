@@ -16,13 +16,13 @@
 //#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
 #define SAVE_LINEAR_MOM  //!< Switch: write to file momentum change
 #define SAVE_CHARGING //!< Switch: write to file the charge collected
-#define SAVE_STARTPOS //!< Switch: write to file the initial positions
+//#define SAVE_STARTPOS //!< Switch: write to file the initial positions
 //#define SAVE_ENDPOS //!< Switch: write to file the final positions
 //#define SAVE_APPROACH //!< Switch: write to file the closest approach pos
 #define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
 #define SAVE_TOTALS //!< Switch: write to file the total currents
 
-#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
+//#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
 //#define POINT_INJECTION //!< Switch: inject particles at single point
 //#define NO_SPHERE //!< Switch: remove inner simulation boundary of sphere
 
@@ -211,14 +211,7 @@ void nrv_pair(double sd, double* nrv1, double* nrv2, std::mt19937 &mt)
 // probability distribution from inclination angle theta, under a flow mach 'u'
 double thetaPDF(double theta, double u, double sigma)
 {
-	return (sigma/sqrt(2.0*PI)*exp(-0.5*u*u*cos(theta)*cos(theta)/(sigma*sigma)) + 0.5*u*cos(theta)*(1.0+erf(u*cos(theta)/(sqrt(2.0)*sigma))))*sin(theta);
-}
-
-// gradient of aforementioned pdf
-double thetaPDFGrad(double theta, double u, double sigma)
-{
-	return exp(-0.5*u*u*cos(theta)*cos(theta)/(sigma*sigma))*sigma/sqrt(2.0*PI)*cos(theta)
-    + 0.5*u*(1.0+erf(u*cos(theta)/(sqrt(2.0)*sigma)))*cos(2.0*theta);
+	return sin(theta)*(1.0+erf(-1*u/(tan(theta)*sigma*sqrt(2.0+2/(tan(theta)*tan(theta))))));
 }
 
 // evaluate maximum value of theta pdf, for use in rejection sampling
@@ -233,9 +226,9 @@ double thetaPDFMax(double u, double sigma, double tol=1e-6)
 		theta = theta_0;
 		while (theta < theta_1)
 		{
-			if (thetaPDFGrad(theta,u,sigma) > 0.0 && thetaPDFGrad(theta+d_theta,u,sigma) <= 0.0)
+			if (thetaPDF(theta,u,sigma) >= thetaPDF(theta-d_theta,u,sigma) && (thetaPDF(theta,u,sigma) >= thetaPDF(theta+d_theta,u,sigma)))
 			{
-				theta_0 = theta;
+				theta_0 = theta-d_theta;
 				theta_1 = theta+d_theta;
 				d_theta /= 10.0;
 				break;
@@ -246,7 +239,7 @@ double thetaPDFMax(double u, double sigma, double tol=1e-6)
 			}
 		}
 	}
-	return thetaPDF(theta_1,u,sigma);
+	return thetaPDF(theta_1-10.0*d_theta,u,sigma);
 }
 
 
@@ -286,7 +279,7 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
         {
         	theta_pos = PI*rad(mt);
         	double x = xThetaPDFMax*rad(mt);
-        	if (x < thetaPDF(theta_pos,-1*DriftNorm,ThermalVel))
+        	if (x < thetaPDF(theta_pos,DriftNorm,ThermalVel))
         	{
         		accepted = true;
         	}
@@ -803,8 +796,8 @@ int main(int argc, char* argv[]){
     // ***** CONFIGURE SPHERICAL INJECTION        ***** //
     // find the maximum value of the theta pdf
     #ifdef SPHERICAL_INJECTION
-    double iThetaPDFMax = thetaPDFMax(fabs(DriftNorm),iThermalVel);
-    double eThetaPDFMax = thetaPDFMax(fabs(DriftNorm),eThermalVel);
+    double iThetaPDFMax = thetaPDFMax(DriftNorm,iThermalVel);
+    double eThetaPDFMax = thetaPDFMax(DriftNorm,eThermalVel);
     #else
     double iThetaPDFMax = 0.0;
     double eThetaPDFMax = 0.0;
