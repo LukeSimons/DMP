@@ -724,6 +724,15 @@ int main(int argc, char* argv[]){
     }
     double iImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(iRhoTherm+DebyeLength);
     double eImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(eRhoTherm+DebyeLength);
+
+    #ifdef SELF_CONS_CHARGE
+    #else
+    if( PotentialNorm == 0.0 ){
+        iImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*iRhoTherm;
+        eImpactParameter = 1.0/sqrt(semiaxisDistortion)+ImpactPar*eRhoTherm;
+    }
+    #endif
+
     if( ForceImpPar > 0.0 ){
         iImpactParameter = 1.0+ForceImpPar;
         eImpactParameter = 1.0+ForceImpPar;
