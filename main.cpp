@@ -21,6 +21,7 @@
 //#define SAVE_APPROACH //!< Switch: write to file the closest approach pos
 #define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
 #define SAVE_TOTALS //!< Switch: write to file the total currents
+#define SAVE_REFLECTS //!< Switch: write to file the number of reflections
 
 //#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
 //#define POINT_INJECTION //!< Switch: inject particles at single point
@@ -451,6 +452,7 @@ int main(int argc, char* argv[]){
     DECLARE_APP();    //!< Date file for closest approaches
     DECLARE_CURR();   //!< Data file for the Currents
     DECLARE_TOT();    //!< Data file for the particle totals
+    DECLARE_REF();    //!< Data file for the reflections
     std::ofstream RunDataFile;   //!< Data file for containing the run 
     std::ofstream InputDataFile; //!< Data file for containing the input
 
@@ -908,6 +910,7 @@ int main(int argc, char* argv[]){
     OPEN_APP(); HEAD_APP()
     OPEN_CURR();    HEAD_CURR();
     OPEN_TOT(); HEAD_TOT();
+    OPEN_REF(); HEAD_REF();
 
     unsigned long long NumberOfIons = ProbabilityOfIon*imax;
     unsigned long long NumberOfElectrons = imax-NumberOfIons;
@@ -989,6 +992,7 @@ int main(int argc, char* argv[]){
         REOPEN_APP();
         REOPEN_CURR();
         REOPEN_TOT();
+        REOPEN_REF();
 
         // ************************************************** //
 
@@ -1013,6 +1017,7 @@ int main(int argc, char* argv[]){
         double zmax;   
         double zmin;   
         double TimeStep;
+        double TotalTime;
         double SpeciesMass;
         double ProbUpper;
 
@@ -1186,6 +1191,7 @@ int main(int argc, char* argv[]){
                     OldPosition = Position;
                     double PreviousVelocity = Velocity.getz();
                     UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
+                    TotalTime+=TimeStep;
                     
 
                     if( (Velocity.getz()*PreviousVelocity <= 0.0) ){
@@ -1277,7 +1283,7 @@ int main(int argc, char* argv[]){
                         MissedParticles ++;
                         MissedCharge += SPEC_CHARGE;
                     } // END OF if ( Position.mag3() < 1.0 )
-
+                    SAVE_REF()
                     ADD_F_AMOM(SpeciesMass*(Position^Velocity));
                     PRINT_AMOM("FMom = "); PRINT_AMOM(FINAL_AMOM); PRINT_AMOM("\n");
                     C_FINAL_POT(); D_FINAL_POT();
@@ -1407,6 +1413,7 @@ int main(int argc, char* argv[]){
         CLOSE_EPOS();
         CLOSE_SPOS();
         CLOSE_APP();
+        CLOSE_REF();
         // ***** CLOSE DATA FILES           ***** //
     }
 

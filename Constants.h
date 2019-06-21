@@ -63,6 +63,22 @@
 #define CLOSE_MOM()
 #endif
 
+#ifdef SAVE_REFLECTS
+#define DECLARE_REF()  std::ofstream ReflectsDataFile;
+#define OPEN_REF() ReflectsDataFile.open("Data/DiMPl_Reflect"+suffix);
+#define REOPEN_REF()   ReflectsDataFile.close(); ReflectsDataFile.clear(); ReflectsDataFile.open("Data/DiMPl_Reflect"+suffix, std::fstream::app); 
+#define HEAD_REF()	ReflectsDataFile << "#Collect num\tSimulated num\treflections\t";
+#define SAVE_REF()	ReflectsDataFile << "\n" << j << "\t" << i << "\t" << reflections << "\t" << TotalTime;
+#define CLOSE_REF()	ReflectsDataFile.close();
+#else
+#define DECLARE_REF()
+#define OPEN_REF()
+#define REOPEN_REF()
+#define HEAD_REF()
+#define SAVE_REF()
+#define CLOSE_REF()
+#endif
+
 #ifdef SAVE_ANGULAR_VEL
 #define DECLARE_AVEL()  std::ofstream AngularDataFile;
 #define OPEN_AVEL() AngularDataFile.open("Data/DiMPl_AngVel"+suffix);
