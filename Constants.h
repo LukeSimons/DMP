@@ -67,7 +67,7 @@
 #define DECLARE_REF()  std::ofstream ReflectsDataFile;
 #define OPEN_REF() ReflectsDataFile.open("Data/DiMPl_Reflect"+suffix);
 #define REOPEN_REF()   ReflectsDataFile.close(); ReflectsDataFile.clear(); ReflectsDataFile.open("Data/DiMPl_Reflect"+suffix, std::fstream::app); 
-#define HEAD_REF()	ReflectsDataFile << "#Collect num\tSimulated num\treflections\t";
+#define HEAD_REF()	ReflectsDataFile << "#Collect num\tSimulated num\treflections\tTotalTime";
 #define SAVE_REF()	ReflectsDataFile << "\n" << j << "\t" << i << "\t" << reflections << "\t" << TotalTime;
 #define CLOSE_REF()	ReflectsDataFile.close();
 #else

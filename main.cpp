@@ -1088,7 +1088,8 @@ int main(int argc, char* argv[]){
 
                 }
                 GenerateOrbit(Position,Velocity,ImpactParameter,ProbUpper,zmin,zmax,DriftNorm,ThermalVel,xThetaPDFMax,randnumbers[omp_get_thread_num()]);
-    
+   
+                TotalTime = 0.0; 
                 InitialPos = Position;
                 InitialVel = Velocity;
                 // ************************************************** //
