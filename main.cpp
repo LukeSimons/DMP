@@ -10,16 +10,16 @@
 //#define SAVE_TRACKS //!< Switch: save all particle trajectories
 //#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
 //#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
-//#define VARIABLE_ASCALE //!< Switch: make particle momentum weighted
+#define VARIABLE_ASCALE //!< Switch: make particle momentum weighted
 
 //#define SAVE_MISSED_MOM //!< Switch: write to file missing particles momentum
-//#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
-#define SAVE_LINEAR_MOM  //!< Switch: write to file momentum change
-#define SAVE_CHARGING //!< Switch: write to file the charge collected
+#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
+//#define SAVE_LINEAR_MOM  //!< Switch: write to file momentum change
+//#define SAVE_CHARGING //!< Switch: write to file the charge collected
 //#define SAVE_STARTPOS //!< Switch: write to file the initial positions
-//#define SAVE_ENDPOS //!< Switch: write to file the final positions
+#define SAVE_ENDPOS //!< Switch: write to file the final positions
 //#define SAVE_APPROACH //!< Switch: write to file the closest approach pos
-#define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
+//#define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
 #define SAVE_TOTALS //!< Switch: write to file the total currents
 #define SAVE_REFLECTS //!< Switch: write to file the number of reflections
 
@@ -27,8 +27,8 @@
 //#define POINT_INJECTION //!< Switch: inject particles at single point
 //#define NO_SPHERE //!< Switch: remove inner simulation boundary of sphere
 
-//#define COULOMB_POTENTIAL //!< Switch: use coulomb potential for E field
-#define DEBYE_POTENTIAL //!< Switch: use Debye-Huckel potential for E field
+#define COULOMB_POTENTIAL //!< Switch: use coulomb potential for E field
+//#define DEBYE_POTENTIAL //!< Switch: use Debye-Huckel potential for E field
 //#define BOLTZMANN_DENSITY //!< Switch: alter injection surface densities
 
 //#define TEST_VELPOSDIST //!< Print initial velocity and position distributions
@@ -124,10 +124,10 @@ static void show_usage(std::string name){
     << "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n"
     << "\t\tsuffix(='.txt') DEFAULT,\tBy Default, Save data to Data/DiMPl.txt\n\n"
     << std::endl;
-    #ifdef VARIABLE_CSCALE
+    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     std::cerr << "\n\nAdditional Options from VARIABLE_CSCALE!\n"
-    << "\t-jm,--jmin JMIN\t\t\t(int), Specify the number of particles to be collected before saving charge\n"
-    << "\t\tjmin(=20) DEFAULT,\t\tBy Default, re-assess charging scale after collecting 20 charges\n\n"
+    << "\t-jm,--jmin JMIN\t\t\t(int), Specify the number of particles to be collected before dynamic saving\n"
+    << "\t\tjmin(=20) DEFAULT,\t\tBy Default, re-assess dynamic scale after collecting 20 particles\n\n"
     << "\t-jf,--jfin JMIN\t\t\t(int), Specify the number of particles to be collected in final save\n"
     << "\t\tjfin(=100) DEFAULT,\t\tBy Default, collect 100 particles in the final save\n\n";
     #endif
@@ -491,7 +491,7 @@ int main(int argc, char* argv[]){
     double iChance      = -0.5; //!< Manually set probability of Generating an ion, negative will cause self-consistent
     unsigned long long imax = 10000;//!< Arb, Maximum number of particles to be launched
     unsigned long long jmax = 5000; //!< Arb, Number of particles to be collected
-    #ifdef VARIABLE_CSCALE
+    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     unsigned long long jmin = 20;   //!< Arb, Minimum number of particles collected before summing mean of charge
     unsigned long long jfin = 100;  //!< Arb, Minimum number of particles collected in the final save for averaging
     #endif
@@ -563,7 +563,7 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,ForceImpPar);
         else if( arg == "--imax"    || arg == "-i" )    
             InputStatus = InputFunction(argc,argv,i,ss0,imax);
-        #ifdef VARIABLE_CSCALE
+        #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
         else if( arg == "--jmin"    || arg == "-jm")    
             InputStatus = InputFunction(argc,argv,i,ss0,jmin);
         else if( arg == "--jfin"    || arg == "-jf")    
@@ -624,7 +624,7 @@ int main(int argc, char* argv[]){
     if( jmax < num )
         std::cout << "\nWarning! Save interval less than captured particle goal. No Angular data recorded\nnum < jmax : " 
             << num << " < " << jmax;
-    #ifdef VARIABLE_CSCALE
+    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     if( jfin == jmin ){
         std::cout << "\nWarning! Final collected equals minimum collected!\njfin == jmin : " 
             << jfin << " == " << jmin << "\nsetting jfin = jmin+1";
@@ -683,8 +683,7 @@ int main(int argc, char* argv[]){
     // Normalise DISTANCE to Dust Radius
     // Normalise CHARGE to fundamental charge
     double MAGNETIC(100);
-        double Tau = MASS/(echarge*MAGNETIC);
-
+    double Tau = MASS/(echarge*MAGNETIC);
 
     double PotentialNorm    = Potential*(eTemp*echarge)*4*PI*epsilon0*Radius/pow(echarge,2.0);  // Normalised Charge,
     double DriftNorm    = DriftVel*Tau/(Radius);
@@ -696,7 +695,8 @@ int main(int argc, char* argv[]){
     #endif
     #ifdef VARIABLE_ASCALE
     double AngularScalei = MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau*0.01/(Radius);
-    DustMass = DustMass*AngularScalei;
+    #else
+    double AngularScalei = 1.0;
     #endif
 
     // ************************************************** //
@@ -942,9 +942,6 @@ int main(int argc, char* argv[]){
     // ***** BEGIN LOOP OVER PARTICLE ORBITS    ***** //
     threevector TotalAngularVel(0.0,0.0,Spin*Tau);
 
-    threevector MeanAngularVel(0.0,0.0,Spin*Tau);
-    threevector TotalAngularVelThisStep(0.0,0.0,Spin*Tau);
-    threevector MeanAngularVelDiff(0.0,0.0,0.0);
 
     threevector TotalAngularMom(0.0,0.0,0.0);
     threevector TotalInjectedMomCaptured(0.0,0.0,0.0);
@@ -953,10 +950,17 @@ int main(int argc, char* argv[]){
 
     #ifdef VARIABLE_CSCALE
     double MeanChargeSave = PotentialNorm;  // Initialise the mean charge as starting charge
-    double TotalChargeInSave=PotentialNorm;// Initialise the charge collected in this save
+    double TotalChargeInSave=PotentialNorm; // Initialise the charge collected in this save
     double MeanChargeDiff(0.0);         // Initial Mean charge diff is zero
     double OldMeanChargeDiff(0.0);      // Initial Mean charge diff is zero
     #endif  
+
+    #ifdef VARIABLE_ASCALE
+    threevector MeanAngularVelSave(0.0,0.0,Spin*Tau);
+    threevector TotalAngularVelThisStep(0.0,0.0,Spin*Tau);
+    threevector MeanAngularVelDiff(0.0,0.0,0.0);
+    threevector OldMeanAngularVelDiff(0.0,0.0,0.0);
+    #endif
 
     #ifdef SAVE_MOM
     threevector LinearMomentumSum(0.0,0.0,0.0);
@@ -974,7 +978,7 @@ int main(int argc, char* argv[]){
 
     unsigned long long smax = imax / Saves;
 
-    for( unsigned int s=1; s <= smax; s ++){
+    for( unsigned int s=1; s <= smax; s ++){ // Loop over the number of saves
         unsigned long long IMAX = (s*imax)/smax;
 
         // ***** REOPEN DATA FILES          ***** //
@@ -1084,11 +1088,12 @@ int main(int argc, char* argv[]){
                     }
                 }
                 BField = BMagNorm*Bhat;
+
                 // ***** GENERATE AN ORBIT ***** //
 
                 }
                 GenerateOrbit(Position,Velocity,ImpactParameter,ProbUpper,zmin,zmax,DriftNorm,ThermalVel,xThetaPDFMax,randnumbers[omp_get_thread_num()]);
-   
+
                 TotalTime = 0.0; 
                 InitialPos = Position;
                 InitialVel = Velocity;
@@ -1189,6 +1194,7 @@ int main(int argc, char* argv[]){
                     #ifdef COULOMB_POTENTIAL
                         EField = CoulombField(Position,PotentialNorm,A_Coulomb)+EField_Background;
                     #endif
+
                     OldPosition = Position;
                     double PreviousVelocity = Velocity.getz();
                     UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
@@ -1235,7 +1241,7 @@ int main(int argc, char* argv[]){
                 #pragma omp critical
                 {
                     if( sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) < 1.0 ){ // In this case it was captured!
-                        double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass);
+                        double AngVelNorm = 5.0*SpeciesMass*MASS/(2.0*DustMass*AngularScalei);
                         AngularVel = (AngVelNorm)*
                         ((FinalPosition^Velocity)-(FinalPosition^(TotalAngularVel^FinalPosition)));
 //                      ADD_F_AMOM(AngularVel*(2.0*DustMass/5.0));
@@ -1243,8 +1249,6 @@ int main(int argc, char* argv[]){
 
                         PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
                         TotalAngularVel += AngularVel;
-                        TotalAngularVelThisStep += TotalAngularVel;
-                        
                         TotalAngularMom += AngularMom;
 
                         j ++; j_ThisSave ++;
@@ -1256,13 +1260,16 @@ int main(int argc, char* argv[]){
 //                      PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)); PRINT_AMOM("\t");
 //                      PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AMOM("\n");
                         ADD_CHARGE()
+                        #ifdef VARIABLE_ASCALE
+                        TotalAngularVelThisStep += TotalAngularVel;
+                        #endif
                         #ifdef VARIABLE_CSCALE
                         TotalChargeInSave += PotentialNorm;
                         #endif
-                        SAVE_SPOS()
-                        SAVE_EPOS()
                         //SAVE_LMOM()
                         if(j % num == 0){
+                            SAVE_SPOS()
+                            SAVE_EPOS()
                             SAVE_AVEL()
                             SAVE_CHA()
                             SAVE_APP()
@@ -1270,10 +1277,12 @@ int main(int argc, char* argv[]){
                     }else if( reflections >= r_max ){        // In this case it was trapped!
                         TrappedParticles ++; 
                         TrappedCharge += SPEC_CHARGE;
-                                        }else{              // In this case it missed!
-                        SAVE_SPOS()
-                        SAVE_EPOS()
-                        SAVE_APP()
+                    }else{              // In this case it missed!
+                        if(j % num == 0){
+                            SAVE_SPOS()
+                            SAVE_EPOS()
+                            SAVE_APP()
+                        }
                         #ifdef SAVE_MOM
                         LinearMomentumSum += SpeciesMass*Velocity;  
                         AngularMomentumSum += AngularMom;
@@ -1314,7 +1323,8 @@ int main(int argc, char* argv[]){
         clock_t end = clock();
         double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
         RunDataFile << "\n\n***** Save : " << s << " Completed in " << elapsd_secs << "s\n\n";
-    
+   
+        #ifdef SAVE_CURRENTS 
 //      Calculate currents for cylindrical geometry with shape factor
         double CyliCurr = 0.5*BoltzmanniDensity*(j+CapturedCharge)*pow(iImpactParameter,2.0)
         /(2.0*(1-cos(asin(sqrt(1.0/(1+izmax*izmax/(iImpactParameter*iImpactParameter))))))*(0.5*(TotalNum+TotalCharge))*iDensity);
@@ -1335,6 +1345,7 @@ int main(int argc, char* argv[]){
                     /(0.5*(TotalNum+TotalCharge)*iDensity*(1-cos(asin(1.0/iImpactParameter))));
         double SphGeoeCurr = 0.5*BoltzmanneDensity*(j-CapturedCharge)
                 /(0.5*(TotalNum-TotalCharge)*eDensity*(1-cos(asin(1.0/eImpactParameter))));
+        #endif
 
         #ifdef VARIABLE_CSCALE
         if( j_ThisSave > jmin ){ // Handle no charges captured this save
@@ -1359,17 +1370,26 @@ int main(int argc, char* argv[]){
             j_ThisSave = 0;
         }
         #endif
-        #ifdef VARIABlE_ASCALE
+        #ifdef VARIABLE_ASCALE
         if( j_ThisSave > jmin ){ // Handle no charges captured this save
             MeanAngularVelDiff = TotalAngularVelThisStep*(1.0/j_ThisSave)-MeanAngularVelSave;
+            // If change of sign in Mean Diff, then approaching equilibrium
 
-            if( (MeanAngularVelDiff.getz() < 0 && 
-                TotalAngularVelThisStep.getz()*(1.0/j_ThisSave)-MeanAngularVelSave.getz() > 0 )
-                || (MeanAngularVelDiff.getz() > 0 && 
-                TotalAngularVelThisStep.getz()*(1.0/j_ThisSave)-MeanAngularVelSave.getz() < 0 ) ){
+            
+            if( (MeanAngularVelDiff.getz() < 0 && OldMeanAngularVelDiff.getz() > 0 )
+                || (MeanAngularVelDiff.getz() > 0 && OldMeanAngularVelDiff.getz() < 0 ) ){
                 UPDATE_ASCALE();
-            }
 
+                // Don't allow angular scale to fall below specified value
+                if( fabs(AngularScalei) >= MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau/(Radius) ){
+                    AngularScalei = MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau/(Radius);
+                    if( jmin == jfin )
+                        s = smax;
+
+                    jmin = jfin;
+                }
+            }
+            OldMeanAngularVelDiff = MeanAngularVelDiff;
             MeanAngularVelSave = TotalAngularVelThisStep*(1.0/j_ThisSave);
             TotalAngularVelThisStep = TotalAngularVelThisStep*0.0;
             j_ThisSave = 0;
