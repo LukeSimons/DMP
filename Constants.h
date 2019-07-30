@@ -83,14 +83,15 @@
 #define DECLARE_AVEL()  std::ofstream AngularDataFile;
 #define OPEN_AVEL() AngularDataFile.open("Data/DiMPl_AngVel"+suffix);
 #define REOPEN_AVEL()   AngularDataFile.close(); AngularDataFile.clear(); AngularDataFile.open("Data/DiMPl_AngVel"+suffix, std::fstream::app); 
-#define HEAD_AVEL() AngularDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tAngularScalei\tLx\tLy\tLz";
-#define SAVE_AVEL() AngularDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << AngularScalei << "\t" << MeanAngularVel << "\t" << MeanAngularVelDiff << "\t" << TotalAngularVel;
- 
 #define CLOSE_AVEL()    AngularDataFile.close();
 #ifdef VARIABLE_ASCALE
-#define UPDATE_ASCALE() AngularScalei = AngularScalei/(2.0);
+#define UPDATE_ASCALE() AngularScalei = AngularScalei*2.0;
+#define HEAD_AVEL() AngularDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tLx\tLy\tLz\tAngularScalei";
+#define SAVE_AVEL() AngularDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << MeanAngularVelSave << "\t" << MeanAngularVelDiff << "\t" << TotalAngularVel << "\t" << AngularScalei;
 #else
 #define UPDATE_ASCALE()
+#define HEAD_AVEL() AngularDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tLx\tLy\tLz";
+#define SAVE_AVEL() AngularDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << TotalAngularVel;
 #endif
 #else
 #define DECLARE_AVEL()
@@ -284,6 +285,7 @@ const extern double AMU;      // kg, Atomic Mass unit
 const extern double c;        // m/s, Speed of light
 const extern double h;        // m^2 kg/s, Planck's Const
 const extern double epsilon0; // F/m, vacuum permittivity
+const extern double mu0;      // N/A^2, vacuum permeability
 }
 
 #endif
