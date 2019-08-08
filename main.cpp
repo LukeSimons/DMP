@@ -27,6 +27,8 @@
 //#define POINT_INJECTION //!< Switch: inject particles at single point
 //#define NO_SPHERE //!< Switch: remove inner simulation boundary of sphere
 
+#define COLLISIONS //!< Switch: Turn on or off charge exchange collisions
+
 #define COULOMB_POTENTIAL //!< Switch: use coulomb potential for E field
 //#define DEBYE_POTENTIAL //!< Switch: use Debye-Huckel potential for E field
 //#define BOLTZMANN_DENSITY //!< Switch: alter injection surface densities
@@ -158,17 +160,39 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 
 }
 
-#ifdef SPHERICAL_INJECTION
-/** @brief Function to process user command line input
+#ifdef COLLISIONS
+/** @brief function to process user command line input
  *  @param v pointer to the three vector of velocity in spherical coordinates
  *  @param phi the angle phi in the spherical coordinate system
  *  @param theta the angle theta in the spherical coordinate system
  *  @param vx pointer to x component of cartesian velocity
  *  @param vy pointer to y component of cartesian velocity
  *  @param vz pointer to z component of cartesian velocity
- *  @author D. M. Thomas (drew.thomas07@imperial.ac.uk)
+ *  @author d. m. thomas (drew.thomas07@imperial.ac.uk)
  *
- *  Convert a velocity in spherical coordinates to a velocity in Cartesian
+ *  convert a velocity in spherical coordinates to a velocity in cartesian
+ *  coordinates, at a position given in spherical coordinates.
+ */
+bool collision_probability(double time, double velocity, double meanfreepath, std::mt19937 &mt)
+{
+    std::uniform_real_distribution<double> rad(0.0, 1.0); // Random uniform Distribution
+    double u = rad(mt); // Random number between 0 and 1
+    bool returnvalue = (u < 1.0-exp(-time*velocity/meafreepath));
+    return returnvalue;
+}
+#endif
+
+#ifdef SPHERICAL_INJECTION
+/** @brief function to process user command line input
+ *  @param v pointer to the three vector of velocity in spherical coordinates
+ *  @param phi the angle phi in the spherical coordinate system
+ *  @param theta the angle theta in the spherical coordinate system
+ *  @param vx pointer to x component of cartesian velocity
+ *  @param vy pointer to y component of cartesian velocity
+ *  @param vz pointer to z component of cartesian velocity
+ *  @author d. m. thomas (drew.thomas07@imperial.ac.uk)
+ *
+ *  convert a velocity in spherical coordinates to a velocity in cartesian
  *  coordinates, at a position given in spherical coordinates.
  */
 void velocity_in_cartesian_coords(double* v, double phi, double theta, double* vx, double* vy, double* vz)
@@ -1012,7 +1036,10 @@ int main(int argc, char* argv[]){
         threevector InitialVel(0.0,0.0,0.0);
         threevector FinalPosition(0.0,0.0,0.0);
         threevector AngularMom(0.0,0.0,0.0);
-        unsigned int reflections(0);
+
+	threevector DummyPosition(0.0,0.0,0.0);
+
+	unsigned int reflections(0);
 
         double BMagNorm;
         double ImpactParameter;
@@ -1198,6 +1225,15 @@ int main(int argc, char* argv[]){
                     OldPosition = Position;
                     double PreviousVelocity = Velocity.getz();
                     UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
+
+                    #ifdef COLLISIONS
+                    double Density = 1.0;
+		    double CrossSection = 1.0;
+		    double Lambda = 1.0/(Density*CrossSection);
+		    if( collision_probability(Tau,Velocity.mag3(),Lambda,randnumbers[omp_get_thread_num()]) ){ //!< Charge exchange collision
+                        GenerateOrbit(DummyPosition,Velocity,ImpactParameter,ProbUpper,zmin,zmax,0.0,iThermalVel,xThetaPDFMax,randnumbers[omp_get_thread_num()]);
+		    }
+                    #endif
                     TotalTime+=TimeStep;
                     
 
