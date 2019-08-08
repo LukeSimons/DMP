@@ -177,7 +177,7 @@ bool collision_probability(double time, double velocity, double meanfreepath, st
 {
     std::uniform_real_distribution<double> rad(0.0, 1.0); // Random uniform Distribution
     double u = rad(mt); // Random number between 0 and 1
-    bool returnvalue = (u < 1.0-exp(-time*velocity/meafreepath));
+    bool returnvalue = (u < 1.0-exp(-time*velocity/meanfreepath));
     return returnvalue;
 }
 #endif
