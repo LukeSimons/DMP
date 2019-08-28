@@ -6,38 +6,6 @@
  *  @bug No known bugs
  */
 
-
-//#define SAVE_TRACKS //!< Switch: save all particle trajectories
-//#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
-//#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
-#define VARIABLE_ASCALE //!< Switch: make particle momentum weighted
-
-//#define SAVE_MISSED_MOM //!< Switch: write to file missing particles momentum
-#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
-//#define SAVE_LINEAR_MOM  //!< Switch: write to file momentum change
-//#define SAVE_CHARGING //!< Switch: write to file the charge collected
-//#define SAVE_STARTPOS //!< Switch: write to file the initial positions
-#define SAVE_ENDPOS //!< Switch: write to file the final positions
-//#define SAVE_APPROACH //!< Switch: write to file the closest approach pos
-//#define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
-#define SAVE_TOTALS //!< Switch: write to file the total currents
-#define SAVE_REFLECTS //!< Switch: write to file the number of reflections
-
-//#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
-//#define POINT_INJECTION //!< Switch: inject particles at single point
-//#define NO_SPHERE //!< Switch: remove inner simulation boundary of sphere
-
-#define COULOMB_POTENTIAL //!< Switch: use coulomb potential for E field
-//#define DEBYE_POTENTIAL //!< Switch: use Debye-Huckel potential for E field
-//#define BOLTZMANN_DENSITY //!< Switch: alter injection surface densities
-
-//#define TEST_VELPOSDIST //!< Print initial velocity and position distributions
-//#define TEST_FINALPOS //!< Print final position of all particles
-//#define TEST_CHARGING //!< Print charge of sphere for every particle collected
-//#define TEST_ANGMOM //!< Print initial and final angular momentum
-//#define TEST_COULOMB_ENERGY //!< Print initial and final energies, coulomb
-//#define TEST_DEBYE_ENERGY //!< Print initial and final energies, debye
-
 #include <omp.h>     //!< For parallelisation
 #include <iostream>  //!< for std::cout
 #include <array>    
@@ -49,6 +17,7 @@
 #include <assert.h>  //!< for assert()
 #include <algorithm> //!< for std::min()
 
+#include "Switches.h"   //!< File containing switches defining DiMPl behaviour
 #include "Constants.h"  //!< Define Pre-processor Directives and constants
 #include "threevector.h"//!< For threevector class
 #include "rand_mwts.h"  //!< Functions to generate correct 1-way maxwellian flux
@@ -328,13 +297,20 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 
     #elif defined(POINT_INJECTION)
         // ***** INJECT AT SINGLE POINT WITH DRIFT VELOCITY ***** //
-        Position.setx(0.0);
+        Position.setx(ImpactParameter);
         Position.sety(0.0);
         Position.setz(zmax);
-        
-        Velocity.setx(0.0);
-        Velocity.sety(0.0);
-        Velocity.setz(DriftNorm);
+        double phi_pos = 2.0*PI*rad(mt);
+        double theta_pos = PI*rad(mt);       
+        if( DriftNorm == 0.0 ){
+            Velocity.setx(ThermalVel*sin(theta_pos)*cos(phi_pos));
+            Velocity.sety(ThermalVel*sin(theta_pos)*sin(phi_pos));
+            Velocity.setz(-1.0*ThermalVel*fabs(cos(theta_pos)));
+        }else{
+            Velocity.setx(0.0);
+            Velocity.sety(0.0);
+            Velocity.setz(DriftNorm);
+        }
     #else
         // ***** RANDOMISE POSITION CYLINDRICALLY ***** //
         double radial_pos=ImpactParameter*sqrt(rad(mt));
@@ -641,7 +617,13 @@ int main(int argc, char* argv[]){
     InputDataFile.open(filename + "_Input" + suffix);
     InputDataFile << "## Input Data File ##\n";
     InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
+    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
+    InputDataFile << "\tjmin\tjfin";
+    #endif
     InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity<< "\t" << iTemp << "\t" << iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
+    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
+    InputDataFile << "\t" << jmin << "\t" << jfin;
+    #endif
     InputDataFile.close();
     #ifdef SAVE_TRACKS
     if( imax >= 1000 ){
@@ -1128,9 +1110,12 @@ int main(int argc, char* argv[]){
 
 
                 // ***** RECORD TRACK DATA, DEBUG AND TEST  ***** //
-                OPEN_TRACK(filename + "_Track_" + std::to_string(i) + ".txt");
-                RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-    
+                OPEN_TRACK(filename + "_Track_" + std::to_string(i) + suffix);
+                RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+                RECORD_TRACK("\t");
+                RECORD_TRACK(sqrt(Position.getx()*Position.getx()
+                    +Position.gety()*Position.gety()+Position.getz()*Position.getz()));
+
                 // ************************************************** //
     
     
