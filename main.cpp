@@ -6,29 +6,30 @@
  *  @bug No known bugs
  */
 
-
 //#define SAVE_TRACKS //!< Switch: save all particle trajectories
-//#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
-//#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
-#define VARIABLE_ASCALE //!< Switch: make particle momentum weighted
+#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
+#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
+//#define VARIABLE_ASCALE //!< Switch: make particle momentum weighted
 
 //#define SAVE_MISSED_MOM //!< Switch: write to file missing particles momentum
-#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
+//#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
 //#define SAVE_LINEAR_MOM  //!< Switch: write to file momentum change
-//#define SAVE_CHARGING //!< Switch: write to file the charge collected
+#define SAVE_CHARGING //!< Switch: write to file the charge collected
 //#define SAVE_STARTPOS //!< Switch: write to file the initial positions
-#define SAVE_ENDPOS //!< Switch: write to file the final positions
+//#define SAVE_ENDPOS //!< Switch: write to file the final positions
 //#define SAVE_APPROACH //!< Switch: write to file the closest approach pos
 //#define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
 #define SAVE_TOTALS //!< Switch: write to file the total currents
-#define SAVE_REFLECTS //!< Switch: write to file the number of reflections
+//#define SAVE_REFLECTS //!< Switch: write to file the number of reflections
 
 //#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
-//#define POINT_INJECTION //!< Switch: inject particles at single point
-//#define NO_SPHERE //!< Switch: remove inner simulation boundary of sphere
+//#define POINT_INJECTION     //!< Switch: inject particles at single point
+//#define NO_SPHERE           //!< Switch: remove inner simulation boundary of sphere
+//#define DISK                //!< Switch: set boundary as circle of normalised radius
 
-#define COULOMB_POTENTIAL //!< Switch: use coulomb potential for E field
-//#define DEBYE_POTENTIAL //!< Switch: use Debye-Huckel potential for E field
+//#define COULOMB_POTENTIAL //!< Switch: use coulomb potential for E field
+#define DEBYE_POTENTIAL //!< Switch: use Debye-Huckel potential for E field
+//#define PARABOLIC_POTENTIAL //!< Switch: use Parabolic potential for E field
 //#define BOLTZMANN_DENSITY //!< Switch: alter injection surface densities
 
 //#define TEST_VELPOSDIST //!< Print initial velocity and position distributions
@@ -427,6 +428,24 @@ threevector DebyeHuckelField(const threevector &Position, double Charge, double 
 }
 #endif
 
+/** @brief Calculate the electric field due to central parabolic potential
+ *  @param Position reference to the three vector of particle position
+ *  @param Charge the charge of the particle
+ *  @param SheathLength the length scale of the parabola
+ *  @param COULOMB_NORM the normalisation of the electric field
+ *  @return threevector of the parabolic electric field at \p Position
+ *
+ *  Calculate the parabolic electric field for a \p Charge at position 
+ *  \p Position with normalisation \p COULOMB_NORM and length scale 
+ *  \p SheathLength
+ */
+#ifdef PARABOLIC_POTENTIAL
+threevector ParabolicField(const threevector &Position, double Charge, double SheathLength, double COULOMB_NORM){
+    if( (Position.mag3()-1.0) > SheathLength ) return threevector(0.0,0.0,0.0);
+    return (-2.0*COULOMB_NORM*Charge*(Position.mag3()-1.0-SheathLength)/(SheathLength*SheathLength))*Position.getunit();
+}
+#endif
+
 /** @brief Main function defining DiMPl program
  *  @param argc the number of command line inputs given by the user
  *  @param argv the character array defining user command line inputs
@@ -641,8 +660,16 @@ int main(int argc, char* argv[]){
     InputDataFile.open(filename + "_Input" + suffix);
     InputDataFile << "## Input Data File ##\n";
     InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
+    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
+    InputDataFile << "\tjfin\tjmin";
+    #endif
+
     InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity<< "\t" << iTemp << "\t" << iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
+    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
+    InputDataFile << "\t" << jfin << "\t" << jmin;
+    #endif
     InputDataFile.close();
+
     #ifdef SAVE_TRACKS
     if( imax >= 1000 ){
         std::cout << "\nWarning! Attempting to store more than 1000 tracks!\ni = " << imax;
@@ -694,9 +721,11 @@ int main(int argc, char* argv[]){
     double ChargeScale  = eTemp*4.0*PI*epsilon0*Radius/(2.0*echarge); // Divide by 2 as we don't want full scale
     #endif
     #ifdef VARIABLE_ASCALE
-    double AngularScalei = MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau*0.01/(Radius);
+    double AngularScalei = MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau*0.001/(Radius);
+    double AngularScalee = MASS*eDensity*sqrt(echarge*eTemp/MASS)*Tau*0.001/(MassRatio*Radius);
     #else
     double AngularScalei = 1.0;
+    double AngularScalee = 1.0;
     #endif
 
     // ************************************************** //
@@ -788,13 +817,35 @@ int main(int argc, char* argv[]){
         eImpactParameter = 1.0+ForceImpPar;
     }
 
-    double iCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*iTemp))/Radius; // Balance Coulomb to kinetic energy
-    double eCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*eTemp))/Radius; // Balance Coulomb to kinetic energy
+    double ezmax = 1.0/sqrt(a3);
+    double ezmin = -1.0/sqrt(a3);
+    double izmax = 1.0/sqrt(a3);
+    double izmin = -1.0/sqrt(a3);
 
-    double ezmax = 1.05/sqrt(a3)+zMaxCoeff*eCoulombImpactParameter;
-    double ezmin = -1.05/sqrt(a3)-zMinCoeff*eCoulombImpactParameter;
-    double izmax = 1.0001/sqrt(a3)+zMaxCoeff*iCoulombImpactParameter;
-    double izmin = -1.0001/sqrt(a3)-zMinCoeff*iCoulombImpactParameter;
+    #ifdef COULOMB_POTENTIAL
+    double iCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*iTemp))/Radius; // Balance Coulomb to thermal energy
+    double eCoulombImpactParameter  = 10.0*fabs(echarge*echarge*PotentialNorm/(2*PI*epsilon0*echarge*eTemp))/Radius; // Balance Coulomb to thermal energy
+    ezmax += zMaxCoeff*eCoulombImpactParameter;
+    ezmin -= zMinCoeff*eCoulombImpactParameter;
+    izmax += zMaxCoeff*iCoulombImpactParameter;
+    izmin -= zMinCoeff*iCoulombImpactParameter;
+    #elif defined DEBYE_POTENTIAL
+    ezmax += zMaxCoeff*DebyeLength;
+    ezmin -= zMinCoeff*DebyeLength;
+    izmax += zMaxCoeff*DebyeLength;
+    izmin -= zMinCoeff*DebyeLength;
+    #elif defined PARABOLIC_POTENTIAL
+    ezmax += zMaxCoeff*DebyeLength;
+    ezmin -= zMinCoeff*DebyeLength;
+    izmax += zMaxCoeff*DebyeLength;
+    izmin -= zMinCoeff*DebyeLength;
+    #else
+    ezmax += zMaxCoeff;
+    ezmin -= zMinCoeff;
+    izmax += zMaxCoeff;
+    izmin -= zMinCoeff;
+    #endif
+
     if( ZBoundForce > 0.0 ){
         ezmax = 1.0/sqrt(a3)+ZBoundForce;
         ezmin = -1.0/sqrt(a3)-ZBoundForce;
@@ -926,10 +977,17 @@ int main(int argc, char* argv[]){
     #endif
     #ifdef NO_SPHERE
         RunDataFile << "* NO SPHERE *\n";
+    #elif defined DISK
+        RunDataFile << "* DISK *\n";
     #endif
+
     #ifdef DEBYE_POTENTIAL
         RunDataFile << "* DEBYE HUCKEL POTENTIAL *\n\n";
     #endif
+    #ifdef PARABOLIC_POTENTIAL
+        RunDataFile << "* PARABOLIC POTENTIAL *\n\n";
+    #endif
+
     #ifdef COULOMB_POTENTIAL
         RunDataFile << "* COULOMB POTENTIAL *\n\n";
     #endif
@@ -1139,8 +1197,11 @@ int main(int argc, char* argv[]){
                 #ifdef DEBYE_POTENTIAL
                     EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb)+EField_Background;
                 #endif
+                #ifdef PARABOLIC_POTENTIAL
+                    EField = ParabolicField(Position,PotentialNorm,DebyeLength,A_Coulomb)+EField_Background;
+                #endif
                 #ifdef COULOMB_POTENTIAL
-                    EField = CoulombField(Position,PotentialNorm,A_Coulomb) +EField_Background;
+                    EField = CoulombField(Position,PotentialNorm,A_Coulomb)+EField_Background;
                 #endif
                 UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,Velocity,SPEC_CHARGE);  
     
@@ -1158,11 +1219,15 @@ int main(int argc, char* argv[]){
                     EdgeCondition = (Position.getz() >= zmin && Position.getz() <= zmax);
                 #endif
                 
+
                 #ifdef NO_SPHERE
                     SphereCondition = true;
+                #elif defined DISK
+                    SphereCondition = ( (Velocity.getz()*Position.getz() < 0.0) && (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2) < 1.0) );
                 #else
                     SphereCondition = (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) > 1.0);
                 #endif
+
 
                 // While we don't exceed a specified number of reflections to catch trapped orbits AND  
                 // while the particle is not inside the sphere and not outside the simulation domain
@@ -1190,6 +1255,9 @@ int main(int argc, char* argv[]){
                 while( SphereCondition && EdgeCondition && reflections < r_max ){
                     #ifdef DEBYE_POTENTIAL
                         EField = DebyeHuckelField(Position,PotentialNorm,DebyeLength,A_Coulomb)+EField_Background;
+                    #endif
+                    #ifdef PARABOLIC_POTENTIAL
+                        EField = ParabolicField(Position,PotentialNorm,DebyeLength,A_Coulomb)+EField_Background;
                     #endif
                     #ifdef COULOMB_POTENTIAL
                         EField = CoulombField(Position,PotentialNorm,A_Coulomb)+EField_Background;
@@ -1221,6 +1289,8 @@ int main(int argc, char* argv[]){
                 
                     #ifdef NO_SPHERE
                         SphereCondition = true;
+                    #elif defined DISK
+                        SphereCondition = ( (Velocity.getz()*Position.getz() < 0.0) && (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2) < 1.0) );
                     #else
                         SphereCondition = (sqrt(Position.getx()*Position.getx()*a1+Position.gety()*Position.gety()*a2+Position.getz()*Position.getz()*a3) > 1.0);
                     #endif
@@ -1381,8 +1451,11 @@ int main(int argc, char* argv[]){
                 UPDATE_ASCALE();
 
                 // Don't allow angular scale to fall below specified value
-                if( fabs(AngularScalei) >= MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau/(Radius) ){
-                    AngularScalei = MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau/(Radius);
+//                if( fabs(AngularScalee) >= 10.0*MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau/(Radius) ){
+//                    AngularScalee = 10.0*MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau/(Radius);
+                if( fabs(AngularScalei) >= 10.0*MASS*eDensity*sqrt(echarge*eTemp/MASS)*Tau/(MassRatio*Radius) ){
+                    AngularScalei = 10.0*MASS*eDensity*sqrt(echarge*eTemp/MASS)*Tau/(MassRatio*Radius);
+
                     if( jmin == jfin )
                         s = smax;
 
