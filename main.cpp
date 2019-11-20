@@ -109,7 +109,7 @@ static void show_usage(std::string name){
  *  @param i A counter indicating the argument which is being processed
  *  @param ss0 The string stream which is used to process command line input
  *  @param Temp The variable of type T which is being filled with user input
- *  @return An integer representing status of
+ *  @return An integer representing status of input 0 fail or 1 succeed
  *
  *  Process user command line input and return status of success of failure
  */
@@ -128,24 +128,56 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 }
 
 #ifdef COLLISIONS
-/** @brief function to process user command line input
- *  @param v pointer to the three vector of velocity in spherical coordinates
- *  @param phi the angle phi in the spherical coordinate system
- *  @param theta the angle theta in the spherical coordinate system
- *  @param vx pointer to x component of cartesian velocity
- *  @param vy pointer to y component of cartesian velocity
- *  @param vz pointer to z component of cartesian velocity
- *  @author d. m. thomas (drew.thomas07@imperial.ac.uk)
+/** @brief function to calculate the neutral density at a particular distance
+ *  @param RadialDistance radial position at which density is evaluated
+ *  @return double neutral density at \p RadialDistance
  *
- *  convert a velocity in spherical coordinates to a velocity in cartesian
- *  coordinates, at a position given in spherical coordinates.
+ *  Calculate and return the neutral density at a particular distance from
+ *  the dust grain
  */
-bool collision_probability(double time, double velocity, double meanfreepath, std::mt19937 &mt)
+double NeutralDistribution(double RadialDistance){
+    double Frequency = 1e-18;
+    double Q = 1e14;
+    double ReturnVal = Q*exp(-(RadialDistance-1.0)*Frequency)
+	/(4.0*PI*RadialDistance*RadialDistance);
+    return ReturnVal;
+}
+
+/** @brief function to determine whether a collision has occured or not
+ *  @param Time time step taken by ion in previous step
+ *  @param PositionMag radial position of ion
+ *  @param Velocity Magnitude of velocity of ion
+ *  @param CrossSection Cross section of charge exchange collision
+ *  @param mt mersenne twister which generates random numbers
+ *  @return bool true for collision occured and false otherwise
+ *
+ *  Change the particle Velocity to be the Neutral thermal velocity in radial 
+ *  direction as modelled by charge exchange collision
+ */
+bool CollisionProbability(double Time, double PositionMag, double Velocity, 
+double CrossSection, std::mt19937 &mt)
 {
-    std::uniform_real_distribution<double> rad(0.0, 1.0); // Random uniform Distribution
+    std::uniform_real_distribution<double> rad(0.0, 1.0);
     double u = rad(mt); // Random number between 0 and 1
-    bool returnvalue = (u < 1.0-exp(-time*velocity/meanfreepath));
+//    bool returnvalue = (u < 1.0-exp(-Time*Velocity/meanfreepath));
+    double NeutralDensity = NeutralDistribution(PositionMag);
+    bool returnvalue = (u < NeutralDensity*CrossSection*Velocity*Time);
     return returnvalue;
+}
+
+/** @brief function to change velocity of ion after charge exchange collision
+ *  @param Position pointer to three vector of velocity, cartesian coordinates
+ *  @param Velocity pointer to three vector of position, cartesian coordinates
+ *  @param DustTemp Dust temperature in K
+ *
+ *  Change the particle Velocity to be the Neutral thermal velocity in radial 
+ *  direction as modelled by charge exchange collision
+ */
+void ChargeExchangeColl(threevector &Position, threevector &Velocity, 
+const double DustTemp){
+    double IonVelMag = sqrt(DustTemp/(2*PI*2*Mp));
+    threevector radial_direction = Position.getunit();
+    Velocity = IonVelMag*radial_direction;
 }
 #endif
 
@@ -322,12 +354,10 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
         Position.setx(ImpactParameter);
         Position.sety(0.0);
         Position.setz(zmax);
-        double phi_pos = 2.0*PI*rad(mt);
-        double theta_pos = PI*rad(mt);       
         if( DriftNorm == 0.0 ){
-            Velocity.setx(ThermalVel*sin(theta_pos)*cos(phi_pos));
-            Velocity.sety(ThermalVel*sin(theta_pos)*sin(phi_pos));
-            Velocity.setz(-1.0*ThermalVel*fabs(cos(theta_pos)));
+            Velocity.setx(0.0);
+            Velocity.sety(0.999*ThermalVel);
+            Velocity.setz(-ThermalVel*sqrt(1.0-0.999*0.999));
         }else{
             Velocity.setx(0.0);
             Velocity.sety(0.0);
@@ -459,6 +489,9 @@ int main(int argc, char* argv[]){
 
     // ***** DEFINE DUST PARAMETERS         ***** //
     double Radius         = 1e-6;  //!< m, Radius of dust
+    #ifdef COLLISIONS
+    double DustTemp       = 2000;  //!< K, Dust Temperature
+    #endif
     double Spin           = 0.0;   //!< hz, Initial rotation rate
     double Density        = 19600; //!< kg m^-^3, Tungsten
     double Potential      = -2.5;  //!< Normalised Potential, 
@@ -517,6 +550,10 @@ int main(int argc, char* argv[]){
         if     ( arg == "--help"    || arg == "-h" ){   show_usage( argv[0]); return 0;         }
         else if( arg == "--radius"  || arg == "-r" )    
             InputStatus = InputFunction(argc,argv,i,ss0,Radius);
+        #ifdef COLLISIONS
+        else if( arg == "--tempdust"  || arg == "-td" )    
+            InputStatus = InputFunction(argc,argv,i,ss0,DustTemp);
+        #endif
         else if( arg == "--spin"    || arg == "-s" )    
             InputStatus = InputFunction(argc,argv,i,ss0,Spin);
         else if( arg == "--semix"   || arg == "-a1")    
@@ -890,7 +927,6 @@ int main(int argc, char* argv[]){
 
 
     // ***** SEED RANDOM NUMBER GENERATOR IN THREADS***** //
-    std::random_device rd;      // Create Random Device
     std::vector<std::mt19937> randnumbers;
     std::uniform_real_distribution<double> rad(0, 1); // IONS
     for(int p = 0; p < omp_get_max_threads(); p ++){
@@ -1011,6 +1047,9 @@ int main(int argc, char* argv[]){
         threevector BField(0.0,0.0,0.0);
         threevector EField(0.0,0.0,0.0);
         threevector OldPosition(0.0,0.0,0.0);
+        #ifdef COLLISIONS
+        threevector OldVelocity(0.0,0.0,0.0);
+        #endif
         threevector AngularVel(0.0,0.0,0.0);
         threevector InitialPos(0.0,0.0,0.0);
         threevector InitialVel(0.0,0.0,0.0);
@@ -1206,16 +1245,36 @@ int main(int argc, char* argv[]){
                     #endif
 
                     OldPosition = Position;
+                    #ifdef COLLISIONS
+                        OldVelocity = Velocity;
+                    #endif
                     double PreviousVelocity = Velocity.getz();
                     UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
 
                     #ifdef COLLISIONS
-                    double Density = 1.0;
-		    double CrossSection = 1.0;
-		    double Lambda = 1.0/(Density*CrossSection);
-		    if( collision_probability(Tau,Velocity.mag3(),Lambda,randnumbers[omp_get_thread_num()]) ){ //!< Charge exchange collision
-                        GenerateOrbit(DummyPosition,Velocity,ImpactParameter,ProbUpper,zmin,zmax,0.0,iThermalVel,xThetaPDFMax,randnumbers[omp_get_thread_num()]);
-		    }
+                    if( SPEC_CHARGE == 1.0 ){ //!< Charge exchange collision
+                        double MagnitudeOfVelocity = Velocity.mag3();
+                        double KineticEnergy = 0.5*SpeciesMass*MagnitudeOfVelocity*MagnitudeOfVelocity;
+                        double KineticEnergyJoules = KineticEnergy*MASS*Radius*Radius/(Tau*Tau);
+                        double KineticEnergyevolts = KineticEnergyJoules/echarge;
+                        double CrossSection = pow(7.49e-10+0.73e-10*log(KineticEnergyevolts),2.0);
+                        //std::cout << "\n\n***\nVelocityMag = " << MagnitudeOfVelocity;
+                        //std::cout << "\nKineticEnergy = " << KineticEnergy;
+                        //std::cout << "\nKineticEnergyevolts = " << KineticEnergyevolts;
+                        //std::cout << "\nCrossSection = " << CrossSection;
+ 			//!< CollisionProbability() is written in SI so convert arguments to SI
+                        if( CollisionProbability(TimeStepi*Tau,Position.mag3()*Radius,Velocity.mag3()*Radius/Tau,CrossSection,randnumbers[omp_get_thread_num()]) ){
+                            ChargeExchangeColl(Position,Velocity,DustTemp);
+                            // ChargeExchangeColl() is written in SI so convert returned Velocity back to normalised form
+                            Velocity = Velocity*(Tau/Radius);
+                            //double CollisionPosition = 0.5*(Position.mag3()+OldPosition.mag3());
+                            //double Potential = A_Coulomb*PotentialNorm*(1.0/(CollisionPosition))*exp(-(CollisionPosition-1.0)/DebyeLength);
+                            //double TotalEnergy = KineticEnergy+Potential;
+                            //std::cout << "\n\n1) " << i << "\t" << TotalTime << "\t" <<  CollisionPosition << "\t" << Position << "\t" << Velocity;
+                            //std::cout << "\n2) " << Potential << "\t" << KineticEnergy << "\t" << TotalEnergy;
+                       }
+                    }
+
                     #endif
                     TotalTime+=TimeStep;
                     
