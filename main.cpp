@@ -50,6 +50,7 @@
 #include <assert.h>  //!< for assert()
 #include <algorithm> //!< for std::min()
 
+#include "Switches.h"   //!< File containing switches defining DiMPl behaviour
 #include "Constants.h"  //!< Define Pre-processor Directives and constants
 #include "threevector.h"//!< For threevector class
 #include "rand_mwts.h"  //!< Functions to generate correct 1-way maxwellian flux
@@ -159,17 +160,39 @@ template<typename T> int InputFunction(int &argc, char* argv[], int &i, std::str
 
 }
 
-#ifdef SPHERICAL_INJECTION
-/** @brief Function to process user command line input
+#ifdef COLLISIONS
+/** @brief function to process user command line input
  *  @param v pointer to the three vector of velocity in spherical coordinates
  *  @param phi the angle phi in the spherical coordinate system
  *  @param theta the angle theta in the spherical coordinate system
  *  @param vx pointer to x component of cartesian velocity
  *  @param vy pointer to y component of cartesian velocity
  *  @param vz pointer to z component of cartesian velocity
- *  @author D. M. Thomas (drew.thomas07@imperial.ac.uk)
+ *  @author d. m. thomas (drew.thomas07@imperial.ac.uk)
  *
- *  Convert a velocity in spherical coordinates to a velocity in Cartesian
+ *  convert a velocity in spherical coordinates to a velocity in cartesian
+ *  coordinates, at a position given in spherical coordinates.
+ */
+bool collision_probability(double time, double velocity, double meanfreepath, std::mt19937 &mt)
+{
+    std::uniform_real_distribution<double> rad(0.0, 1.0); // Random uniform Distribution
+    double u = rad(mt); // Random number between 0 and 1
+    bool returnvalue = (u < 1.0-exp(-time*velocity/meanfreepath));
+    return returnvalue;
+}
+#endif
+
+#ifdef SPHERICAL_INJECTION
+/** @brief function to process user command line input
+ *  @param v pointer to the three vector of velocity in spherical coordinates
+ *  @param phi the angle phi in the spherical coordinate system
+ *  @param theta the angle theta in the spherical coordinate system
+ *  @param vx pointer to x component of cartesian velocity
+ *  @param vy pointer to y component of cartesian velocity
+ *  @param vz pointer to z component of cartesian velocity
+ *  @author d. m. thomas (drew.thomas07@imperial.ac.uk)
+ *
+ *  convert a velocity in spherical coordinates to a velocity in cartesian
  *  coordinates, at a position given in spherical coordinates.
  */
 void velocity_in_cartesian_coords(double* v, double phi, double theta, double* vx, double* vy, double* vz)
@@ -329,13 +352,20 @@ void GenerateOrbit(threevector &Position, threevector &Velocity, const double &I
 
     #elif defined(POINT_INJECTION)
         // ***** INJECT AT SINGLE POINT WITH DRIFT VELOCITY ***** //
-        Position.setx(0.0);
+        Position.setx(ImpactParameter);
         Position.sety(0.0);
         Position.setz(zmax);
-        
-        Velocity.setx(0.0);
-        Velocity.sety(0.0);
-        Velocity.setz(DriftNorm);
+        double phi_pos = 2.0*PI*rad(mt);
+        double theta_pos = PI*rad(mt);       
+        if( DriftNorm == 0.0 ){
+            Velocity.setx(ThermalVel*sin(theta_pos)*cos(phi_pos));
+            Velocity.sety(ThermalVel*sin(theta_pos)*sin(phi_pos));
+            Velocity.setz(-1.0*ThermalVel*fabs(cos(theta_pos)));
+        }else{
+            Velocity.setx(0.0);
+            Velocity.sety(0.0);
+            Velocity.setz(DriftNorm);
+        }
     #else
         // ***** RANDOMISE POSITION CYLINDRICALLY ***** //
         double radial_pos=ImpactParameter*sqrt(rad(mt));
@@ -661,12 +691,11 @@ int main(int argc, char* argv[]){
     InputDataFile << "## Input Data File ##\n";
     InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
-    InputDataFile << "\tjfin\tjmin";
+    InputDataFile << "\tjmin\tjfin";
     #endif
-
     InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity<< "\t" << iTemp << "\t" << iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
-    InputDataFile << "\t" << jfin << "\t" << jmin;
+    InputDataFile << "\t" << jmin << "\t" << jfin;
     #endif
     InputDataFile.close();
 
@@ -1070,7 +1099,10 @@ int main(int argc, char* argv[]){
         threevector InitialVel(0.0,0.0,0.0);
         threevector FinalPosition(0.0,0.0,0.0);
         threevector AngularMom(0.0,0.0,0.0);
-        unsigned int reflections(0);
+
+	threevector DummyPosition(0.0,0.0,0.0);
+
+	unsigned int reflections(0);
 
         double BMagNorm;
         double ImpactParameter;
@@ -1186,9 +1218,12 @@ int main(int argc, char* argv[]){
 
 
                 // ***** RECORD TRACK DATA, DEBUG AND TEST  ***** //
-                OPEN_TRACK(filename + "_Track_" + std::to_string(i) + ".txt");
-                RECORD_TRACK("\n");RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
-    
+                OPEN_TRACK(filename + "_Track_" + std::to_string(i) + suffix);
+                RECORD_TRACK(Position);RECORD_TRACK("\t");RECORD_TRACK(Velocity);
+                RECORD_TRACK("\t");
+                RECORD_TRACK(sqrt(Position.getx()*Position.getx()
+                    +Position.gety()*Position.gety()+Position.getz()*Position.getz()));
+
                 // ************************************************** //
     
     
@@ -1266,6 +1301,15 @@ int main(int argc, char* argv[]){
                     OldPosition = Position;
                     double PreviousVelocity = Velocity.getz();
                     UpdateVelocityBoris(SpeciesMass,EField,BField,TimeStep,Velocity,SPEC_CHARGE);
+
+                    #ifdef COLLISIONS
+                    double Density = 1.0;
+		    double CrossSection = 1.0;
+		    double Lambda = 1.0/(Density*CrossSection);
+		    if( collision_probability(Tau,Velocity.mag3(),Lambda,randnumbers[omp_get_thread_num()]) ){ //!< Charge exchange collision
+                        GenerateOrbit(DummyPosition,Velocity,ImpactParameter,ProbUpper,zmin,zmax,0.0,iThermalVel,xThetaPDFMax,randnumbers[omp_get_thread_num()]);
+		    }
+                    #endif
                     TotalTime+=TimeStep;
                     
 

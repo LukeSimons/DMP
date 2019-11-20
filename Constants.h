@@ -243,24 +243,26 @@
 #define PRINT_AMOM(x)
 #endif
 
-#if defined TEST_COULOMB_ENERGY 
+#ifdef TEST_COULOMB_ENERGY 
 #define C_INITIAL_VEL() threevector InitialVel = Velocity;
 #define C_INITIAL_POT() double InitialPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*Position.mag3()*Radius);
 #define C_FINAL_POT()   double FinalPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*FinalPosition.mag3()*Radius);
+#define D_INITIAL_VEL()
+#define D_INITIAL_POT()
+#define D_FINAL_POT()
+#define PRINT_ENERGY(x) std::cout << x
+#elif defined TEST_DEBYE_ENERGY
+#define D_INITIAL_VEL() threevector InitialVel = Velocity;
+#define D_INITIAL_POT() double InitialPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*Position.mag3()))*exp((Position.mag3()/DebyeLength)-(1.0/DebyeLength)));
+#define D_FINAL_POT()   double FinalPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*FinalPosition.mag3()))*exp((FinalPosition.mag3()/DebyeLength)-(1.0/DebyeLength)));
+#define C_INITIAL_VEL()
+#define C_INITIAL_POT()
+#define C_FINAL_POT()
 #define PRINT_ENERGY(x) std::cout << x
 #else
 #define C_INITIAL_VEL()
 #define C_INITIAL_POT()
 #define C_FINAL_POT()
-#define PRINT_ENERGY(x)
-#endif
-
-#if defined TEST_DEBYE_ENERGY 
-#define D_INITIAL_VEL() threevector InitialVel = Velocity;
-#define D_INITIAL_POT() double InitialPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*Position.mag3()))*exp((Position.mag3()/DebyeLength)-(1.0/DebyeLength)));
-#define D_FINAL_POT()   double FinalPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*FinalPosition.mag3()))*exp((FinalPosition.mag3()/DebyeLength)-(1.0/DebyeLength)));
-#define PRINT_ENERGY(x) std::cout << x
-#else
 #define D_INITIAL_VEL()
 #define D_INITIAL_POT()
 #define D_FINAL_POT()
