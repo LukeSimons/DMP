@@ -468,7 +468,7 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,eTemp);
         else if( arg == "--edensity"    || arg == "-ne")    
             InputStatus = InputFunction(argc,argv,i,ss0,eDensity);
-        else if( arg -- "--imass"   || arg == "-mi")
+        else if( arg == "--imass"   || arg == "-mi")
             InputStatus = InputFunction(argc,argv,i,ss0,iMass);
         else if( arg == "--itemp"   || arg == "-ti")    
             InputStatus = InputFunction(argc,argv,i,ss0,iTemp);
