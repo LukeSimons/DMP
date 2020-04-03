@@ -120,7 +120,7 @@ static void show_usage(std::string name){
     << "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n"
     << "\t\tsuffix(='.txt') DEFAULT,\tBy Default, Save data to Data/DiMPl.txt\n\n"
     << "\t-mi, --imass IMASS\t\t(u), Specify the ion species mass\n"
-    << "\t\tiMass(=1.0) DEFAULT,\t\tBy Default, species is Hydrogen"
+    << "\t\tiMass(=1.00784) DEFAULT,\t\tBy Default, species is Hydrogen"
     << std::endl;
     #ifdef VARIABLE_CSCALE
     std::cerr << "\n\nAdditional Options from VARIABLE_CSCALE!\n"
@@ -407,7 +407,7 @@ int main(int argc, char* argv[]){
 
 
     // ***** DEFINE PLASMA PARAMETERS       ***** //
-    double iMass        = 1.0;  //!< Ion mass, amu
+    double iMass        = 1.00784;  //!< Ion mass, amu
     double iTemp        = 1.0;  //!< Ion Temperature, eV
     double eTemp        = 1.0;  //!< Electron Temperature, eV
     double eDensity     = 1e18; //!< m^(-3), Electron density
