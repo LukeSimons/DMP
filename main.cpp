@@ -9,16 +9,15 @@
 
 
 //#define SAVE_TRACKS //!< Switch: save all particle trajectories
-#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
-#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
+//#define SELF_CONS_CHARGE //!< Switch that causes incident charges to contribute
+//#define VARIABLE_CSCALE //!< Switch: make particle charges weighted
 //#define VARIABLE_ASCALE //!< Switch: make particle momentum weighted
 
-#define SAVE_MISSED_MOM //!< Switch: write to file missing particles momentum
-#define SAVE_ANGULAR_VEL //!< Switch: write to file particle charges weighted
+//#define SAVE_MISSED_MOM //!< Switch: write to file missing particles momentum
 #define SAVE_LINEAR_MOM  //!< Switch: write to file momentum change
 #define SAVE_CHARGING //!< Switch: write to file the charge collected
-#define SAVE_STARTPOS //!< Switch: write to file the initial positions
-#define SAVE_ENDPOS //!< Switch: write to file the final positions
+//#define SAVE_STARTPOS //!< Switch: write to file the initial positions
+//#define SAVE_ENDPOS //!< Switch: write to file the final positions
 //#define SAVE_APPROACH //!< Switch: write to file the closest approach pos
 #define SAVE_CURRENTS //!< Switch: write to file the currents to the sphere
 #define SAVE_TOTALS //!< Switch: write to file the total currents
@@ -120,6 +119,8 @@ static void show_usage(std::string name){
     << "\t\tSaves(=1000) DEFAULT,\t\tBy Default, Save data to Meta datafile once per 1000.0 particles\n\n"
     << "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n"
     << "\t\tsuffix(='.txt') DEFAULT,\tBy Default, Save data to Data/DiMPl.txt\n\n"
+    << "\t-mi, --imass IMASS\t\t(u), Specify the ion species mass\n"
+    << "\t\tiMass(=1.0) DEFAULT,\t\tBy Default, species is Hydrogen"
     << std::endl;
     #ifdef VARIABLE_CSCALE
     std::cerr << "\n\nAdditional Options from VARIABLE_CSCALE!\n"
@@ -406,6 +407,7 @@ int main(int argc, char* argv[]){
 
 
     // ***** DEFINE PLASMA PARAMETERS       ***** //
+    double iMass        = 1.0;  //!< Ion mass, amu
     double iTemp        = 1.0;  //!< Ion Temperature, eV
     double eTemp        = 1.0;  //!< Electron Temperature, eV
     double eDensity     = 1e18; //!< m^(-3), Electron density
@@ -466,6 +468,8 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,eTemp);
         else if( arg == "--edensity"    || arg == "-ne")    
             InputStatus = InputFunction(argc,argv,i,ss0,eDensity);
+        else if( arg -- "--imass"   || arg == "-mi")
+            InputStatus = InputFunction(argc,argv,i,ss0,iMass);
         else if( arg == "--itemp"   || arg == "-ti")    
             InputStatus = InputFunction(argc,argv,i,ss0,iTemp);
         else if( arg == "--idensity"    || arg == "-ni")    
@@ -523,6 +527,8 @@ int main(int argc, char* argv[]){
         std::cerr << "\nError! Electron Temperature is negative\neTemp : " << eTemp;
     if( eDensity < 0.0 )
         std::cerr << "\nError! Electron Density is negative\neDensity : " << eDensity;
+     if( iMass < 0.0 )
+        std::cerr << "\nError! Ion Mass is negative\niMass : " << iMass;
     if( iTemp < 0.0 )
         std::cerr << "\nError! Ion Temperature is negative\niTemp : " << iTemp;
     if( iDensity < 0.0 )
@@ -560,8 +566,8 @@ int main(int argc, char* argv[]){
         
     InputDataFile.open(filename + "_Input" + suffix);
     InputDataFile << "## Input Data File ##\n";
-    InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
-    InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity<< "\t" << iTemp << "\t" << iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
+    InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tmi\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
+    InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity<< "\t" << iMass << "\t" << iTemp << "\t" << iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
     InputDataFile.close();
     #ifdef SAVE_TRACKS
     if( imax >= 1000 ){
@@ -572,20 +578,20 @@ int main(int argc, char* argv[]){
     #endif
 
     // If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
-    double MASS         = Mp;       // kg, This is the Mass to which quantities are normalised 
+    double MASS         = iMass*AMU;       // kg, This is the Mass to which quantities are normalised 
     a1 = 1.0/(a1*a1);
     a2 = 1.0/(a2*a2);
     a3 = 1.0/(a3*a3);
-    double MassRatio    = sqrt(Mp/Me);
+    double MassRatio    = sqrt(MASS/Me);
     double DustMass     = (4.0/3.0)*PI*pow(Radius,3)*Density;
     if( NormalisedVars ){   // If we're using S&L normalised units but iChance is undertermined
 
         if( iChance == 0.0 ){ // If we are simulating only Electrons
                     BMag = sqrt(PI/2.0)*BMagIn*sqrt(Me*eTemp/echarge)/Radius;   // BMag normalised to Electrons
         }else{  // If we are simulating only Ions or otherwise Ions and electrons.
-            BMag = sqrt(PI/2.0)*BMagIn*sqrt(Mp*iTemp/echarge)/Radius;   // BMag normalised to Ions
+            BMag = sqrt(PI/2.0)*BMagIn*sqrt(MASS*iTemp/echarge)/Radius;   // BMag normalised to Ions
         }
-        DriftVel = DriftVel*sqrt(echarge*iTemp/Mp);
+        DriftVel = DriftVel*sqrt(echarge*iTemp/MASS);
     }else{
         BMag = BMagIn;
                 Potential = Potential*echarge/(echarge*eTemp);  // Convert from SI Potential to normalised potential
@@ -605,7 +611,7 @@ int main(int argc, char* argv[]){
     double PotentialNorm    = Potential*(eTemp*echarge)*4*PI*epsilon0*Radius/pow(echarge,2.0);  // Normalised Charge,
     double DriftNorm    = DriftVel*Tau/(Radius);
     double DebyeLength  = sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2.0)))/Radius;
-    double A_Coulomb    = Mp/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
+    double A_Coulomb    = MASS/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
 
     #ifdef VARIABLE_CSCALE
     double ChargeScale  = eTemp*4.0*PI*epsilon0*Radius/(2.0*echarge); // Divide by 2 as we don't want full scale
@@ -624,7 +630,7 @@ int main(int argc, char* argv[]){
     // ***** DEFINE SIMULATION SPACE        ***** //
     // See : https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
     // For reasoning on choice of Velocity vector
-    double iThermalVel  = sqrt(echarge*iTemp/Mp)*(Tau/Radius);      // Normalised Ion Thermal velocity
+    double iThermalVel  = sqrt(echarge*iTemp/MASS)*(Tau/Radius);      // Normalised Ion Thermal velocity
     double eThermalVel  = sqrt(echarge*eTemp/Me)*(Tau/Radius);  // Normalised Electron Thermal velocity
 
     double iRhoTherm = 0.0;                 // Ion gyro-radii are zero by Default
@@ -1173,18 +1179,18 @@ int main(int argc, char* argv[]){
                     C_FINAL_POT(); D_FINAL_POT();
                     PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
                     PRINT_ENERGY(100*(Velocity.square()/InitialVel.square()-1.0));  PRINT_ENERGY("\t");
-                    PRINT_ENERGY(0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
-                    PRINT_ENERGY(0.5*Mp*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
+                    PRINT_ENERGY(0.5*MASS*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
+                    PRINT_ENERGY(0.5*MASS*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau));  PRINT_ENERGY("\t");
                     PRINT_ENERGY(SPEC_CHARGE*FinalPot);  PRINT_ENERGY("\t");
                     PRINT_ENERGY(SPEC_CHARGE*InitialPot);  PRINT_ENERGY("\t");
-                    PRINT_ENERGY(0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
+                    PRINT_ENERGY(0.5*MASS*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
                             +SPEC_CHARGE*InitialPot);  PRINT_ENERGY("\t");
-                    PRINT_ENERGY(0.5*Mp*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
+                    PRINT_ENERGY(0.5*MASS*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
                             +SPEC_CHARGE*FinalPot);  PRINT_ENERGY("\t");
 
-                    PRINT_ENERGY((0.5*Mp*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
+                    PRINT_ENERGY((0.5*MASS*SpeciesMass*Velocity.square()*Radius*Radius/(Tau*Tau)
                             +SPEC_CHARGE*FinalPot)/
-                            (0.5*Mp*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
+                            (0.5*MASS*SpeciesMass*InitialVel.square()*Radius*Radius/(Tau*Tau)
                             +SPEC_CHARGE*InitialPot) - 1.0);  
                     PRINT_ENERGY("\n");
                     TotalNum ++;
