@@ -728,7 +728,7 @@ int main(int argc, char* argv[]){
     double A_Coulomb    = MASS/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
 
     #ifdef VARIABLE_CSCALE
-    if( ChargeScale == 0.0 )
+    if( ChargeScale == 0.0 ){
 	ChargeScale = eTemp*4.0*PI*epsilon0*Radius/(2.0*echarge); // Divide by 2 as we don't want full scale
     }
     #endif
