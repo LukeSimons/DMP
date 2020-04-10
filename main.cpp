@@ -93,12 +93,19 @@ static void show_usage(std::string name){
     << "\t-o,--output OUTPUT\t\t(string), Specify the suffix of the output file\n"
     << "\t\tsuffix(='.txt') DEFAULT,\tBy Default, Save data to Data/DiMPl.txt\n\n"
     << std::endl;
-    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
+    #if defined VARIABLE_CSCALE
     std::cerr << "\n\nAdditional Options from VARIABLE_CSCALE!\n"
+    << "\t-cs,--chargescale CHARGESCALE\t\t\t((double), Specify the scale of the charging\n"
+    << "\t\tChargeScale(=0) DEFAULT,\t\tBy Default, charging scale is calculated from Potential~1\n\n"
+    << std::endl;
+    #endif
+    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
+    std::cerr << "\n\nAdditional Options from VARIABLE_CSCALE OR VARIABLE_ASCALE!\n"
     << "\t-jm,--jmin JMIN\t\t\t(int), Specify the number of particles to be collected before dynamic saving\n"
     << "\t\tjmin(=20) DEFAULT,\t\tBy Default, re-assess dynamic scale after collecting 20 particles\n\n"
     << "\t-jf,--jfin JMIN\t\t\t(int), Specify the number of particles to be collected in final save\n"
-    << "\t\tjfin(=100) DEFAULT,\t\tBy Default, collect 100 particles in the final save\n\n";
+    << "\t\tjfin(=100) DEFAULT,\t\tBy Default, collect 100 particles in the final save\n\n"
+    << std::endl;
     #endif
 
 }
@@ -511,6 +518,9 @@ int main(int argc, char* argv[]){
     unsigned long long jmin = 20;   //!< Arb, Minimum number of particles collected before summing mean of charge
     unsigned long long jfin = 100;  //!< Arb, Minimum number of particles collected in the final save for averaging
     #endif
+    #if defined VARIABLE_CSCALE
+    double ChargeScale = 0;
+    #endif
     unsigned long long num  = 1000; //!< Arb, Number of particles to be collected before saving
     double TimeStepFactor   = 0.0005; //!< Arb, Multiplicative factor used to determine size of the timestep
     unsigned int Saves(100);    //!<Arb, Number of particles to be collected before saving in a run
@@ -584,6 +594,10 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,jmin);
         else if( arg == "--jfin"    || arg == "-jf")    
             InputStatus = InputFunction(argc,argv,i,ss0,jfin);
+        #endif
+        #if defined VARIABLE_CSCALE
+        else if( arg == "--chargescale" || arg == "-cf")
+            InputStatus = InputFunction(argc,argv,i,ss0,ChargeScale);
         #endif
         else if( arg == "--jmax"    || arg == "-j" )    
             InputStatus = InputFunction(argc,argv,i,ss0,jmax);
@@ -714,7 +728,9 @@ int main(int argc, char* argv[]){
     double A_Coulomb    = MASS/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
 
     #ifdef VARIABLE_CSCALE
-    double ChargeScale  = eTemp*4.0*PI*epsilon0*Radius/(2.0*echarge); // Divide by 2 as we don't want full scale
+    if( ChargeScale == 0.0 )
+	ChargeScale = eTemp*4.0*PI*epsilon0*Radius/(2.0*echarge); // Divide by 2 as we don't want full scale
+    }
     #endif
     #ifdef VARIABLE_ASCALE
     double AngularScalei = MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau*0.001/(Radius);
@@ -781,13 +797,31 @@ int main(int argc, char* argv[]){
             // Uncharged sphere, time step limited by gyro-motion or thermal velocity
             TimeStepe       = TimeStepFactor*eRhoTherm/eThermalVel;   // 1% of Gyro-radius size
                     TimeStepi       = TimeStepFactor*iRhoTherm/iThermalVel;   // 1% of Gyro-radius size
-            if( TimeStepFactor/iThermalVel < TimeStepi ){
-                TimeStepi   = TimeStepFactor/iThermalVel;  // Check timestep less than dust radius
-            }
-            if( TimeStepFactor/eThermalVel < TimeStepe ){
-                TimeStepe   = TimeStepFactor/eThermalVel;  // Check timestep less than dust radius
-            }
         }
+        // Check timestep less than dust radius
+        if( TimeStepFactor/iThermalVel < TimeStepi ){
+            TimeStepi   = TimeStepFactor/iThermalVel;
+        }
+        if( TimeStepFactor/eThermalVel < TimeStepe ){
+            TimeStepe   = TimeStepFactor/eThermalVel;  
+        }
+        // Check timestep less than sheath size
+        #ifdef DEBYE_POTENTIAL
+        if( TimeStepFactor*DebyeLength/iThermalVel < TimeStepi ){
+            TimeStepi   = TimeStepFactor*DebyeLength/iThermalVel;
+        }
+        if( TimeStepFactor*DebyeLength/eThermalVel < TimeStepe ){
+            TimeStepe   = TimeStepFactor*DebyeLength/eThermalVel;  
+        }
+        #endif
+        #ifdef PARABOLIC_POTENTIAL
+        if( TimeStepFactor*DebyeLength/iThermalVel < TimeStepi ){
+            TimeStepi   = TimeStepFactor*DebyeLength/iThermalVel;
+        }
+        if( TimeStepFactor*DebyeLength/eThermalVel < TimeStepe ){
+            TimeStepe   = TimeStepFactor*DebyeLength/eThermalVel;  
+        }
+        #endif
     }
 
     // Account for non-spherical impact factor, chose larger of two semi axis
@@ -1437,8 +1471,8 @@ int main(int argc, char* argv[]){
                 UPDATE_CSCALE(); // Update charging scale
                 
                 // Don't allow charging scale to fall below 1.0e
-                if( fabs(ChargeScale) <= 2.0 ){
-                    ChargeScale = 2.0;
+                if( fabs(ChargeScale) <= 1.0 ){
+                    ChargeScale = 1.0;
                     if( jmin == jfin )
                         s = smax;
 
