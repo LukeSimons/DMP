@@ -1,3 +1,12 @@
+/** @file Constants.h
+ *  @brief File defining the behaviour of Pre-processor directives
+ *  for different simulation modes. Also declare physical constants
+ *  in dimplconstants namespace.
+ *  
+ *  @author Luke Simons (ls5115@ic.ac.uk)
+ *  @bug No known bugs
+ */
+
 #ifndef __CONSTANTS_H_INCLUDED__   // if Constants.h hasn't been included yet...
 #define __CONSTANTS_H_INCLUDED__
 
@@ -20,7 +29,6 @@
 #define DECLARE_CHARGE()std::ofstream DynamicChargeDataFile;
 #define OPEN_CHARGE()   DynamicChargeDataFile.open("Data/DiMPl_DynamCharge"+suffix);
 #define REOPEN_CHARGE() DynamicChargeDataFile.close(); DynamicChargeDataFile.clear(); DynamicChargeDataFile.open("Data/DiMPl_DynamCharge"+suffix, std::fstream::app); 
-
 #define HEAD_CHARGE()   DynamicChargeDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tChargeScale\tMean\tMeanDiff";
 #define SAVE_CHARGE()   DynamicChargeDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << ChargeScale << "\t" << MeanChargeSave << "\t" << MeanChargeDiff;
 #define ADD_CHARGE()    PotentialNorm += SPEC_CHARGE*ChargeScale;
@@ -79,10 +87,27 @@
 #define CLOSE_REF()
 #endif
 
+#ifdef FREE_AXIS
+#define DECLARE_AXIS()  std::ofstream AxisDataFile;
+#define OPEN_AXIS()     AxisDataFile.open("Data/DiMPl_Axis"+suffix);
+#define REOPEN_AXIS()   AxisDataFile.close(); AxisDataFile.clear(); AxisDataFile.open("Data/DiMPl_Axis"+suffix, std::fstream::app); 
+#define HEAD_AXIS()	AxisDataFile << "#Collect num\tSimulated num\tDustAxis\tAxisAVel";
+#define SAVE_AXIS()	AxisDataFile << "\n" << j << "\t" << i << "\t" << DustAxis << "\t" << AxisAVel;
+#define CLOSE_AXIS()	AxisDataFile.close();
+#else
+#define DECLARE_AXIS()
+#define OPEN_AXIS()
+#define REOPEN_AXIS()
+#define HEAD_AXIS()
+#define SAVE_AXIS()
+#define CLOSE_AXIS()
+#endif
+
+
 #ifdef SAVE_ANGULAR_VEL
 #define DECLARE_AVEL()  std::ofstream AngularDataFile;
 #define OPEN_AVEL() AngularDataFile.open("Data/DiMPl_AngVel"+suffix);
-#define REOPEN_AVEL()   AngularDataFile.close(); AngularDataFile.clear(); AngularDataFile.open("Data/DiMPl_AngVel"+suffix, std::fstream::app); 
+#define REOPEN_AVEL()   AngularDataFile.close(); AngularDataFile.clear(); AngularDataFile.open("Data/DiMPl_AngVel"+suffix, std::fstream::app);
 #define CLOSE_AVEL()    AngularDataFile.close();
 #ifdef VARIABLE_ASCALE
 #define UPDATE_ASCALE() AngularScalei = AngularScalei*2.0;
@@ -105,7 +130,7 @@
 #ifdef SAVE_LINEAR_MOM
 #define DECLARE_LMOM()  std::ofstream LinearDataFile;
 #define OPEN_LMOM() LinearDataFile.open("Data/DiMPl_LinMom"+suffix);
-#define REOPEN_LMOM()   LinearDataFile.close(); LinearDataFile.clear(); LinearDataFile.open("Data/DiMPl_LinMom"+suffix, std::fstream::app); 
+#define REOPEN_LMOM()   LinearDataFile.close(); LinearDataFile.clear(); LinearDataFile.open("Data/DiMPl_LinMom"+suffix, std::fstream::app);
 #define HEAD_LMOM()	LinearDataFile << "#Collect num\tSimulated num\tPx_ic\tPy_ic\tPz_ic\tPx_im\tPy_im\tPz_im\tPx_l\tPy_l\tPz_l";
 #define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << i << "\t" << TotalInjectedMomCaptured << "\t" << TotalInjectedMomMissed << "\t" << TotalLostMom;
 #define CLOSE_LMOM()	LinearDataFile.close();
@@ -268,8 +293,6 @@
 #define D_FINAL_POT()
 #define PRINT_ENERGY(x)
 #endif
-
-
 
 #ifdef PAUSE
 #define Pause(); std::cin.get();
