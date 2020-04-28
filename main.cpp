@@ -799,7 +799,7 @@ int main(int argc, char* argv[]){
     #endif
     InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 
         << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn 
-        << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity << "\t" 
+        << "\t" << NormVars << "\t" << eTemp << "\t" << eDensity << "\t" 
         << iMass << "\t" << iTemp << "\t" << iDensity << "\t" << iChance 
         << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce
         << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" 
