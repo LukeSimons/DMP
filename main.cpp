@@ -58,6 +58,8 @@ static void show_usage(std::string name){
     << "\t\teTemp(=1eV) DEFAULT,\n\n"
     << "\t-ne,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron density\n"
     << "\t\teDensity(=1e18m^-^3) DEFAULT,\tTokamak density\n\n"
+    << "\t-mi,--imass IMASS\t\t(u), Specify the mass of Ions in Daltons\n"
+    << "\t\tiMass(=1u) DEFAULT,\n\n"
     << "\t-ti,--itemp ITEMP\t\t(eV), Specify the temperature of Ions\n"
     << "\t\tiTemp(=1eV) DEFAULT,\n\n"
     << "\t-ni,--idensity IDENSITY\t\t(m^-^3), Specify the plasma ion density\n"
@@ -501,6 +503,7 @@ int main(int argc, char* argv[]){
     double EFieldx      = 0.0;  //!< V/m, x component of electric field
     double EFieldy      = 0.0;  //!< V/m, x component of electric field
     double EFieldz      = 0.0;  //!< V/m, x component of electric field
+    double iMass        = 1.0;  //!< Ion Mass, u
     double iTemp        = 1.0;  //!< Ion Temperature, eV
     double eTemp        = 1.0;  //!< Electron Temperature, eV
     double eDensity     = 1e18; //!< m^(-3), Electron density
@@ -524,7 +527,7 @@ int main(int argc, char* argv[]){
     unsigned long long num  = 1000; //!< Arb, Number of particles to be collected before saving
     double TimeStepFactor   = 0.0005; //!< Arb, Multiplicative factor used to determine size of the timestep
     unsigned int Saves(100);    //!<Arb, Number of particles to be collected before saving in a run
-    unsigned int reflectionsmax(15); //!< Arb, Number of reflections before rejecting particles
+    unsigned int reflectionsmax(50); //!< Arb, Number of reflections before rejecting particles
 
 
     // ************************************************** //
@@ -571,6 +574,8 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,eTemp);
         else if( arg == "--edensity"    || arg == "-ne")    
             InputStatus = InputFunction(argc,argv,i,ss0,eDensity);
+        else if( arg == "--imass"   || arg == "-mi")    
+            InputStatus = InputFunction(argc,argv,i,ss0,iMass);
         else if( arg == "--itemp"   || arg == "-ti")    
             InputStatus = InputFunction(argc,argv,i,ss0,iTemp);
         else if( arg == "--idensity"    || arg == "-ni")    
@@ -596,7 +601,7 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,jfin);
         #endif
         #if defined VARIABLE_CSCALE
-        else if( arg == "--chargescale" || arg == "-cf")
+        else if( arg == "--chargescale" || arg == "-cs")
             InputStatus = InputFunction(argc,argv,i,ss0,ChargeScale);
         #endif
         else if( arg == "--jmax"    || arg == "-j" )    
@@ -632,6 +637,8 @@ int main(int argc, char* argv[]){
         std::cerr << "\nError! Electron Temperature is negative\neTemp : " << eTemp;
     if( eDensity < 0.0 )
         std::cerr << "\nError! Electron Density is negative\neDensity : " << eDensity;
+    if( iMass < 1.0 )
+        std::cerr << "\nError! Ion Mass is less than 1\niMass : " << iMass;
     if( iTemp < 0.0 )
         std::cerr << "\nError! Ion Temperature is negative\niTemp : " << iTemp;
     if( iDensity < 0.0 )
@@ -670,11 +677,11 @@ int main(int argc, char* argv[]){
     //!< Save program configuration to a file with Input
     InputDataFile.open(filename + "_Input" + suffix);
     InputDataFile << "## Input Data File ##\n";
-    InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
+    InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tmi\tti\tni\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     InputDataFile << "\tjmin\tjfin";
     #endif
-    InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity<< "\t" << iTemp << "\t" << iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
+    InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn << "\t" << NormalisedVars << "\t" << eTemp << "\t" << eDensity << "\t" << iMass << "\t" << iTemp << "\t" << iDensity << "\t" << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" << suffix;
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     InputDataFile << "\t" << jmin << "\t" << jfin;
     #endif
@@ -692,7 +699,7 @@ int main(int argc, char* argv[]){
 
 
     //!< If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
-    double MASS = dimplconsts::Mp;  //!< kg, This is the Mass to which quantities are normalised 
+    double MASS = iMass*dimplconsts::Mp;  //!< kg, This is the Mass to which quantities are normalised 
     a1 = 1.0/(a1*a1);
     a2 = 1.0/(a2*a2);
     a3 = 1.0/(a3*a3);
