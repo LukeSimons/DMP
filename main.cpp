@@ -43,10 +43,10 @@ static void show_usage(std::string name){
     << "\t-a1,--semix SEMIX\t\t(arb), Specify the semi-axis for x in dust "
         << "radii\n"
     << "\t\ta1(=1) DEFAULT,\t\t\tBy Default, simulate perfect sphere\n\n"
-    << "\t-a2,--semiy SEMIZ\t\t(arb), Specify the semi-axis for y in dust "
+    << "\t-a2,--semiy SEMIY\t\t(arb), Specify the semi-axis for y in dust "
         << "radii\n"
     << "\t\ta2(=1) DEFAULT,\t\t\tBy Default, simulate perfect sphere\n\n"
-    << "\t-a3,--semiz SEMIY\t\t(arb), Specify the semi-axis for z in dust "
+    << "\t-a3,--semiz SEMIZ\t\t(arb), Specify the semi-axis for z in dust "
         << "radii\n"
     << "\t\ta3(=1) DEFAULT,\t\t\tBy Default, simulate perfect sphere\n\n"
     << "\t-d,--density DENSITY\t\t(kgm^-^3), Specify density of Dust grain\n"
@@ -87,20 +87,20 @@ static void show_usage(std::string name){
         << "i.e Self-consistently generate ions & electrons\n\n"
     << "\t-u,--zmaxcoeff ZMAXCOEFF\t(double), The upper limit of simulation "
         << "domain as number of Coulomb Interaction lengths\n"
-    << "\t\tzMaxCoeff(=1.0) DEFAULT,\tNumber of Interaction distances from "
-        << "(0,0,Radius) plane to max of simulation domain\n\n"
+    << "\t\tzMaxCoeff(=1.0) DEFAULT,\tDistance from "
+        << "(0,0,Radius) plane to max of simulation domain in dust radii\n\n"
     << "\t-l,--zmincoeff ZMINCOEFF\t(double), The lower limit of simulation "
         << "domain as number of Coulomb Interaction lengths\n"
-    << "\t\tzMaxCoeff(=1.0) DEFAULT,\tNumber of Interaction distances from "
-        << "(0,0,Radius) plane to min of simulation domain\n\n"
+    << "\t\tzMaxCoeff(=1.0) DEFAULT,\tDistance from "
+        << "(0,0,Radius) plane to min of simulation domain in dust radii\n\n"
     << "\t-z,--zboundforce ZBOUNDFORCE\t(double), Force the absolute value of "
         << "simulation domain upper and lower boundaries\n"
     << "\t\tZBoundForce(=0.0) DEFAULT,\tBy Default, use -u and -l to determine "
         << "height of injection plane\n\n"
     << "\t-b,--impactpar IMPACTPAR\t(double), Specify the radial limit of "
-        << "simulation domain as number of distances\n"
+        << "simulation domain as multiple of gyro-radii and debye lengths\n"
     << "\t\tImpactPar(=2.0) DEFAULT,\tBy Default, Radial extent of injection "
-        << "is three gyro-radii from centre\n\n"
+        << "is two gyro-radii plus two debye lengths from dust\n\n"
     << "\t-f,--forceimppar FORCEIMPPAR\t(double), Force the absolute value of "
         << "simulation radial distance\n"
     << "\t\tForceImpPar(=0.0) DEFAULT,\tBy Default, use -b to determine radial "
@@ -878,7 +878,6 @@ int main(int argc, char* argv[]){
         = MASS*eDensity*sqrt(echarge*eTemp/MASS)*Tau*0.001/(MassRatio*Radius);
     #else
     double AngularScalei = 1.0;
-    double AngularScalee = 1.0;
     #endif
 
     // ************************************************** //
