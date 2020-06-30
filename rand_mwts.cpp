@@ -1,7 +1,13 @@
-// 	Following work from:
-//	Generating equally weighted test particles from the one-way flux of a drifting Maxwellian
-//	T Makkonen, M I Airila & T Kurki-Suonio
-//	http://iopscience.iop.org/article/10.1088/0031-8949/90/1/015204/data
+/** @file main.cpp
+ *  @brief  RANDom number from "MaxWellian Trough Surface" distribution
+ *  See "Generating equally weighted test particles from the one-way flux of 
+ *  a drifting Maxwellian". T Makkonen, M I Airila & T Kurki-Suonio
+ *  http://iopscience.iop.org/article/10.1088/0031-8949/90/1/015204/data
+ * 
+ *  @author Toni Makkonen (toni.makkonen@aalto.fi)
+ *  @date 17.1.2013
+ *  @bug No known bugs
+ */
 
 // We need these headers
 #include <cmath>
@@ -23,7 +29,8 @@ double rand_mwts(double u, double sigma, std::mt19937 &mt) {
 double rand_mwts(double d, std::mt19937 &mt) {
   // Calculate the normalization for this d
   double maxval = rejection_function(d, solve_cubic(d));
-  std::uniform_real_distribution<double> rad(0, 1); // Random number between 0 and 1
+  // Random number between 0 and 1
+  std::uniform_real_distribution<double> rad(0, 1); 
   double r1, r2;
   do {
     r1 = rad(mt);
@@ -33,7 +40,8 @@ double rand_mwts(double d, std::mt19937 &mt) {
   return r1 / (1.0 - r1);
 }
 
-// Solves the cubic equation used to find the maximum of the rejectin sampling function
+// Solves the cubic equation used to find the maximum of the rejectin sampling 
+// function
 double solve_cubic(double d) {
 
   // The variables below will be optimized away by the compiler
@@ -49,7 +57,8 @@ double solve_cubic(double d) {
 
   // calculate the value
   double sqrt_term = sqrt(-p/3.0);
-  double root = 2.0*sqrt_term*cos(acos(3.0*q/(2.0*p*sqrt_term))/3.0 - 2.0*M_PI/3.0); 
+  double root = 2.0*sqrt_term*cos(acos(3.0*q/(2.0*p*sqrt_term))/3.0 
+    - 2.0*M_PI/3.0); 
   return root - cb/(3.0*ca);
 }
 

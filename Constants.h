@@ -1,3 +1,12 @@
+/** @file Constants.h
+ *  @brief File defining the behaviour of Pre-processor directives
+ *  for different simulation modes. Also declare physical constants
+ *  in dimplconstants namespace.
+ *  
+ *  @author Luke Simons (ls5115@ic.ac.uk)
+ *  @bug No known bugs
+ */
+
 #ifndef __CONSTANTS_H_INCLUDED__   // if Constants.h hasn't been included yet...
 #define __CONSTANTS_H_INCLUDED__
 
@@ -20,7 +29,6 @@
 #define DECLARE_CHARGE()std::ofstream DynamicChargeDataFile;
 #define OPEN_CHARGE()   DynamicChargeDataFile.open("Data/DiMPl_DynamCharge"+suffix);
 #define REOPEN_CHARGE() DynamicChargeDataFile.close(); DynamicChargeDataFile.clear(); DynamicChargeDataFile.open("Data/DiMPl_DynamCharge"+suffix, std::fstream::app); 
-
 #define HEAD_CHARGE()   DynamicChargeDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tChargeScale\tMean\tMeanDiff";
 #define SAVE_CHARGE()   DynamicChargeDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << ChargeScale << "\t" << MeanChargeSave << "\t" << MeanChargeDiff;
 #define ADD_CHARGE()    PotentialNorm += SPEC_CHARGE*ChargeScale;
@@ -63,18 +71,52 @@
 #define CLOSE_MOM()
 #endif
 
+#ifdef SAVE_REFLECTS
+#define DECLARE_REF()  std::ofstream ReflectsDataFile;
+#define OPEN_REF() ReflectsDataFile.open("Data/DiMPl_Reflect"+suffix);
+#define REOPEN_REF()   ReflectsDataFile.close(); ReflectsDataFile.clear(); ReflectsDataFile.open("Data/DiMPl_Reflect"+suffix, std::fstream::app); 
+#define HEAD_REF()	ReflectsDataFile << "#Collect num\tSimulated num\treflections\tTotalTime";
+#define SAVE_REF()	ReflectsDataFile << "\n" << j << "\t" << i << "\t" << reflections << "\t" << TotalTime;
+#define CLOSE_REF()	ReflectsDataFile.close();
+#else
+#define DECLARE_REF()
+#define OPEN_REF()
+#define REOPEN_REF()
+#define HEAD_REF()
+#define SAVE_REF()
+#define CLOSE_REF()
+#endif
+
+#ifdef FREE_AXIS
+#define DECLARE_AXIS()  std::ofstream AxisDataFile;
+#define OPEN_AXIS()     AxisDataFile.open("Data/DiMPl_Axis"+suffix);
+#define REOPEN_AXIS()   AxisDataFile.close(); AxisDataFile.clear(); AxisDataFile.open("Data/DiMPl_Axis"+suffix, std::fstream::app); 
+#define HEAD_AXIS()	AxisDataFile << "#Collect num\tSimulated num\tDustAxis\tAxisAVel";
+#define SAVE_AXIS()	AxisDataFile << "\n" << j << "\t" << i << "\t" << DustAxis << "\t" << AxisAVel;
+#define CLOSE_AXIS()	AxisDataFile.close();
+#else
+#define DECLARE_AXIS()
+#define OPEN_AXIS()
+#define REOPEN_AXIS()
+#define HEAD_AXIS()
+#define SAVE_AXIS()
+#define CLOSE_AXIS()
+#endif
+
+
 #ifdef SAVE_ANGULAR_VEL
 #define DECLARE_AVEL()  std::ofstream AngularDataFile;
 #define OPEN_AVEL() AngularDataFile.open("Data/DiMPl_AngVel"+suffix);
-#define REOPEN_AVEL()   AngularDataFile.close(); AngularDataFile.clear(); AngularDataFile.open("Data/DiMPl_AngVel"+suffix, std::fstream::app); 
-#define HEAD_AVEL() AngularDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tAngularScale\tLx\tLy\tLz";
-#define SAVE_AVEL() AngularDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << AngularScale << "\t" << MeanAngularVel << "\t" << MeanAngularVelDiff << "\t" << TotalAngularVel;
- 
+#define REOPEN_AVEL()   AngularDataFile.close(); AngularDataFile.clear(); AngularDataFile.open("Data/DiMPl_AngVel"+suffix, std::fstream::app);
 #define CLOSE_AVEL()    AngularDataFile.close();
 #ifdef VARIABLE_ASCALE
-#define UPDATE_ASCALE() AngularScale = AngularScale/(2.0);
+#define UPDATE_ASCALE() AngularScalei = AngularScalei*2.0;
+#define HEAD_AVEL() AngularDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tLx\tLy\tLz\tAngularScalei";
+#define SAVE_AVEL() AngularDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << MeanAngularVelSave << "\t" << MeanAngularVelDiff << "\t" << TotalAngularVel << "\t" << AngularScalei;
 #else
 #define UPDATE_ASCALE()
+#define HEAD_AVEL() AngularDataFile << "#Collect num\tSimulated num\tsaves\tj_ThisSave\tLx\tLy\tLz";
+#define SAVE_AVEL() AngularDataFile << "\n" << j << "\t" << i << "\t" << s << "\t" << j_ThisSave << "\t" << TotalAngularVel;
 #endif
 #else
 #define DECLARE_AVEL()
@@ -88,10 +130,11 @@
 #ifdef SAVE_LINEAR_MOM
 #define DECLARE_LMOM()  std::ofstream LinearDataFile;
 #define OPEN_LMOM() LinearDataFile.open("Data/DiMPl_LinMom"+suffix);
-#define REOPEN_LMOM()   LinearDataFile.close(); LinearDataFile.clear(); LinearDataFile.open("Data/DiMPl_LinMom"+suffix, std::fstream::app); 
-#define HEAD_LMOM() LinearDataFile << "#Collect num\tSimulated num\tPx_i\tPy_i\tPz_i\tPx_l\tPy_l\tPz_l";
-#define SAVE_LMOM() LinearDataFile << "\n" << j << "\t" << i << "\t" << TotalInjectedMom << "\t" << TotalLostMom;
-#define CLOSE_LMOM()    LinearDataFile.close();
+#define REOPEN_LMOM()   LinearDataFile.close(); LinearDataFile.clear(); LinearDataFile.open("Data/DiMPl_LinMom"+suffix, std::fstream::app);
+#define HEAD_LMOM()	LinearDataFile << "#Collect num\tSimulated num\tPx_ic\tPy_ic\tPz_ic\tPx_im\tPy_im\tPz_im\tPx_l\tPy_l\tPz_l";
+#define SAVE_LMOM()	LinearDataFile << "\n" << j << "\t" << i << "\t" << TotalInjectedMomCaptured << "\t" << TotalInjectedMomMissed << "\t" << TotalLostMom;
+#define CLOSE_LMOM()	LinearDataFile.close();
+
 #else
 #define DECLARE_LMOM()
 #define OPEN_LMOM()
@@ -225,31 +268,31 @@
 #define PRINT_AMOM(x)
 #endif
 
-#if defined TEST_COULOMB_ENERGY 
+#ifdef TEST_COULOMB_ENERGY 
 #define C_INITIAL_VEL() threevector InitialVel = Velocity;
 #define C_INITIAL_POT() double InitialPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*Position.mag3()*Radius);
 #define C_FINAL_POT()   double FinalPot = echarge*echarge*PotentialNorm/(4.0*PI*epsilon0*FinalPosition.mag3()*Radius);
+#define D_INITIAL_VEL()
+#define D_INITIAL_POT()
+#define D_FINAL_POT()
+#define PRINT_ENERGY(x) std::cout << x
+#elif defined TEST_DEBYE_ENERGY
+#define D_INITIAL_VEL() threevector InitialVel = Velocity;
+#define D_INITIAL_POT() double InitialPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*Position.mag3()))*exp((Position.mag3()/DebyeLength)-(1.0/DebyeLength)));
+#define D_FINAL_POT()   double FinalPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*FinalPosition.mag3()))*exp((FinalPosition.mag3()/DebyeLength)-(1.0/DebyeLength)));
+#define C_INITIAL_VEL()
+#define C_INITIAL_POT()
+#define C_FINAL_POT()
 #define PRINT_ENERGY(x) std::cout << x
 #else
 #define C_INITIAL_VEL()
 #define C_INITIAL_POT()
 #define C_FINAL_POT()
-#define PRINT_ENERGY(x)
-#endif
-
-#if defined TEST_DEBYE_ENERGY 
-#define D_INITIAL_VEL() threevector InitialVel = Velocity;
-#define D_INITIAL_POT() double InitialPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*Position.mag3()))*exp((Position.mag3()/DebyeLength)-(1.0/DebyeLength)));
-#define D_FINAL_POT()   double FinalPot = fabs((PotentialNorm*echarge*echarge/(4.0*PI*epsilon0*Radius*FinalPosition.mag3()))*exp((FinalPosition.mag3()/DebyeLength)-(1.0/DebyeLength)));
-#define PRINT_ENERGY(x) std::cout << x
-#else
 #define D_INITIAL_VEL()
 #define D_INITIAL_POT()
 #define D_FINAL_POT()
 #define PRINT_ENERGY(x)
 #endif
-
-
 
 #ifdef PAUSE
 #define Pause(); std::cin.get();
@@ -267,6 +310,7 @@ const extern double AMU;      // kg, Atomic Mass unit
 const extern double c;        // m/s, Speed of light
 const extern double h;        // m^2 kg/s, Planck's Const
 const extern double epsilon0; // F/m, vacuum permittivity
+const extern double mu0;      // N/A^2, vacuum permeability
 }
 
 #endif
