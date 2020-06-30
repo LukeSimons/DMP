@@ -75,6 +75,8 @@ static void show_usage(std::string name){
     << "\t-ne,--edensity EDENSITY\t\t(m^-^3), Specify the plasma electron "
         << "density\n"
     << "\t\teDensity(=1e18m^-^3) DEFAULT,\tTokamak density\n\n"
+    << "\t-mi,--imass IMASS\t\t(u), Specify the mass of Ions in Daltons\n"
+    << "\t\tiMass(=1u) DEFAULT,\n\n"
     << "\t-ti,--itemp ITEMP\t\t(eV), Specify the temperature of Ions\n"
     << "\t\tiTemp(=1eV) DEFAULT,\n\n"
     << "\t-ni,--idensity IDENSITY\t\t(m^-^3), Specify the plasma ion density\n"
@@ -136,16 +138,26 @@ static void show_usage(std::string name){
     << "\t\tsuffix(='.txt') DEFAULT,\tBy Default, Save data to "
         << "Data/DiMPl.txt\n\n"
     << std::endl;
-    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
+    #if defined VARIABLE_CSCALE
     std::cerr << "\n\nAdditional Options from VARIABLE_CSCALE!\n"
+    << "\t-cs,--chargescale CHARGESCALE\t\t\t((double), Specify the scale of "
+        << "the charging\n"
+    << "\t\tChargeScale(=0) DEFAULT,\t\tBy Default, charging scale is "
+        << "calculated from Potential~1\n\n"
+    << std::endl;
+    #endif
+    #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
+    std::cerr << "\n\nAdditional Options from VARIABLE_CSCALE OR "
+        << "VARIABLE_ASCALE!\n"
     << "\t-jm,--jmin JMIN\t\t\t(int), Specify the number of particles to be "
         << "collected before dynamic saving\n"
-    << "\t\tjmin(=20) DEFAULT,\t\tBy Default, re-assess dynamic scale after "
+    << "\t\tjmin(=20) DEFAULT,\t\tBy Default, re-assess dynamic scale after " 
         << "collecting 20 particles\n\n"
-    << "\t-jf,--jfin JMIN\t\t\t(int), Specify the number of particles to be "
+    << "\t-jf,--jfin JMIN\t\t\t(int), Specify the number of particles to be " 
         << "collected in final save\n"
-    << "\t\tjfin(=100) DEFAULT,\t\tBy Default, collect 100 particles in the "
-        << "final save\n\n";
+    << "\t\tjfin(=100) DEFAULT,\t\tBy Default, collect 100 particles in the " 
+        << "final save\n\n"
+    << std::endl;
     #endif
 
 }
@@ -579,30 +591,34 @@ int main(int argc, char* argv[]){
 
 
     // ***** DEFINE PLASMA PARAMETERS       ***** //
-    double EFieldx     = 0.0;  //!< V/m, x component of electric field
-    double EFieldy     = 0.0;  //!< V/m, x component of electric field
-    double EFieldz     = 0.0;  //!< V/m, x component of electric field
-    double iTemp       = 1.0;  //!< Ion Temperature, eV
-    double eTemp       = 1.0;  //!< Electron Temperature, eV
-    double eDensity    = 1e18; //!< m^(-3), Electron density
-    double iDensity    = 1e18; //!< m^(-3), Ion density
-    double DriftVel    = 0.0;  //!< m s^-1, Drift velocity of ions
-    double zMaxCoeff   = 1.0;  //!< Arb, Interaction distances to max of domain
-    double zMinCoeff   = 1.0;  //!< Arb, Interaction distances to min of domain
-    double ZBoundForce = 0.0;  //!< Arb, Dust grain radii to vertical edge
-    double ImpactPar   = 2.0;  //!< Factor for the Impact Parameter
-    double ForceImpPar = 0.0;  //!< Arb, Dust grain radii to radial edge
-    double iChance     = -0.5; //!< Probability of ion, <0 is self-consistent
-    unsigned long long imax = 10000; //!< Arb, Max number of particles launched
-    unsigned long long jmax = 5000;  //!< Arb, Max number of particles collected
+    double EFieldx      = 0.0;  //!< V/m, x component of electric field
+    double EFieldy      = 0.0;  //!< V/m, x component of electric field
+    double EFieldz      = 0.0;  //!< V/m, x component of electric field
+    double iMass        = 1.0;  //!< Ion Mass, u
+    double iTemp        = 1.0;  //!< Ion Temperature, eV
+    double eTemp        = 1.0;  //!< Electron Temperature, eV
+    double eDensity     = 1e18; //!< m^(-3), Electron density
+    double iDensity     = 1e18; //!< m^(-3), Ion density
+    double DriftVel     = 0.0;  //!< m s^-1, This is the Temperature of the species being considered!<
+    double zMaxCoeff    = 1.0;  //!< Arb, Number of Interaction distances from 0,0 plane to max of simulation domain
+    double zMinCoeff    = 1.0;  //!< Arb, Number of Interaction distances from 0,0 plane to min of simulation domain
+    double ZBoundForce  = 0.0;  //!< Arb, Number of dust grain radii to vertical edge of simulation domain
+    double ImpactPar    = 2.0;  //!< Species gyro-radii, Multiplicative factor for the Impact Parameter
+    double ForceImpPar  = 0.0;  //!< Number of dust grain radii to radial edge of simulation domain
+    double iChance      = -0.5; //!< Manually set probability of Generating an ion, negative will cause self-consistent
+    unsigned long long imax = 10000;//!< Arb, Maximum number of particles to be launched
+    unsigned long long jmax = 5000; //!< Arb, Number of particles to be collected
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     unsigned long long jmin = 20;    //!< Arb, Min particles before averaging
     unsigned long long jfin = 100;   //!< Arb, Min particles in last save
     #endif
-    unsigned long long num  = 1000;  //!< Arb, Particles collected before print
-    double TimeStepFactor   = 0.0005;//!< Arb, Factor to determine timestep
-    unsigned int Saves(100);         //!< Arb, Particles collected before save
-    unsigned int reflectionsmax(15); //!< Arb, Reflections before rejecting
+    #if defined VARIABLE_CSCALE
+    double ChargeScale = 0;
+    #endif
+    unsigned long long num  = 1000; //!< Arb, Number of particles to be collected before saving
+    double TimeStepFactor   = 0.0005; //!< Arb, Multiplicative factor used to determine size of the timestep
+    unsigned int Saves(100);    //!<Arb, Number of particles to be collected before saving in a run
+    unsigned int reflectionsmax(50); //!< Arb, Number of reflections before rejecting particles
 
 
     // ************************************************** //
@@ -651,6 +667,8 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,eTemp);
         else if( arg == "--edensity"    || arg == "-ne")    
             InputStatus = InputFunction(argc,argv,i,ss0,eDensity);
+        else if( arg == "--imass"   || arg == "-mi")    
+            InputStatus = InputFunction(argc,argv,i,ss0,iMass);
         else if( arg == "--itemp"   || arg == "-ti")    
             InputStatus = InputFunction(argc,argv,i,ss0,iTemp);
         else if( arg == "--idensity"    || arg == "-ni")    
@@ -674,6 +692,10 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,jmin);
         else if( arg == "--jfin"    || arg == "-jf")    
             InputStatus = InputFunction(argc,argv,i,ss0,jfin);
+        #endif
+        #if defined VARIABLE_CSCALE
+        else if( arg == "--chargescale" || arg == "-cs")
+            InputStatus = InputFunction(argc,argv,i,ss0,ChargeScale);
         #endif
         else if( arg == "--jmax"    || arg == "-j" )    
             InputStatus = InputFunction(argc,argv,i,ss0,jmax);
@@ -712,8 +734,9 @@ int main(int argc, char* argv[]){
         std::cerr << "\nError! Electron Temperature is negative\neTemp : " 
             << eTemp;
     if( eDensity < 0.0 )
-        std::cerr << "\nError! Electron Density is negative\neDensity : " 
-            << eDensity;
+        std::cerr << "\nError! Electron Density is negative\neDensity : " << eDensity;
+    if( iMass < 1.0 )
+        std::cerr << "\nError! Ion Mass is less than 1\niMass : " << iMass;
     if( iTemp < 0.0 )
         std::cerr << "\nError! Ion Temperature is negative\niTemp : " 
             << iTemp;
@@ -769,20 +792,19 @@ int main(int argc, char* argv[]){
     //!< Save program configuration to a file with Input
     InputDataFile.open(filename + "_Input" + suffix);
     InputDataFile << "## Input Data File ##\n";
-    InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tti\tni\tc"
-            << "\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
+    InputDataFile << "#Input:\nr\ts\ta1\ta2\ta3\td\tp\tm\tn\tte\tne\tmi\tti\tni"
+        << "\tc\tu\tl\tz\tb\tf\ti\tj\tt\tno\tv\tse\tsa\to";
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     InputDataFile << "\tjmin\tjfin";
     #endif
-    InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" 
-        << a2 << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" 
-        << BMagIn << "\t" << NormVars << "\t" << eTemp << "\t" 
-        << eDensity<< "\t" << iTemp << "\t" << iDensity << "\t" 
-        << iChance << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" 
-        << ZBoundForce << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" 
-        << imax << "\t" << jmax  << "\t" << TimeStepFactor << "\t" 
-        << num << "\t" << DriftVel << "\t" << seed << "\t" << Saves << "\t" 
-        << suffix;
+    InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 
+        << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn 
+        << "\t" << NormVars << "\t" << eTemp << "\t" << eDensity << "\t" 
+        << iMass << "\t" << iTemp << "\t" << iDensity << "\t" << iChance 
+        << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce
+        << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" 
+        << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel 
+        << "\t" << seed << "\t" << Saves << "\t" << suffix;
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     InputDataFile << "\t" << jmin << "\t" << jfin;
     #endif
@@ -804,8 +826,8 @@ int main(int argc, char* argv[]){
     //!< If species is positively charged, we assume it's a singly charged ion.
     //!< Otherwise, singly charged electron
 
-    //!< kg, This is the Mass to which quantities are normalised 
-    double MASS = dimplconsts::Mp;  
+    //!< If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
+    double MASS = iMass*dimplconsts::Mp;  //!< kg, This is the Mass to which quantities are normalised 
     a1 = 1.0/(a1*a1);
     a2 = 1.0/(a2*a2);
     a3 = 1.0/(a3*a3);
@@ -845,8 +867,9 @@ int main(int argc, char* argv[]){
         = MASS/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
 
     #ifdef VARIABLE_CSCALE
-    // Divide by 2 as we don't want full scale
-    double ChargeScale  = eTemp*4.0*PI*epsilon0*Radius/(2.0*echarge); 
+    if( ChargeScale == 0.0 ){
+	ChargeScale = eTemp*4.0*PI*epsilon0*Radius/(2.0*echarge); // Divide by 2 as we don't want full scale
+    }
     #endif
     #ifdef VARIABLE_ASCALE
     double AngularScalei 
@@ -1807,8 +1830,8 @@ int main(int argc, char* argv[]){
                 UPDATE_CSCALE(); // Update charging scale
                 
                 // Don't allow charging scale to fall below 1.0e
-                if( fabs(ChargeScale) <= 2.0 ){
-                    ChargeScale = 2.0;
+                if( fabs(ChargeScale) <= 1.0 ){
+                    ChargeScale = 1.0;
                     if( jmin == jfin )
                         s = smax;
 
