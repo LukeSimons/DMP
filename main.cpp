@@ -1497,6 +1497,24 @@ int main(int argc, char* argv[]){
                 // In this case, potential is repulsive
                 if( PotentialNorm*SPEC_CHARGE > 0.0 ){
                     r_max = 1;
+                    #ifdef MAGNETIC_BOTTLE
+                    #ifdef COULOMB_POTENTIAL
+                    double vx = Velocity.getx();
+                    double vy = Velocity.gety();
+                    double vz = Velocity.getz();
+
+                    double r0 = sqrt(Position.getx()*Position.getx()
+                        +Position.gety()*Position.gety());
+
+                    double delta_a = 2.0*sqrt((vx*vx+vy*vy)+vz*vz/(2.0*PI)
+                        +2*PotentialNorm/(BMag*BMag));
+                    //std::cout << "\ne-\tr0 = " << r0 << "\t\tdelta_a = " << delta_a << "\n";
+                    if(  delta_a < 0.0 || delta_a >= 2.0 || 
+                        delta_a/2 < r0 ){
+                        EdgeCondition = false;
+                    }
+                    #endif
+                    #endif
 /*                  // Compare vertical kinetic energy to potential. 
                     // it's smaller, reject orbit
                     // immediately before simulating
@@ -1517,7 +1535,28 @@ int main(int argc, char* argv[]){
                             EdgeCondition = false;
                         }
                     #endif*/
-                }
+                }else{
+                    #ifdef MAGNETIC_BOTTLE
+                    #ifdef COULOMB_POTENTIAL
+                    double vx = Velocity.getx();
+                    double vy = Velocity.gety();
+                    double vz = Velocity.getz();
+                    //double r0 = sqrt(Position.getx()*Position.getx()
+                    //    +Position.gety()*Position.gety());
+
+                    double delta_a = 2.0*sqrt((vx*vx+vy*vy)+vz*vz/(2.0*PI)
+                        +2*PotentialNorm/(BMag*BMag));
+                    //std::cout << "\ni+\tr0 = " << r0 << "\t\tdelta_a = " << delta_a << "\n";
+                    if( delta_a <= 2.0 ){
+                        EdgeCondition = true;
+                    }else if( 1 <= sqrt(delta_a-1.0) ){
+                        EdgeCondition = true;
+                    }else{
+                        EdgeCondition = false;
+                    }
+                    #endif
+                    #endif
+		}
                 // ************************************************** //
 
 
@@ -1798,8 +1837,13 @@ int main(int argc, char* argv[]){
                     >= 10.0*MASS*iDensity*sqrt(echarge*iTemp/MASS)
                     *Tau/(Radius) ){
                     AngularScalee 
-                        = 10.0*MASS*iDensity
+                        = 10.0*MASS*eDensity
                         *sqrt(echarge*iTemp/MASS)*Tau/(Radius);
+                    if( jmin == jfin )
+                        s = smax;
+
+                    jmin = jfin;
+                }
                 if( fabs(AngularScalei) 
                     >= 10.0*MASS*eDensity*sqrt(echarge*eTemp/MASS)
                     *Tau/(MassRatio*Radius) ){

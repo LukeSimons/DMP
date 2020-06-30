@@ -1,6 +1,6 @@
 \*! \mainpage DiMPL
 Author :    Luke Simons\n
-Date :    06/02/2019\n
+Date :    30/06/2020\n
 Email:    ls5115@ic.ac.uk\n\n
 
 \section dimpl DiMPl - Dust In Magnetised Plasma
@@ -10,7 +10,7 @@ Rate of collection of ions and electrons is calculated with a focus on calculati
 
 This code calculates the angular and linear momentum transfer to a charged sphere with either a Debye-Huckel or Coulomb electric potential in a constant magnetic field. Output is in files in subdirectory Data. Optional full tracking of particles, including their change in energy and net linear and angular momentum can be calculated by defining the relevant pre-processor directives. Command line input is available with the following options:
 
-\section cmd_line Command Line Options
+\section cmd-line Command Line Options
 Below are listed the command line options available for DiMPl and displayed when typing ./main -h
 
 Options:	-h,--help			Show this help message

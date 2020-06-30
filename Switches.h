@@ -8,8 +8,9 @@
 
 //#define SAVE_TRACKS         //!< Switch: save all particle trajectories
 #define SELF_CONS_CHARGE      //!< Switch  cause incident charges to contribute
-#define VARIABLE_CSCALE       //!< Switch: make particle charges weighted
+//#define VARIABLE_CSCALE       //!< Switch: make particle charges weighted
 //#define VARIABLE_ASCALE     //!< Switch: make particle momentum weighted
+//#define MAGNETIC_BOTTLE     //!< Switch: Determine collection from potential
 
 //#define SAVE_MISSED_MOM     //!< Switch: write missing particles momentum
 //#define SAVE_ANGULAR_VEL    //!< Switch: write particle charges weighted
