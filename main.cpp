@@ -16,11 +16,14 @@
 #include <sstream>   //!< for std::stringstream
 #include <assert.h>  //!< for assert()
 #include <algorithm> //!< for std::min()
+#include <vector> //!< To store text file of unknown length
 
 #include "Switches.h"   //!< File containing switches defining DiMPl behaviour
 #include "Constants.h"  //!< Define Pre-processor Directives and constants
 #include "threevector.h"//!< For threevector class
 #include "rand_mwts.h"  //!< Functions to generate correct 1-way maxwellian flux
+#include "Field_Point.h" //!< For Field_Point class (contains value and position vector)
+#include "Field_Map.h" //!< For Field_Map class (contains details of map of field point objects)
 
 using namespace dimplconsts;
 
@@ -548,7 +551,56 @@ threevector ParabolicField(const threevector &Position, double Charge,
  *  of a charged conducting sphere. See README and docs for more information.
  */
 int main(int argc, char* argv[]){
-    
+
+    // Note to self: Delete this
+    std::ifstream in("E_Field_Example.txt");
+    std::string line;
+    std::vector<std::string> header_vector;
+    if (in){
+	int count = 0;
+        while(getline(in, line)){
+	    header_vector.push_back(line);
+	    count+=1;
+	}
+    }
+
+    const int total_num_lines = header_vector.size();
+    for (int i=0; i<total_num_lines;i++){
+       std::cout<< "Line: "<< i << "; contents: " << header_vector[i] << "[end]" << std::endl;
+    }
+    const int num_lines_in_header = 4;
+    const int num_data_lines = total_num_lines - num_lines_in_header;
+    const int num_data_points_per_line = 4;
+    double two_D_array[num_data_points_per_line][total_num_lines - num_lines_in_header];
+    for (int i=0; i<num_data_lines; i++){
+	const std::string delimiter = " ";
+	std::string line = header_vector[i+num_lines_in_header];
+	std::string line_data[num_data_points_per_line];
+	for (int j=0; j<num_data_points_per_line; j++){
+	    int pos = line.find(delimiter);
+	    line_data[j] = line.substr(0, pos);
+	    line.erase(0, pos + delimiter.length());
+	    two_D_array[j][i] = atof(line_data[j].c_str());
+	}
+    }
+    // Display Summary
+    const std::string summary_delim = "Summary: ";
+    const std::string dimension_delim = "Number of Dimensions: ";
+    const std::string coord_delim = "Coordinate System: ";
+    const std::string ordered_delim = "Ordered: ";
+    const std::string summary_line = header_vector[0].substr(header_vector[0].find(summary_delim)+summary_delim.length(), header_vector[0].size());
+
+    std::cout<<summary_line<<std::endl;
+    for (int i=0; i< num_data_lines; i++){
+        for (int j=0; j<num_data_points_per_line; j++){
+	    std::cout<< j << ": " <<two_D_array[j][i] <<"; ";
+	}
+	std::cout<<std::endl;
+    }
+
+    Field_Map the_field_map("E_Field_Example.txt");
+
+
     // ***** TIMER AND FILE DECLERATIONS        ***** //
     clock_t begin = clock();
     std::string filename = "Data/DiMPl";

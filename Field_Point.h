@@ -31,6 +31,8 @@ class Field_Point{
 	    threevector position;
 	    ///@}
 
+	    //Note to self: potentially include information about nearby points here to increase speed?
+
     public:
 	    /** @name Constructors
 	     *  @brief functions to construct a field_point class
