@@ -21,6 +21,8 @@ Field_Map::Field_Map(std::string field_file_name)
     std::cout<<"Header details found"<<std::endl;
     convert_data_line_to_multi_D_array();
     std::cout<<"Convereted data to multi d array"<<std::endl;
+    partition_three_D_grid();
+    std::cout<<"Partitioned three D grid"<<std::endl;
 }
 
 void Field_Map::convert_data_line_to_multi_D_array(){
@@ -74,6 +76,10 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 	    three_d_count +=1;
 	}
     }
+
+    _total_one_d_count = one_d_count;
+    _total_two_d_count = two_d_count;
+    _total_three_d_count = three_d_count;
 
 
     // Populate multi dimensional array
@@ -151,4 +157,124 @@ bool Field_Map::string_to_bool(std::string string){
 	std::cout << unknown_boolean_warning << std::endl;
 	return true;
     }
+}
+
+void Field_Map::partition_three_D_grid(){
+    // Note to self: check how many dimensions are required
+    // vector of vectors, in one direction the partition values, in the other direction additional granularity
+    // Check what precision is required
+
+    // Note to self: does this work on non-integer half values?
+    //     aim to address this is by always rounding down and having an additional partition at the end
+    // First Dimension
+    std::vector<std::vector<double>> value_holder;
+    std::vector<std::vector<int>> pos_holder;
+    int num_secs = log2(_total_one_d_count);// find the log_2 value
+    std::vector<double> line_one_val_holder(3); //line 1
+    std::vector<int> line_one_pos_holder = partition(0, _total_one_d_count-1); // line 1
+    for (int i=0; i<3; i++){
+	line_one_val_holder[i] = _Field_Map_Final[line_one_pos_holder[i]][0][0].get_position_x();
+    }
+    pos_holder.push_back(line_one_pos_holder);
+    value_holder.push_back(line_one_val_holder);
+    for (int i=1; i<num_secs; i++){
+	int num = pos_holder[i-1].size()+ 2;
+	if (num>_total_one_d_count/3){
+	    // need to go every single 1, this is the last case
+	    num = _total_one_d_count;
+	    std::cout<<"num:"<<num<<std::endl;
+	}
+	std::vector<double> this_iteration_val_holder(num);
+	std::vector<int> this_iteration_pos_holder(num);
+	if (num != _total_one_d_count){
+	    this_iteration_pos_holder[0] = 0; // first index
+	    for (int j=0; j<num-3; j++){
+	        std::vector<int> next_three = partition(pos_holder[i-1][j], pos_holder[i-1][j+1]);
+	        std::copy(next_three.begin(), next_three.end(), this_iteration_pos_holder.begin()+j*2);
+	    }
+	} else {
+	    for (int j=0;j<_total_one_d_count;j++){
+	        this_iteration_pos_holder[j]=j;
+	    }
+	}
+	for (int j=0; j<num; j++){
+	    this_iteration_val_holder[j] = _Field_Map_Final[this_iteration_pos_holder[j]][0][0].get_position_x();
+	}
+        value_holder.push_back(this_iteration_val_holder);
+	pos_holder.push_back(this_iteration_pos_holder);
+    }
+    for (int i=0; i<num_secs; i++){
+        std::cout<<"Row: ";
+	int num_in_row = pos_holder[i].size();
+	for (int j=0; j<num_in_row; j++){
+	    std::cout << pos_holder[i][j]<<" ("<<value_holder[i][j]<<")" <<"; ";
+	}
+	std::cout<<std::endl;
+    }
+    find_closest(0.8, pos_holder, value_holder);
+    find_closest(0.1, pos_holder, value_holder);
+    find_closest(5, pos_holder, value_holder);
+    find_closest(11.3, pos_holder, value_holder);
+}
+
+void Field_Map::find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder){
+    std::cout<<"find closest called, looking for: "<<value<<std::endl;
+    int test_point = 1;
+    int num_secs = pos_holder.size();
+    for (int i=0; i<num_secs-2; i++){
+	if (value > value_holder[i][test_point]){
+	    // occurs after midpoint, therefore check after here in the next line
+            test_point+=2;
+	}
+    }
+    // Penultimate line:
+    //     check partition above or below depending on 
+    std::vector<int> closest_positions(2);
+    // Note to self: this can be improved by rahter than just finding the closest position, find the difference between the two closest points and evaluate accordingly
+    std::cout<<"Value: "<<value<<"; test value: "<<value_holder[num_secs-2][test_point]<<std::endl;
+    if (value < value_holder[num_secs-2][test_point]){
+        test_point -= 1;
+    }
+        // check diff to this value, diff to next value etc. until buffer
+        int num_to_check = 1+pos_holder[num_secs-2][test_point+1] - pos_holder[num_secs-2][test_point];
+	std::cout<<"Number needed to check: "<<num_to_check<<std::endl;
+	int index_of_test_point = pos_holder[num_secs-2][test_point];
+	std::cout<<"Index of test point: "<<index_of_test_point<<std::endl;
+        int closest_pos = index_of_test_point;
+	double closest_diff = value-value_holder[num_secs-2][test_point];
+	std::cout<<"Initial closest diff: "<< closest_diff<<std::endl;
+	int second_closest_pos = index_of_test_point+1;
+	for (int i=1; i<num_to_check;i++){
+	    std::cout<<"Check location: "<<pos_holder[num_secs-1][index_of_test_point+i]<<std::endl;;
+	    double this_diff = value-value_holder[num_secs-1][index_of_test_point+i];
+	    if (std::abs(this_diff)<std::abs(closest_diff)){
+	        if(this_diff>0){
+		    second_closest_pos = closest_pos+2;
+		} else {
+		    second_closest_pos = closest_pos;
+		}
+		closest_pos = index_of_test_point + i;
+		closest_diff = this_diff;
+	    }
+	}
+	std::cout<<"The closest position is: "<<closest_pos<<std::endl;
+	std::cout<<"The second closest position is: "<<second_closest_pos<<std::endl;
+        closest_positions[0] = closest_pos;
+	closest_positions[1] = second_closest_pos;
+    
+    std::cout<<"Closest point: "<<closest_positions[0]<<" ("<<value_holder[num_secs-1][closest_positions[0]]<<")"<<std::endl;
+    std::cout<<"Second Closest point: "<<closest_positions[1]<<" ("<<value_holder[num_secs-1][closest_positions[1]]<<")"<<std::endl;
+
+}
+
+
+
+std::vector<int> Field_Map::partition(int start, int end){
+    int midway = start+(end-start)/2;
+    return {start, midway, end};
+}
+
+double Field_Map::find_E_Val(threevector Position, double EField_Background){
+    // Note to self: check to be in the same coordinate system for consistency
+    return 0.0;    
 }

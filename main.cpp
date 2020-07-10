@@ -573,7 +573,7 @@ int main(int argc, char* argv[]){
     const int num_data_points_per_line = 4;
     double two_D_array[num_data_points_per_line][total_num_lines - num_lines_in_header];
     for (int i=0; i<num_data_lines; i++){
-	const std::string delimiter = " ";
+	const std::string delimiter = "\t";
 	std::string line = header_vector[i+num_lines_in_header];
 	std::string line_data[num_data_points_per_line];
 	for (int j=0; j<num_data_points_per_line; j++){
@@ -598,7 +598,7 @@ int main(int argc, char* argv[]){
 	std::cout<<std::endl;
     }
 
-    Field_Map the_field_map("E_Field_Example.txt");
+    Field_Map the_field_map("E_Field_15_cubed.txt");
 
 
     // ***** TIMER AND FILE DECLERATIONS        ***** //

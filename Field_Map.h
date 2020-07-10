@@ -21,6 +21,7 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include <math.h> //!< For log 2
 
 /** @class Field_Map
  *  @brief Definition of a Field_Map class for use in describing Physics fields
@@ -38,10 +39,10 @@ class Field_Map{
 
 	// Header Details:
 	//     details necessary header structure for the text file
-	const std::string _summary_delim = "Summary: ";
-	const std::string _dimension_delim = "Number of Dimensions: ";
-	const std::string _coord_delim = "Coordinate System: ";
-	const std::string _ordered_delim = "Ordered: ";
+	const std::string _summary_delim = "Summary:\t";
+	const std::string _dimension_delim = "Number of Dimensions:\t";
+	const std::string _coord_delim = "Coordinate System:\t";
+	const std::string _ordered_delim = "Ordered:\t";
         const int _num_lines_in_header = 4; // the number of lines in the header of the text file
 
 	std::string _summary_line; // found in the constructor
@@ -59,13 +60,19 @@ class Field_Map{
              */
         // Data Details:
 	//     details necessary data structure for the text file
-	const std::string _data_delim = " "; // the delimiter between data values
+	const std::string _data_delim = "\t"; // the delimiter between data values
         void convert_data_line_to_multi_D_array();
         void text_to_string_vector(std::string field_file_name);
 	std::string split_after_delim(std::string delim, std::string str_to_split);
 	void find_header_details();
 	bool string_to_bool(std::string string);
+	int _total_one_d_count;
+	int _total_two_d_count;
+	int _total_three_d_count;
 	std::vector<std::vector<std::vector<Field_Point>>> _Field_Map_Final;
+	void partition_three_D_grid();
+	std::vector<int> partition(int start, int end);
+	void find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder);
 
     public:
 	/** @name Constructors
@@ -78,6 +85,8 @@ class Field_Map{
 	Field_Map(std::string field_file_name);
 
 	inline std::vector<std::vector<std::vector<Field_Point>>> get_Field_Map()const{return _Field_Map_Final; };
+        // Note to self: E field needs to become a vector and possibly look at using const and &?
+        double find_E_Val(threevector Position, double EField_Background);
 
 }; //end of class
 
