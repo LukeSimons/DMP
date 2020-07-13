@@ -551,55 +551,15 @@ threevector ParabolicField(const threevector &Position, double Charge,
  *  of a charged conducting sphere. See README and docs for more information.
  */
 int main(int argc, char* argv[]){
-
     // Note to self: Delete this
-    std::ifstream in("E_Field_Example.txt");
-    std::string line;
-    std::vector<std::string> header_vector;
-    if (in){
-	int count = 0;
-        while(getline(in, line)){
-	    header_vector.push_back(line);
-	    count+=1;
-	}
-    }
-
-    const int total_num_lines = header_vector.size();
-    for (int i=0; i<total_num_lines;i++){
-       std::cout<< "Line: "<< i << "; contents: " << header_vector[i] << "[end]" << std::endl;
-    }
-    const int num_lines_in_header = 4;
-    const int num_data_lines = total_num_lines - num_lines_in_header;
-    const int num_data_points_per_line = 4;
-    double two_D_array[num_data_points_per_line][total_num_lines - num_lines_in_header];
-    for (int i=0; i<num_data_lines; i++){
-	const std::string delimiter = "\t";
-	std::string line = header_vector[i+num_lines_in_header];
-	std::string line_data[num_data_points_per_line];
-	for (int j=0; j<num_data_points_per_line; j++){
-	    int pos = line.find(delimiter);
-	    line_data[j] = line.substr(0, pos);
-	    line.erase(0, pos + delimiter.length());
-	    two_D_array[j][i] = atof(line_data[j].c_str());
-	}
-    }
-    // Display Summary
-    const std::string summary_delim = "Summary: ";
-    const std::string dimension_delim = "Number of Dimensions: ";
-    const std::string coord_delim = "Coordinate System: ";
-    const std::string ordered_delim = "Ordered: ";
-    const std::string summary_line = header_vector[0].substr(header_vector[0].find(summary_delim)+summary_delim.length(), header_vector[0].size());
-
-    std::cout<<summary_line<<std::endl;
-    for (int i=0; i< num_data_lines; i++){
-        for (int j=0; j<num_data_points_per_line; j++){
-	    std::cout<< j << ": " <<two_D_array[j][i] <<"; ";
-	}
-	std::cout<<std::endl;
-    }
-
-    Field_Map the_field_map("E_Field_15_cubed.txt");
-
+    Field_Map the_field_map("E_Field_21x21x6.txt");
+    //for (int i=0; i<1000000; i++){
+        double i_val = 0.81;
+	double j_val = 13.21;
+        double k_val = 0;
+	threevector pos_one(i_val,j_val,k_val); 
+        std::cout<<"value ("<<i_val<<", "<<j_val<<", "<<k_val<<"): "<<the_field_map.find_approx_value(pos_one)<<std::endl;
+    //}
 
     // ***** TIMER AND FILE DECLERATIONS        ***** //
     clock_t begin = clock();
@@ -1527,6 +1487,8 @@ int main(int argc, char* argv[]){
                     EField = CoulombField(Position,PotentialNorm,A_Coulomb)
                         +EField_Background;
                 #endif
+		std::cout<<"Initial Position: "<<Position.getx()<<", "<<Position.gety()<<", "<<Position.getz()<<std::endl;
+
                 UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,
                     Velocity,SPEC_CHARGE);  
     

@@ -72,7 +72,14 @@ class Field_Map{
 	std::vector<std::vector<std::vector<Field_Point>>> _Field_Map_Final;
 	void partition_three_D_grid();
 	std::vector<int> partition(int start, int end);
-	void find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder);
+	std::vector<int> find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder);
+	void find_per_dimension(int dimension);
+	std::vector<std::vector<int>> _one_d_pos_holder;
+	std::vector<std::vector<double>> _one_d_value_holder;
+	std::vector<std::vector<int>> _two_d_pos_holder;
+	std::vector<std::vector<double>> _two_d_value_holder;
+	std::vector<std::vector<int>> _three_d_pos_holder;
+	std::vector<std::vector<double>> _three_d_value_holder;
 
     public:
 	/** @name Constructors
@@ -87,7 +94,7 @@ class Field_Map{
 	inline std::vector<std::vector<std::vector<Field_Point>>> get_Field_Map()const{return _Field_Map_Final; };
         // Note to self: E field needs to become a vector and possibly look at using const and &?
         double find_E_Val(threevector Position, double EField_Background);
-
+	double find_approx_value(threevector point);
 }; //end of class
 
 #endif /*__FIELD_MAP_H_INCLUDED__ */
