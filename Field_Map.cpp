@@ -23,8 +23,22 @@ Field_Map::Field_Map(std::string field_file_name)
     std::cout<<"Convereted data to multi d array"<<std::endl;
     partition_three_D_grid();
     std::cout<<"Partitioned three D grid"<<std::endl;
+    int pos[3] = {3,2,1};
+    std::vector<std::vector<double>> fits = find_fits(pos);
+    std::cout<<"TEST=================="<<std::endl;
+    Field_Point centre_point = _Field_Map_Final[pos[0]][pos[1]][pos[2]]; 
+    std::cout<<"Centre Point Values (val, x,y,z): "<<centre_point.get_value()<<", "<<centre_point.get_position_x()<<", "<<centre_point.get_position_y()<<", "<< centre_point.get_position_z()<<std::endl; 
+    std::cout<<"x: (a,b,c)"<<fits[0][0]<<", "<< fits[0][1]<<", "<<fits[0][2]<<std::endl;
+    std::cout<<"y: (a,b,c)"<<fits[1][0]<<", "<< fits[1][1]<<", "<<fits[1][2]<<std::endl;
+    std::cout<<"z: (a,b,c)"<<fits[2][0]<<", "<< fits[2][1]<<", "<<fits[2][2]<<std::endl;
+    std::cout<<"====================="<<std::endl;
 }
 
+/** @brief Take raw data (in an ordered fashion) and transform it to a multi dimensional array.
+ *  The multi dimensional array spans real space and holds a field value at each point.
+ *  @param 
+ *
+ */
 void Field_Map::convert_data_line_to_multi_D_array(){
     // Begin by finding the size
     _num_data_points_per_line = _dimension_val + 1;
@@ -95,7 +109,12 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     _Field_Map_Final = Field_Map_Matrix;
 }
 
-
+/** @brief Converts a text file to a vector containing contents of each line.
+ *         Vector is of initially arbitrary size and each element is the line
+ *         contents written as a string.
+ *  @param field_file_name : the name of the text file
+ *
+ */
 void Field_Map::text_to_string_vector(std::string field_file_name)
 {
     std::ifstream in(field_file_name);
@@ -366,4 +385,68 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
 std::vector<int> Field_Map::partition(int start, int end){
     int midway = start+(end-start)/2;
     return {start, midway, end};
+}
+
+std::vector<std::vector<double>> Field_Map::find_fits(int position[3]){
+    // If an edge situation, shift to the neighbouring one
+    for (int i=0;i<3;i++){
+    	if(position[i]==0){position[i]=1;}
+    }
+    if(position[0]==_total_one_d_count-1){position[0]=_total_one_d_count-2;}
+    if(position[1]==_total_two_d_count-1){position[0]=_total_two_d_count-2;}
+    if(position[2]==_total_three_d_count-1){position[0]=_total_three_d_count-2;}
+
+    Field_Point points[7];
+    points[0] =  _Field_Map_Final[position[0]][position[1]][position[2]];
+    points[1] =  _Field_Map_Final[position[0]-1][position[1]][position[2]];
+    points[2] =  _Field_Map_Final[position[0]+1][position[1]][position[2]];
+    points[3] =  _Field_Map_Final[position[0]][position[1]-1][position[2]];
+    points[4] =  _Field_Map_Final[position[0]][position[1]+1][position[2]];
+    points[5] =  _Field_Map_Final[position[0]][position[1]][position[2]-1];
+    points[6] =  _Field_Map_Final[position[0]][position[1]][position[2]+1];
+    double first_D_p0[2] = {points[1].get_position_x(), points[1].get_value()};
+    double first_D_p1[2] = {points[0].get_position_x(), points[0].get_value()};
+    double first_D_p2[2] = {points[2].get_position_x(), points[2].get_value()};
+    double second_D_p0[2] = {points[3].get_position_y(), points[3].get_value()};
+    double second_D_p1[2] = {points[0].get_position_y(), points[0].get_value()};
+    double second_D_p2[2] = {points[4].get_position_y(), points[4].get_value()};
+    double third_D_p0[2] = {points[5].get_position_z(), points[5].get_value()};
+    double third_D_p1[2] = {points[0].get_position_z(), points[0].get_value()};
+    double third_D_p2[2] = {points[6].get_position_z(), points[6].get_value()};
+    std::vector<double> first_D_abc = calc_quad_fit(first_D_p0, first_D_p1, first_D_p2);
+    std::vector<double> second_D_abc = calc_quad_fit(second_D_p0, second_D_p1, second_D_p2);
+    std::vector<double> third_D_abc = calc_quad_fit(third_D_p0, third_D_p1, third_D_p2);
+
+    std::vector<std::vector<double>> abc_s = {first_D_abc, second_D_abc, third_D_abc};
+
+    return abc_s;
+}
+
+std::vector<double> Field_Map::calc_quad_fit(double p1[2], double p2[2], double p3[2]){
+    // solve in the form B = AC, C is unknown, A is matrix
+    // Quadratic of the form y = ax^2+bx +c
+    // C = {a,b,c}
+    // B = {y1,y2,y3}
+    double B[3] = {p1[1], p2[1], p3[1]};
+    double A[3][3] = {{p1[0]*p1[0], p1[0], 1}, {p2[0]*p2[0], p2[0], 1}, {p3[0]*p3[0], p3[0], 1}};
+    double A_det  = A[0][0]*two_by_two_mat_det(A[1][1],A[1][2],A[2][1],A[2][2])-A[0][1]*two_by_two_mat_det(A[1][0],A[1][2], A[2][0],A[2][2])+A[0][2]*two_by_two_mat_det(A[1][0], A[1][1], A[2][0],A[2][1]);
+    // Inverse of matrix A multiplied by A_det
+    double top_row[3]={two_by_two_mat_det(A[1][1],A[1][2],A[2][1],A[2][2]), 
+	               two_by_two_mat_det(A[0][2],A[0][1],A[2][2],A[2][1]), 
+                       two_by_two_mat_det(A[0][1],A[0][2],A[1][1],A[1][2])};
+    double mid_row[3]={two_by_two_mat_det(A[1][2],A[1][0],A[2][2],A[2][0]), 
+	               two_by_two_mat_det(A[0][0],A[0][2],A[2][0],A[2][2]), 
+                       two_by_two_mat_det(A[0][2],A[0][0],A[1][2],A[1][0])};
+    double bot_row[3]={two_by_two_mat_det(A[1][0],A[1][1],A[2][0],A[2][1]), 
+	               two_by_two_mat_det(A[0][1],A[0][0],A[2][1],A[2][0]), 
+                       two_by_two_mat_det(A[0][0],A[0][1],A[1][0],A[1][1])};
+    double y1 = (top_row[0]*B[0]+top_row[1]*B[1]+top_row[2]*B[2])/A_det;
+    double y2 = (mid_row[0]*B[0]+mid_row[1]*B[1]+mid_row[2]*B[2])/A_det;
+    double y3 = (bot_row[0]*B[0]+bot_row[1]*B[1]+bot_row[2]*B[2])/A_det;
+    std::vector<double>  Y = {y1,y2,y3};
+    return Y;
+}
+
+double Field_Map::two_by_two_mat_det(double upper_left, double upper_right, double bottom_left, double bottom_right){
+    return upper_left*bottom_right - upper_right*bottom_left;
 }

@@ -80,6 +80,9 @@ class Field_Map{
 	std::vector<std::vector<double>> _two_d_value_holder;
 	std::vector<std::vector<int>> _three_d_pos_holder;
 	std::vector<std::vector<double>> _three_d_value_holder;
+	std::vector<std::vector<double>> find_fits(int position[3]);
+	std::vector<double> calc_quad_fit(double p1[2], double p2[2], double p3[2]);
+        double two_by_two_mat_det(double upper_left, double upper_right, double bottom_left, double bottom_right);
 
     public:
 	/** @name Constructors
