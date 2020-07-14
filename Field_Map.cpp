@@ -1,6 +1,6 @@
 /** @file Field_Map.cpp
  *  @brief Implementation of Field_Map class for use in describing Physics fields
- * 
+ *
  *  Field_Map Objects contain details of a field comprised of many Field_Point objects
  *
  *  @author Daniel Greenhouse (dg2020@ic.ac.uk (until 01.09.2020), dmgreenhouse@outlook.com (thereafter))
@@ -29,7 +29,7 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     // Begin by finding the size
     _num_data_points_per_line = _dimension_val + 1;
     _num_data_lines = _line_vector.size() - _num_lines_in_header;
-    
+
     // Create two D grid representation of data
     double two_D_array[_num_data_points_per_line][_num_data_lines];
     for (int i=0; i<_num_data_lines; i++){
@@ -101,7 +101,7 @@ void Field_Map::text_to_string_vector(std::string field_file_name)
     std::ifstream in(field_file_name);
     std::string single_line;
     std::vector<std::string> line_vector; // used to store contents of each line, vector used so that file can be arbitrary size
-    
+
     if (in){
         while(getline(in, single_line))// go through each line in the file and write as a string
 	{
@@ -115,7 +115,7 @@ void Field_Map::find_header_details()
     _summary_line = split_after_delim(_summary_delim, _line_vector[0]);
     _dimension_val = std::stoi(split_after_delim(_dimension_delim, _line_vector[1])); // and convert string to integer
     _coord_type = split_after_delim(_coord_delim, _line_vector[2]);
-    _ordered_truth = string_to_bool(split_after_delim(_ordered_delim, _line_vector[3])); // and convert string to boolean 
+    _ordered_truth = string_to_bool(split_after_delim(_ordered_delim, _line_vector[3])); // and convert string to boolean
 }
 
 std::string Field_Map::split_after_delim(std::string delim, std::string str_to_split)
@@ -125,7 +125,7 @@ std::string Field_Map::split_after_delim(std::string delim, std::string str_to_s
 
 bool Field_Map::string_to_bool(std::string string){
     const std::string unknown_boolean_warning = "WARNING: ordered truth of custom field file is unknown, assuming ordered.";
-	
+
     if (string.size() == 1){
         // the number case
 	if (string.compare("0")){
@@ -145,7 +145,7 @@ bool Field_Map::string_to_bool(std::string string){
 	    return true;
 	}
 	else if (string.compare("false")){
-	    return false;	
+	    return false;
 	}
         else {
 	    std::cout << unknown_boolean_warning << std::endl;
@@ -239,7 +239,7 @@ void Field_Map::find_per_dimension(int dimension){
     if(dimension==1){
         count =_total_one_d_count;
     }else if (dimension==2){
-        count = _total_two_d_count; 
+        count = _total_two_d_count;
     } else if (dimension==3){
         count = _total_three_d_count;
     } else{
@@ -336,18 +336,22 @@ void Field_Map::find_per_dimension(int dimension){
 }
 
 std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder){
+    /**
+        Begin by looking at the values in each line.
+        For the first line, if the true value is above the midpoint then on the line beneath the next midpoint should be considered.
+        This is enacted by keeping track of a `test_point' which is shifted accordingly for each subsequent line.
+        This is continued up until the line before the penultimate line (since the final line is spaced differently)
+    */
     int test_point = 1;
     int num_secs = pos_holder.size();
     for (int i=0; i<num_secs-2; i++){
-	if (value > value_holder[i][test_point]){
-	    // occurs after midpoint, therefore check after here in the next line
-            test_point+=2;
-	}
+	      if (value > value_holder[i][test_point]){
+            test_point+=std::pow(2,(i+1)); // for the next line, the test point is shifted
+	      }
     }
     // Penultimate line:
-    //     check partition above or below depending on 
+    //     check partition above or below depending on
     std::vector<int> closest_positions(2);
-    // Note to self: this can be improved by rahter than just finding the closest position, find the difference between the two closest points and evaluate accordingly
     if (value < value_holder[num_secs-2][test_point]){
         test_point -= 1;
     }
@@ -371,7 +375,7 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
 	}
         closest_positions[0] = closest_pos;
 	closest_positions[1] = second_closest_pos;
-    
+
     return closest_positions;
 }
 
@@ -380,9 +384,4 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
 std::vector<int> Field_Map::partition(int start, int end){
     int midway = start+(end-start)/2;
     return {start, midway, end};
-}
-
-double Field_Map::find_E_Val(threevector Position, double EField_Background){
-    // Note to self: check to be in the same coordinate system for consistency
-    return 0.0;    
 }

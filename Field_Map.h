@@ -31,7 +31,7 @@
 class Field_Map{
     protected:
         /** @name Member Data
-	 *  @brief Private data defining field maps  
+	 *  @brief Private data defining field maps
 	 */
 	std::vector<std::string> _line_vector; // used to store contents of each line in text file, vector used so that the text file can be an arbitrary size. Vector populated from constructor
 	int _num_data_lines; // the number of lines containing data of the field in the text file. Value found in the constructor
@@ -91,9 +91,6 @@ class Field_Map{
 	 */
 	Field_Map(std::string field_file_name);
 
-	inline std::vector<std::vector<std::vector<Field_Point>>> get_Field_Map()const{return _Field_Map_Final; };
-        // Note to self: E field needs to become a vector and possibly look at using const and &?
-        double find_E_Val(threevector Position, double EField_Background);
 	double find_approx_value(threevector point);
 }; //end of class
 
