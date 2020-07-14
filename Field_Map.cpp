@@ -166,32 +166,12 @@ void Field_Map::partition_three_D_grid(){
 
     // Note to self: does this work on non-integer half values?
     //     aim to address this is by always rounding down and having an additional partition at the end
-    std::cout<<"1"<<std::endl;
-
     find_per_dimension(1);
-    std::cout<<"2"<<std::endl;
-
     find_per_dimension(2);
-    std::cout<<"3"<<std::endl;
-
     find_per_dimension(3);
-    std::cout<<"4"<<std::endl;
 
     std::vector<std::vector<int>> pos_holder = _two_d_pos_holder;
     std::vector<std::vector<double>> value_holder = _two_d_value_holder;
-    find_closest(0.8, pos_holder, value_holder);
-    std::cout<<"5"<<std::endl;
-
-    find_closest(0.1, pos_holder, value_holder);
-    std::cout<<"6"<<std::endl;
-
-    find_closest(5, pos_holder, value_holder);
-    std::cout<<"7"<<std::endl;
-
-    find_closest(11.3, pos_holder, value_holder);
-    std::cout<<"8"<<std::endl;
-
-
 }
 
 double Field_Map::find_approx_value(threevector point){
@@ -250,7 +230,6 @@ void Field_Map::find_per_dimension(int dimension){
     int num_secs = log2(count);// find the log_2 value
     std::vector<double> line_one_val_holder(3); //line 1
     std::vector<int> line_one_pos_holder = partition(0, count-1); // line 1
-
     if(dimension==1){
         for (int i=0; i<3; i++){
 	    line_one_val_holder[i] = _Field_Map_Final[line_one_pos_holder[i]][0][0].get_position_x();
@@ -275,7 +254,7 @@ void Field_Map::find_per_dimension(int dimension){
 
     for (int i=1; i<num_secs; i++){
 	int num = pos_holder[i-1].size()+ 2*i;
-	if (num>count/3){
+	if (num>count/2){
 	    // need to go every single 1, this is the last case
 	    num = count;
 	}
@@ -283,9 +262,11 @@ void Field_Map::find_per_dimension(int dimension){
 	std::vector<int> this_iteration_pos_holder(num);
 	if (num != count){
 	    this_iteration_pos_holder[0] = 0; // first index
-	    for (int j=0; j<num-3; j++){
+	    const int num_to_find= pos_holder[i-1].size()-1;
+	    for (int j=0; j<num_to_find; j++){
 	        std::vector<int> next_three = partition(pos_holder[i-1][j], pos_holder[i-1][j+1]);
-	        std::copy(next_three.begin(), next_three.end(), this_iteration_pos_holder.begin()+j*2);
+		this_iteration_pos_holder[2*j+1] = next_three[1];
+		this_iteration_pos_holder[2*j+2] = next_three[2];
 	    }
 	} else {
 	    for (int j=0;j<count;j++){
@@ -296,7 +277,6 @@ void Field_Map::find_per_dimension(int dimension){
         if(dimension==1){
 	    for (int j=0; j<num; j++){
 	        this_iteration_val_holder[j] = _Field_Map_Final[this_iteration_pos_holder[j]][0][0].get_position_x();
-		std::cout<<this_iteration_val_holder[j]<<std::endl;
 	    }
 
         }else if (dimension==2){
@@ -347,6 +327,8 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
     for (int i=0; i<num_secs-2; i++){
 	      if (value > value_holder[i][test_point]){
             test_point+=std::pow(2,(i+1)); // for the next line, the test point is shifted
+	      } else {
+	          test_point+=test_point-1;
 	      }
     }
     // Penultimate line:
