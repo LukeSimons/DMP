@@ -22,6 +22,8 @@
 #include <vector>
 #include <iostream>
 #include <math.h> //!< For log 2
+#include <ctime> //!< For timer, Note to self: remove this
+#include <cstdio> //!< For clock time conversion, Note to self: remove this
 
 /** @class Field_Map
  *  @brief Definition of a Field_Map class for use in describing Physics fields
@@ -83,6 +85,7 @@ class Field_Map{
 	std::vector<std::vector<double>> find_fits(int position[3]);
 	std::vector<double> calc_quad_fit(double p1[2], double p2[2], double p3[2]);
         double two_by_two_mat_det(double upper_left, double upper_right, double bottom_left, double bottom_right);
+	void add_quadratic_fit_details_to_all_points();
 
     public:
 	/** @name Constructors
@@ -94,7 +97,7 @@ class Field_Map{
 	 */
 	Field_Map(std::string field_file_name);
 
-	double find_approx_value(threevector point);
+	threevector find_approx_value(threevector point);
 }; //end of class
 
 #endif /*__FIELD_MAP_H_INCLUDED__ */

@@ -12,7 +12,7 @@
 #define __FIELD_POINT_H_INCLUDED__
 
 #include "threevector.h" //!< For threevector class
-
+#include <vector> //!< For the std::vector's, used preferentially to arrays due to easier function return
 /** @class field_point
  *  @brief Definition of a field_point class for use in describing Physics fields
  *  field_point objects contain a value at a point with a three-vector (defined in file threevector.h)
@@ -29,6 +29,11 @@ class Field_Point{
 	    ///@{
 	    double value;
 	    threevector position;
+	    std::vector<double> _first_d_abc;
+	    std::vector<double> _second_d_abc;
+	    std::vector<double> _third_d_abc;
+	    threevector _electric_field;
+
 	    ///@}
 
 	    //Note to self: potentially include information about nearby points here to increase speed?
@@ -60,7 +65,10 @@ class Field_Point{
 	    inline void set_pos(const threevector new_pos) { position = new_pos; };
 	    ///@}
 	    
-	    
+	    void add_quadratic_fit(std::vector<std::vector<double>> abc_details);
+	    void find_electric_field();
+	    threevector find_nearby_E_field(threevector nearby_position);
+
 	    /** @name Accessor functions
 	     *  get the value of field point member data
 	     */

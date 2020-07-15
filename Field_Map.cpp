@@ -14,24 +14,52 @@
 /** Constructors */
 Field_Map::Field_Map(std::string field_file_name)
 {
+    std::clock_t start;
+    double duration;
+    start = std::clock();
     std::cout<<"Opened constructor"<<std::endl;
     text_to_string_vector(field_file_name);
-    std::cout<<"text to string vector complete"<<std::endl;
+    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+
+    std::cout<<"text to string vector complete, time: "<< duration <<std::endl;
     find_header_details();
-    std::cout<<"Header details found"<<std::endl;
+    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+    std::cout<<"Header details found, time: "<<duration<<std::endl;
     convert_data_line_to_multi_D_array();
-    std::cout<<"Convereted data to multi d array"<<std::endl;
+    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+    std::cout<<"Convereted data to multi d array, time: "<<duration<<std::endl;
     partition_three_D_grid();
-    std::cout<<"Partitioned three D grid"<<std::endl;
-    int pos[3] = {3,2,1};
-    std::vector<std::vector<double>> fits = find_fits(pos);
-    std::cout<<"TEST=================="<<std::endl;
-    Field_Point centre_point = _Field_Map_Final[pos[0]][pos[1]][pos[2]]; 
-    std::cout<<"Centre Point Values (val, x,y,z): "<<centre_point.get_value()<<", "<<centre_point.get_position_x()<<", "<<centre_point.get_position_y()<<", "<< centre_point.get_position_z()<<std::endl; 
-    std::cout<<"x: (a,b,c)"<<fits[0][0]<<", "<< fits[0][1]<<", "<<fits[0][2]<<std::endl;
-    std::cout<<"y: (a,b,c)"<<fits[1][0]<<", "<< fits[1][1]<<", "<<fits[1][2]<<std::endl;
-    std::cout<<"z: (a,b,c)"<<fits[2][0]<<", "<< fits[2][1]<<", "<<fits[2][2]<<std::endl;
-    std::cout<<"====================="<<std::endl;
+    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+    std::cout<<"Partitioned three D grid, time: "<< duration<<std::endl;
+    //int pos[3] = {3,2,1};
+    //std::vector<std::vector<double>> fits = find_fits(pos);
+    //std::cout<<"TEST=================="<<std::endl;
+    //Field_Point centre_point = _Field_Map_Final[pos[0]][pos[1]][pos[2]]; 
+    //std::cout<<"Centre Point Values (val, x,y,z): "<<centre_point.get_value()<<", "<<centre_point.get_position_x()<<", "<<centre_point.get_position_y()<<", "<< centre_point.get_position_z()<<std::endl; 
+    //std::cout<<"x: (a,b,c)"<<fits[0][0]<<", "<< fits[0][1]<<", "<<fits[0][2]<<std::endl;
+    //std::cout<<"y: (a,b,c)"<<fits[1][0]<<", "<< fits[1][1]<<", "<<fits[1][2]<<std::endl;
+    //std::cout<<"z: (a,b,c)"<<fits[2][0]<<", "<< fits[2][1]<<", "<<fits[2][2]<<std::endl;
+    //std::cout<<"====================="<<std::endl;
+    //_Field_Map_Final[pos[0]][pos[1]][pos[2]].add_quadratic_fit(fits);
+    //_Field_Map_Final[pos[0]][pos[1]][pos[2]].find_electric_field();
+    //centre_point.add_quadratic_fit(fits);
+    //centre_point.find_electric_field();
+    add_quadratic_fit_details_to_all_points();
+    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+    std::cout<<"Fitted all points with a quadratic fit, time: "<<duration<<std::endl;
+}
+
+void Field_Map::add_quadratic_fit_details_to_all_points(){
+    for (int k=0; k<_total_three_d_count; k++){
+        for (int j=0; j<_total_two_d_count; j++){
+	    for (int i=0; i<_total_one_d_count; i++){
+		int pos[3] = {i,j,k};
+		std::vector<std::vector<double>> fits = find_fits(pos);
+		_Field_Map_Final[i][j][k].add_quadratic_fit(fits);
+		_Field_Map_Final[i][j][k].find_electric_field();
+	    }
+	}
+    }
 }
 
 /** @brief Take raw data (in an ordered fashion) and transform it to a multi dimensional array.
@@ -193,7 +221,12 @@ void Field_Map::partition_three_D_grid(){
     std::vector<std::vector<double>> value_holder = _two_d_value_holder;
 }
 
-double Field_Map::find_approx_value(threevector point){
+threevector Field_Map::find_approx_value(threevector point){
+    std::clock_t start;
+    double duration;
+    start = std::clock();
+    std::cout<<"Started looking for value."<<std::endl;
+
     std::vector<int> one_d_close_pos = find_closest(point.getx(), _one_d_pos_holder, _one_d_value_holder);
     std::vector<int> two_d_close_pos = find_closest(point.gety(), _two_d_pos_holder, _two_d_value_holder);
     std::vector<int> three_d_close_pos = find_closest(point.getz(), _three_d_pos_holder, _three_d_value_holder);
@@ -208,28 +241,37 @@ double Field_Map::find_approx_value(threevector point){
     near_points[7] = _Field_Map_Final[one_d_close_pos[1]][two_d_close_pos[1]][three_d_close_pos[1]];
     //for averaging, linear but the closer the better
     double summed_weight = 0;
-    double values[8];
+    threevector E_field_values[8];
     double weights[8];
-    double summed_weighted_values = 0;
+    threevector summed_weighted_values = threevector(0,0,0);
     bool is_exact_pos_found = false;
-    double exact_val;
+    threevector exact_E_field_val;
     for (int i=0;i<8;i++){
-	values[i] = near_points[i].get_value();
-	std::cout<<"Value: "<<values[i]<<std::endl;
-	std::cout<<"Pos:(i,j,k)"<< near_points[i].get_position_x()<<", "<< near_points[i].get_position_y()<<", "<<near_points[i].get_position_z()<<std::endl;
+	E_field_values[i] = near_points[i].find_nearby_E_field(point);
+	//std::cout<<"Pos:(i,j,k)"<< near_points[i].get_position_x()<<", "<< near_points[i].get_position_y()<<", "<<near_points[i].get_position_z()<<std::endl;
         double distance_squared = std::pow(near_points[i].get_position_x()-point.getx(),2)+std::pow(near_points[i].get_position_y()-point.gety(),2)+std::pow(near_points[i].get_position_z()-point.getz(),2);
 	if (distance_squared == 0){
 	    is_exact_pos_found = true;
-	    exact_val = values[i];
+	    exact_E_field_val = E_field_values[i];
 	}
 	else {
 	weights[i] = 1/distance_squared;
 	summed_weight += weights[i];
-	summed_weighted_values += values[i]*weights[i];
+	summed_weighted_values += E_field_values[i]*weights[i];
 	}
     }
-    if (is_exact_pos_found){return exact_val;}
-    else {return summed_weighted_values/summed_weight;}
+    if (is_exact_pos_found){
+        duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+        std::cout<<"Finished looking for value, time: "<< duration<<std::endl;
+        return exact_E_field_val;
+    }
+    else {
+        duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+        std::cout<<"Finished looking for value, time: "<< duration<<std::endl;
+        return threevector(summed_weighted_values.getx()/summed_weight, summed_weighted_values.gety()/summed_weight, summed_weighted_values.getz()/summed_weight);
+    }
+    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+    std::cout<<"Finished looking for value, time: "<< duration<<std::endl;
 }
 
 void Field_Map::find_per_dimension(int dimension){
@@ -389,21 +431,20 @@ std::vector<int> Field_Map::partition(int start, int end){
 
 std::vector<std::vector<double>> Field_Map::find_fits(int position[3]){
     // If an edge situation, shift to the neighbouring one
-    for (int i=0;i<3;i++){
-    	if(position[i]==0){position[i]=1;}
-    }
-    if(position[0]==_total_one_d_count-1){position[0]=_total_one_d_count-2;}
-    if(position[1]==_total_two_d_count-1){position[0]=_total_two_d_count-2;}
-    if(position[2]==_total_three_d_count-1){position[0]=_total_three_d_count-2;}
-
     Field_Point points[7];
     points[0] =  _Field_Map_Final[position[0]][position[1]][position[2]];
-    points[1] =  _Field_Map_Final[position[0]-1][position[1]][position[2]];
-    points[2] =  _Field_Map_Final[position[0]+1][position[1]][position[2]];
-    points[3] =  _Field_Map_Final[position[0]][position[1]-1][position[2]];
-    points[4] =  _Field_Map_Final[position[0]][position[1]+1][position[2]];
-    points[5] =  _Field_Map_Final[position[0]][position[1]][position[2]-1];
-    points[6] =  _Field_Map_Final[position[0]][position[1]][position[2]+1];
+    if (position[0]==0){points[1]=points[0];}
+    else { points[1] =  _Field_Map_Final[position[0]-1][position[1]][position[2]];}
+    if (position[0]==_total_one_d_count-1){points[2]=points[0];}
+    else { points[2] =  _Field_Map_Final[position[0]+1][position[1]][position[2]];}
+    if (position[1]==0){points[3]=points[0];}
+    else { points[3] =  _Field_Map_Final[position[0]][position[1]-1][position[2]];}
+    if (position[1]==_total_two_d_count-1){points[4]=points[0];}
+    else {points[4] =  _Field_Map_Final[position[0]][position[1]+1][position[2]];}
+    if (position[2]==0){points[5]=points[0];}
+    else {points[5] =  _Field_Map_Final[position[0]][position[1]][position[2]-1];}
+    if (position[2]==_total_three_d_count-1){points[6]=points[0];}
+    else {points[6] =  _Field_Map_Final[position[0]][position[1]][position[2]+1];}
     double first_D_p0[2] = {points[1].get_position_x(), points[1].get_value()};
     double first_D_p1[2] = {points[0].get_position_x(), points[0].get_value()};
     double first_D_p2[2] = {points[2].get_position_x(), points[2].get_value()};
@@ -416,9 +457,7 @@ std::vector<std::vector<double>> Field_Map::find_fits(int position[3]){
     std::vector<double> first_D_abc = calc_quad_fit(first_D_p0, first_D_p1, first_D_p2);
     std::vector<double> second_D_abc = calc_quad_fit(second_D_p0, second_D_p1, second_D_p2);
     std::vector<double> third_D_abc = calc_quad_fit(third_D_p0, third_D_p1, third_D_p2);
-
     std::vector<std::vector<double>> abc_s = {first_D_abc, second_D_abc, third_D_abc};
-
     return abc_s;
 }
 
@@ -427,6 +466,25 @@ std::vector<double> Field_Map::calc_quad_fit(double p1[2], double p2[2], double 
     // Quadratic of the form y = ax^2+bx +c
     // C = {a,b,c}
     // B = {y1,y2,y3}
+    std::vector<double> Y(3);
+    const double delta = 1.0e-300; //account for Note to self: change this for speed
+    if(((p2[0]-p1[0])<delta)&&((p3[0]-p2[0])<delta)){
+	// Straight line between points if all match
+        Y = {0,0,p1[1]};
+    }
+    else if((p2[0]-p1[0])<delta){
+	// use differing two for a linear fit between them
+	const double b = (p2[1]-p3[1])/(p2[0]-p3[0]);
+	const double c = p2[1]-b*p2[0];
+	Y = {0,b,c};
+    }
+    else if((p3[0]-p2[0])<delta){
+	// use differing two for a linear fit between them
+	const double b = (p1[1]-p2[1])/(p1[0]-p2[0]);
+	const double c = p1[1]-b*p1[0];
+	Y = {0,b,c};
+    }
+    else {
     double B[3] = {p1[1], p2[1], p3[1]};
     double A[3][3] = {{p1[0]*p1[0], p1[0], 1}, {p2[0]*p2[0], p2[0], 1}, {p3[0]*p3[0], p3[0], 1}};
     double A_det  = A[0][0]*two_by_two_mat_det(A[1][1],A[1][2],A[2][1],A[2][2])-A[0][1]*two_by_two_mat_det(A[1][0],A[1][2], A[2][0],A[2][2])+A[0][2]*two_by_two_mat_det(A[1][0], A[1][1], A[2][0],A[2][1]);
@@ -443,7 +501,23 @@ std::vector<double> Field_Map::calc_quad_fit(double p1[2], double p2[2], double 
     double y1 = (top_row[0]*B[0]+top_row[1]*B[1]+top_row[2]*B[2])/A_det;
     double y2 = (mid_row[0]*B[0]+mid_row[1]*B[1]+mid_row[2]*B[2])/A_det;
     double y3 = (bot_row[0]*B[0]+bot_row[1]*B[1]+bot_row[2]*B[2])/A_det;
-    std::vector<double>  Y = {y1,y2,y3};
+    Y = {y1,y2,y3};
+    if(!std::isfinite(y1)){std::cout<<"HELP1!"<<std::endl;
+	    std::cout<<"p1: "<<p1[0]<<", "<<p1[1]<<std::endl;
+	    std::cout<<"p2: "<<p2[0]<<", "<<p2[1]<<std::endl;
+	    std::cout<<"p3: "<<p3[0]<<", "<<p3[1]<<std::endl;
+    }
+    if(!std::isfinite(y2)){std::cout<<"HELP2!"<<std::endl;
+	    std::cout<<"p1: "<<p1[0]<<", "<<p1[1]<<std::endl;
+	    std::cout<<"p2: "<<p2[0]<<", "<<p2[1]<<std::endl;
+	    std::cout<<"p3: "<<p3[0]<<", "<<p3[1]<<std::endl;
+    }
+    if(!std::isfinite(y3)){std::cout<<"HELP3!"<<std::endl;
+	    std::cout<<"p1: "<<p1[0]<<", "<<p1[1]<<std::endl;
+	    std::cout<<"p2: "<<p2[0]<<", "<<p2[1]<<std::endl;
+	    std::cout<<"p3: "<<p3[0]<<", "<<p3[1]<<std::endl;
+    }
+    }
     return Y;
 }
 

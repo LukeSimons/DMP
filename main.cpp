@@ -558,7 +558,11 @@ int main(int argc, char* argv[]){
 	double j_val = 13.21;
         double k_val = 0;
 	threevector pos_one(i_val,j_val,k_val); 
-        std::cout<<"value ("<<i_val<<", "<<j_val<<", "<<k_val<<"): "<<the_field_map.find_approx_value(pos_one)<<std::endl;
+        std::cout<<"Test Point ("<<i_val<<", "<<j_val<<", "<<k_val<<"): "<<std::endl;
+	threevector E_field_val = the_field_map.find_approx_value(pos_one);
+	std::cout<< "E field x value at test point: "<<E_field_val.getx()<<std::endl;
+	std::cout<< "E field y value at test point: "<<E_field_val.gety()<<std::endl;
+	std::cout<< "E field z value at test point: "<<E_field_val.getz()<<std::endl;
     //}
 
     // ***** TIMER AND FILE DECLERATIONS        ***** //
@@ -1487,7 +1491,6 @@ int main(int argc, char* argv[]){
                     EField = CoulombField(Position,PotentialNorm,A_Coulomb)
                         +EField_Background;
                 #endif
-		std::cout<<"Initial Position: "<<Position.getx()<<", "<<Position.gety()<<", "<<Position.getz()<<std::endl;
 
                 UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,
                     Velocity,SPEC_CHARGE);  
