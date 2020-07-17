@@ -48,8 +48,8 @@ class Field_Point{
 	     * Set all member data to zero (uses default constructor of threevector)
 	     */
 	    Field_Point();
-	    
-	    
+
+
 	    /** @brief value-position constructor
 	     *  @param val defines the field point value
 	     *  @param pos defines the field point position
@@ -58,13 +58,13 @@ class Field_Point{
 
 	    /** @name Mutator Functions
 	     *  @brief change value of field_point
-	     *  @param 
+	     *  @param
 	     */
 	    ///@{
 	    inline void set_val(const double new_value) { value = new_value; };
 	    inline void set_pos(const threevector new_pos) { position = new_pos; };
 	    ///@}
-	    
+
 	    void add_quadratic_fit(std::vector<std::vector<double>> abc_details);
 	    void find_electric_field();
 	    threevector find_nearby_E_field(threevector nearby_position);
@@ -99,6 +99,14 @@ class Field_Point{
 
 	    //* @var position_phi get the field point phi position */
 	    inline double get_position_phi()const{ return position.getphi(); };
+	    ///@}
+
+	    //* @var position_phi get the field point rho position */
+	    inline double get_position_rho()const{ return std::sqrt(std::pow(position.getx(),2.0)+std::pow(position.gety(),2.0)); };
+	    ///@}
+
+	    //* @var position_phi get the field point r position */
+	    inline double get_position_r()const{ return std::sqrt(std::pow(position.getx(),2.0)+std::pow(position.gety(),2.0)+std::pow(position.getz(),2.0)); };
 	    ///@}
 
 }; // end of class

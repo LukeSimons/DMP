@@ -1,8 +1,8 @@
 /** @file threevector.h
  *  @brief Class defining a threevector object for use in physics models
- *  
+ *
  *  A class which deals with linear algebra of vectors with three dimensions.
- *  
+ *
  *  @author Luke Simons (ls5115@ic.ac.uk)
  *  @bug No known bugs.
  */
@@ -18,7 +18,7 @@
 
 using namespace dimplconsts;
 
-/** @class threevector 
+/** @class threevector
  *  @brief Class defining a threevector object for use in physics models
  *
  *  A class which deals with linear algebra of vectors with three dimensions.
@@ -45,13 +45,13 @@ class threevector{
          *
          *  Set all member data to zero
          */
-        threevector(); 
+        threevector();
         /** @brief Parameterised Cartesian constructor.
          *  @param x defines the first coordinate
          *  @param y defines the second coordinate
          *  @param z defines the third coordinate
          */
-        threevector(double x, double y, double z); 
+        threevector(double x, double y, double z);
         /** @brief Parameterised Polar constructor.
          *  @param r defines the first coordinate
          *  @param theta defines the second coordinate
@@ -86,7 +86,7 @@ class threevector{
         inline void sety(double yvalue){ ycoord = yvalue; };
         inline void setz(double zvalue){ zcoord = zvalue; };
         ///@}
-    
+
         /** @name Accessor functions
          * get the value of a particular coordinate
          */
@@ -113,6 +113,14 @@ class threevector{
             if(phi < 0.0) phi += 2.0*PI; // atan2 range is -pi to +pi
             return phi;
         }
+
+        /**
+         *  get value of cylindrical coordinate rho from cartesian coordinates
+         *  @return Value of cylindrical coordinate rho
+         */
+        inline double getrho()const{
+            return sqrt(xcoord*xcoord + ycoord*ycoord);
+        }
         ///@}
 
         /** @brief Square of vector
@@ -131,7 +139,7 @@ class threevector{
         inline double mag3()const{
             return sqrt(square());
         }
-            
+
         /** @brief Return unitvector
          *
          *  Return a vector of magnitude 1 in same direction as vector
@@ -165,7 +173,7 @@ class threevector{
          * @return the sum of this vector and v_old using linear algebra
          */
         inline threevector operator+(const threevector v_old)const{
-            threevector v_sum(v_old.getx() + xcoord, v_old.gety() + ycoord, 
+            threevector v_sum(v_old.getx() + xcoord, v_old.gety() + ycoord,
                 v_old.getz() + zcoord);
             return v_sum;
         };
@@ -233,7 +241,7 @@ class threevector{
          * @return the inner product of this vector and v_old
          */
         inline double operator*(threevector v_old)const{
-            return xcoord*v_old.getx() + ycoord*v_old.gety() 
+            return xcoord*v_old.getx() + ycoord*v_old.gety()
             + zcoord*v_old.getz();
         };
 
@@ -256,7 +264,7 @@ class threevector{
          * @param os out stream to send threevector data to
          * @param v threevector to be sent to ostream
          */
-        friend std::ostream& operator<<(std::ostream& os, 
+        friend std::ostream& operator<<(std::ostream& os,
             const threevector& v);
         ///@}
 };
