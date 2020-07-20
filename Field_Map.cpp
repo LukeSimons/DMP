@@ -20,7 +20,6 @@ Field_Map::Field_Map(std::string field_file_name)
     std::cout<<"Opened constructor"<<std::endl;
     text_to_string_vector(field_file_name);
     duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-
     std::cout<<"text to string vector complete, time: "<< duration <<std::endl;
     find_header_details();
     duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
@@ -50,9 +49,13 @@ void Field_Map::text_to_string_vector(std::string field_file_name)
 void Field_Map::find_header_details()
 {
     _summary_line = split_after_delim(_summary_delim, _line_vector[0]);
+    std::cout<<_summary_line<<std::endl;
     _dimension_val = std::stoi(split_after_delim(_dimension_delim, _line_vector[1])); // and convert string to integer
+    std::cout<<_dimension_val<<std::endl;
     _coord_type = split_after_delim(_coord_delim, _line_vector[2]);
+    std::cout<<_coord_type<<std::endl;
     _ordered_truth = string_to_bool(split_after_delim(_ordered_delim, _line_vector[3])); // and convert string to boolean
+    std::cout<<_ordered_truth<<std::endl;
     // Check the overriding coordinate system.
     const std::string dimension_mismatch_warning = "WARNING: coordinate system dimensions do not match those specified under `Number of Dimensions'. Proceeding but be mindful of potential errors.";
     if (_coord_type == _CART_1 || _coord_type == _CART_2 || _coord_type == _CART_3){
@@ -83,14 +86,16 @@ void Field_Map::find_header_details()
             std::cout<<dimension_mismatch_warning<<std::endl;
         }
     } else {
-        std::coout<<"WARNING: coordinate system is not recognised, assumed Cartesian."<<std::endl;
+        std::cout<<"WARNING: coordinate system is not recognised, assumed Cartesian."<<std::endl;
         _is_cartesian = true;
     }
 }
 
 std::string Field_Map::split_after_delim(std::string delim, std::string str_to_split)
 {
-    return str_to_split.substr(str_to_split.find(delim) + delim.length(), str_to_split.size());
+    const int end_delim_pos = str_to_split.find(_end_delim);
+    const int start_index = str_to_split.find(delim) + delim.length();
+    return str_to_split.substr(str_to_split.find(delim) + delim.length(), end_delim_pos-start_index);
 }
 
 bool Field_Map::string_to_bool(std::string string){
@@ -98,10 +103,10 @@ bool Field_Map::string_to_bool(std::string string){
     bool string_as_boolean = true; // initially assume ordered
     if (string.size() == 1){
         // the number case
-	    if (string.compare("0")){
+	    if (string=="0"){
 	        string_as_boolean = false;
 	    }
-	    else if (string.compare("1")){
+	    else if (string=="1"){
 	        string_as_boolean = true;
 	    }
 	    else {
@@ -111,8 +116,8 @@ bool Field_Map::string_to_bool(std::string string){
     } else if (string.size() == 4){
         // the text boolean case
         std::transform(string.begin(), string.end(), string.begin(), [](unsigned char c) {return std::tolower(c); }); // convert string to lower case
-	    if (string.compare("true")){string_as_boolean = true;}
-	    else if (string.compare("false")){string_as_boolean = false;}
+	    if (string=="true"){string_as_boolean = true;}
+	    else if (string=="false"){string_as_boolean = false;}
         else {
 	        std::cout << unknown_boolean_warning << std::endl;
 	        string_as_boolean = true;
@@ -141,7 +146,8 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 	        int pos = line.find(_data_delim);
 	        line_data[j] = line.substr(0, pos);
 	        line.erase(0, pos + _data_delim.length());
-	        two_D_array[j][i] = atof(line_data[j].c_str());
+		const double value = 0.0 + atof(line_data[j].c_str());
+	        two_D_array[j][i] = value;
 	    }
         if (_dimension_val==1){
             two_D_array[2][i] = 0.0;
@@ -170,7 +176,7 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 	        one_d_count+=1;
 	    }
     }
-    if (_dimension_val==2||_dimension_vall==3){
+    if (_dimension_val==2||_dimension_val==3){
         memory_holder = two_D_array[2][0]; // start off with the first value
         for (int i=1; i<_num_data_lines/one_d_count+1; i++){
             const int step = i*one_d_count;
@@ -185,8 +191,9 @@ void Field_Map::convert_data_line_to_multi_D_array(){
         memory_holder = two_D_array[3][0]; // start off with the first value
             for (int i=1; i<_num_data_lines/(one_d_count*two_d_count)+1; i++){
                 const int step = i*one_d_count*two_d_count;
+		if (step > _num_data_lines){break;}
                 const double third_d_current_val = two_D_array[3][step];
-                if (third_d_current_val<memory_holder){
+                if (third_d_current_val<memory_holder+1.0e-300){// note occasionally a rounding error hence this tiny shift
                     break;
                 }
     	        else {
@@ -211,10 +218,10 @@ void Field_Map::convert_data_line_to_multi_D_array(){
                     Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos]));
                 }
                 else if (_is_spherical) {
-                    Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos]), "s");
+                    Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos], 's'));
                 }
                 else if (_is_cylindrical) {
-                    Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos]), "c");
+                    Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos], 'c'));
                 }
 	        }
 	    }
@@ -227,7 +234,7 @@ void Field_Map::partition_three_D_grid(){
     // vector of vectors, in one direction the partition values, in the other direction additional granularity
     const std::vector<std::vector<int>> base_pos_holder= {{0}};
     const std::vector<std::vector<double>> base_value_holder= {{0.0}};
-    if (_dimension_val==1){
+    if (_dimension_val==3){
         find_per_dimension(1);
         find_per_dimension(2);
         find_per_dimension(3);
@@ -236,14 +243,14 @@ void Field_Map::partition_three_D_grid(){
         find_per_dimension(2);
         _three_d_pos_holder = base_pos_holder;
         _three_d_value_holder = base_value_holder;
-    } else if (_dimension_val==3){
+    } else if (_dimension_val==1){
         find_per_dimension(1);
         _two_d_pos_holder = base_pos_holder;
         _two_d_value_holder = base_value_holder;
         _three_d_pos_holder = base_pos_holder;
         _three_d_value_holder = base_value_holder;
     } else {
-        std::cout<<"WARNING: dimension value unknown."
+        std::cout<<"WARNING: dimension value unknown."<<std::endl;
     }
 }
 
@@ -259,6 +266,7 @@ void Field_Map::find_per_dimension(int dimension){
     } else{
         std::cout<<warning<<std::endl;
     }
+    std::cout<<"The total count. Dimension: "<<dimension<<", count:"<<count<<std::endl;
     std::vector<std::vector<double>> value_holder; // holds the value in the field at key positions
     std::vector<std::vector<int>> pos_holder; // holds the index position in the field at key positions
     int num_secs = log2(count); // find the log_2 value
@@ -272,7 +280,7 @@ void Field_Map::find_per_dimension(int dimension){
 
     // Find the positions in each section from the second line onwards
     for (int i=1; i<num_secs; i++){
-	    int num = pos_holder[i-1].size()+ 2*i;
+	    int num = pos_holder[i-1].size()+ std::pow(2,i);
 	    if (num>count/2){
 	        // need to go every single 1, this is the last line since a subsequent line would not have unique midpoints.
 	        num = count;
@@ -412,37 +420,72 @@ std::vector<std::vector<double>> Field_Map::find_fits(int position[3]){
         is_third_D_on_high_edge=true;
     }
     else {points[6] =  _Field_Map_Final[position[0]][position[1]][position[2]+1];}
-
+    double first_D_p0[2];
+    double first_D_p1[2];
+    double first_D_p2[2];
+    double second_D_p0[2];
+    double second_D_p1[2];
+    double second_D_p2[2];
+    double third_D_p0[2];
+    double third_D_p1[2];
+    double third_D_p2[2];
     if (_is_cartesian){
-        double first_D_p0[2] = {points[1].get_position_x(), points[1].get_value()};
-        double first_D_p1[2] = {points[0].get_position_x(), points[0].get_value()};
-        double first_D_p2[2] = {points[2].get_position_x(), points[2].get_value()};
-        double second_D_p0[2] = {points[3].get_position_y(), points[3].get_value()};
-        double second_D_p1[2] = {points[0].get_position_y(), points[0].get_value()};
-        double second_D_p2[2] = {points[4].get_position_y(), points[4].get_value()};
-        double third_D_p0[2] = {points[5].get_position_z(), points[5].get_value()};
-        double third_D_p1[2] = {points[0].get_position_z(), points[0].get_value()};
-        double third_D_p2[2] = {points[6].get_position_z(), points[6].get_value()};
+        first_D_p0[0] = points[1].get_position_x();
+	first_D_p0[1] = points[1].get_value();
+        first_D_p1[0] = points[0].get_position_x();
+	first_D_p1[1] = points[0].get_value();
+        first_D_p2[0] = points[2].get_position_x();
+       	first_D_p2[1] = points[2].get_value();
+        second_D_p0[0] = points[3].get_position_y();
+	second_D_p0[1] = points[3].get_value();
+        second_D_p1[0] = points[0].get_position_y();
+       	second_D_p1[1] = points[0].get_value();
+        second_D_p2[0] = points[4].get_position_y();
+	second_D_p2[1] = points[4].get_value();
+        third_D_p0[0] = points[5].get_position_z();
+       	third_D_p0[1] = points[5].get_value();
+        third_D_p1[0] = points[0].get_position_z();
+       	third_D_p1[1] = points[0].get_value();
+        third_D_p2[0] = points[6].get_position_z();
+       	third_D_p2[1] = points[6].get_value();
     } else if(_is_spherical){
-        double first_D_p0[2] = {points[1].get_position_r(), points[1].get_value()};
-        double first_D_p1[2] = {points[0].get_position_r(), points[0].get_value()};
-        double first_D_p2[2] = {points[2].get_position_r(), points[2].get_value()};
-        double second_D_p0[2] = {points[3].get_position_theta(), points[3].get_value()};
-        double second_D_p1[2] = {points[0].get_position_theta(), points[0].get_value()};
-        double second_D_p2[2] = {points[4].get_position_theta(), points[4].get_value()};
-        double third_D_p0[2] = {points[5].get_position_phi(), points[5].get_value()};
-        double third_D_p1[2] = {points[0].get_position_phi(), points[0].get_value()};
-        double third_D_p2[2] = {points[6].get_position_phi(), points[6].get_value()};
+        first_D_p0[0] = points[1].get_position_r();
+       	first_D_p0[1] = points[1].get_value();
+        first_D_p1[0] = points[0].get_position_r();
+       	first_D_p1[1] = points[0].get_value();
+        first_D_p2[0] = points[2].get_position_r();
+       	first_D_p2[1] = points[2].get_value();
+        second_D_p0[0] = points[3].get_position_theta();
+       	second_D_p0[1] = points[3].get_value();
+        second_D_p1[0] = points[0].get_position_theta();
+       	second_D_p1[1] = points[0].get_value();
+        second_D_p2[0] = points[4].get_position_theta();
+       	second_D_p2[1] = points[4].get_value();
+        third_D_p0[0] = points[5].get_position_phi();
+       	third_D_p0[1] = points[5].get_value();
+        third_D_p1[0] = points[0].get_position_phi();
+       	third_D_p1[1] = points[0].get_value();
+        third_D_p2[0] = points[6].get_position_phi();
+       	third_D_p2[1] = points[6].get_value();
     } else if(_is_cylindrical){
-        double first_D_p0[2] = {points[1].get_position_rho(), points[1].get_value()};
-        double first_D_p1[2] = {points[0].get_position_rho(), points[0].get_value()};
-        double first_D_p2[2] = {points[2].get_position_rho(), points[2].get_value()};
-        double second_D_p0[2] = {points[3].get_position_z(), points[3].get_value()};
-        double second_D_p1[2] = {points[0].get_position_z(), points[0].get_value()};
-        double second_D_p2[2] = {points[4].get_position_z(), points[4].get_value()};
-        double third_D_p0[2] = {points[5].get_position_phi(), points[5].get_value()};
-        double third_D_p1[2] = {points[0].get_position_phi(), points[0].get_value()};
-        double third_D_p2[2] = {points[6].get_position_phi(), points[6].get_value()};
+        first_D_p0[0] = points[1].get_position_rho();
+       	first_D_p0[1] = points[1].get_value();
+        first_D_p1[0] = points[0].get_position_rho();
+       	first_D_p1[1] = points[0].get_value();
+        first_D_p2[0] = points[2].get_position_rho();
+       	first_D_p2[1] = points[2].get_value();
+        second_D_p0[0] = points[3].get_position_z();
+       	second_D_p0[1] = points[3].get_value();
+        second_D_p1[0] = points[0].get_position_z();
+       	second_D_p1[1] = points[0].get_value();
+        second_D_p2[0] = points[4].get_position_z();
+       	second_D_p2[1] = points[4].get_value();
+        third_D_p0[0] = points[5].get_position_phi();
+       	third_D_p0[1] = points[5].get_value();
+        third_D_p1[0] = points[0].get_position_phi();
+       	third_D_p1[1] = points[0].get_value();
+        third_D_p2[0] = points[6].get_position_phi();
+       	third_D_p2[1] = points[6].get_value();
     } else {std::cout<<"WARNING: coordinate type not found"<<std::endl;}
 
     std::vector<double> first_D_abc = calc_quad_fit(first_D_p0, first_D_p1, first_D_p2, is_first_D_on_low_edge, is_first_D_on_high_edge);
@@ -491,6 +534,11 @@ std::vector<double> Field_Map::calc_quad_fit(double p1[2], double p2[2], double 
     double y1 = (top_row[0]*B[0]+top_row[1]*B[1]+top_row[2]*B[2])/A_det;
     double y2 = (mid_row[0]*B[0]+mid_row[1]*B[1]+mid_row[2]*B[2])/A_det;
     double y3 = (bot_row[0]*B[0]+bot_row[1]*B[1]+bot_row[2]*B[2])/A_det;
+    //std::cout<<"====================="<<std::endl;
+    //if (!std::isfinite(y1)){std::cout<<p1[0]<<", "<<p1[1]<<std::endl;}
+    //if (!std::isfinite(y2)){std::cout<<p2[0]<<", "<<p2[1]<<std::endl;}
+    //if (!std::isfinite(y3)){std::cout<<p3[0]<<", "<<p3[1]<<std::endl;}
+
     Y = {y1,y2,y3};
     }
     return Y;
@@ -501,7 +549,20 @@ double Field_Map::two_by_two_mat_det(double upper_left, double upper_right, doub
 }
 
 std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder){
+    std::cout<<"Value: "<<value<<std::endl;
+    std::vector<int> closest_positions(2);
 
+    if (value<value_holder[0][0]){
+	// out of low bound: state edge but with warning
+        closest_positions[0]=0;
+	closest_positions[1]=0;
+	std::cout<<"WARNING: value has fallen out of low bound"<<std::endl;
+    } else if (value>value_holder[0][2]){
+	// out of high bound: state edge but with warning
+        closest_positions[0]=pos_holder[0][2];
+	closest_positions[1]=pos_holder[0][2];
+	std::cout<<"WARNING: value has fallen out of high bound"<<std::endl;
+    } else{
     int test_point = 1;
     int num_secs = pos_holder.size();
     for (int i=0; i<num_secs-2; i++){
@@ -511,9 +572,10 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
 	          test_point+=test_point-1;
 	      }
     }
+    std::cout<<"Num_Secs: "<<num_secs<<std::endl;
     // Penultimate line:
     //     check partition above or below depending on
-    std::vector<int> closest_positions(2);
+
     if (value < value_holder[num_secs-2][test_point]){
         test_point -= 1;
     }
@@ -535,9 +597,10 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
 		closest_diff = this_diff;
 	    }
 	}
+    std::cout<<"Found closest pos"<<std::endl;
     closest_positions[0] = closest_pos;
 	closest_positions[1] = second_closest_pos;
-
+    }
     return closest_positions;
 }
 
@@ -553,7 +616,6 @@ threevector Field_Map::find_approx_value(threevector point){
     // number of points for 1 dimension = 2; 2d=4;3d=8
     const int num_near_points= std::pow(2, _dimension_val);
     Field_Point near_points[num_near_points];
-    near_points[0] = _Field_Map_Final[one_d_close_pos[0]][two_d_close_pos[0]][three_d_close_pos[0]];
     if(_dimension_val==1){
          if (_is_cartesian){
              one_d_close_pos = find_closest(point.getx(), _one_d_pos_holder, _one_d_value_holder);
@@ -581,9 +643,13 @@ threevector Field_Map::find_approx_value(threevector point){
         near_points[3] = _Field_Map_Final[one_d_close_pos[1]][two_d_close_pos[1]][0];
     } else if (_dimension_val==3){
         if (_is_cartesian){
+	    std::cout<<"In 3 cartesian"<<std::endl;
             one_d_close_pos = find_closest(point.getx(), _one_d_pos_holder, _one_d_value_holder);
+	    std::cout<<"1"<<std::endl;
             two_d_close_pos = find_closest(point.gety(), _two_d_pos_holder, _two_d_value_holder);
+	    std::cout<<"2"<<std::endl;
             three_d_close_pos = find_closest(point.getz(), _three_d_pos_holder, _three_d_value_holder);
+	    std::cout<<"3"<<std::endl;
         } else if (_is_spherical){
             one_d_close_pos = find_closest(point.mag3(), _one_d_pos_holder, _one_d_value_holder);
             two_d_close_pos = find_closest(point.gettheta(), _two_d_pos_holder, _two_d_value_holder);
@@ -602,6 +668,7 @@ threevector Field_Map::find_approx_value(threevector point){
         near_points[6] = _Field_Map_Final[one_d_close_pos[0]][two_d_close_pos[1]][three_d_close_pos[1]];
         near_points[7] = _Field_Map_Final[one_d_close_pos[1]][two_d_close_pos[1]][three_d_close_pos[1]];
     } else {std::cout<<"WARNING: unknown dimension number"<<std::endl;}
+    std::cout<<"Here"<<std::endl;
 
     //for averaging, linear but the closer the better
     double summed_weight = 0;
@@ -612,6 +679,7 @@ threevector Field_Map::find_approx_value(threevector point){
     threevector exact_E_field_val;
     for (int i=0;i<num_near_points;i++){
         E_field_values[i] = near_points[i].find_nearby_E_field(point);
+	std::cout<<"E field: "<<E_field_values[i]<<std::endl;
 	//std::cout<<"Pos:(i,j,k)"<< near_points[i].get_position_x()<<", "<< near_points[i].get_position_y()<<", "<<near_points[i].get_position_z()<<std::endl;
         double distance_squared;
         if (_dimension_val==1){
@@ -626,7 +694,7 @@ threevector Field_Map::find_approx_value(threevector point){
             if (_is_cartesian){
                 distance_squared = std::pow(near_points[i].get_position_x()-point.getx(),2)+std::pow(near_points[i].get_position_y()-point.gety(),2);
             } else if (_is_spherical) {
-                distance_squared = std::pow(near_points[i].get_position_r()-point.mag3(),2) + std::pow(near_points[i].get_position_theta()-point.theta(),2);
+                distance_squared = std::pow(near_points[i].get_position_r()-point.mag3(),2) + std::pow(near_points[i].get_position_theta()-point.gettheta(),2);
             } else if (_is_cylindrical){
                 distance_squared = std::pow(near_points[i].get_position_rho()-point.getrho(),2) + std::pow(near_points[i].get_position_z()-point.getz(),2);
             }
@@ -634,7 +702,7 @@ threevector Field_Map::find_approx_value(threevector point){
             if (_is_cartesian){
                 distance_squared = std::pow(near_points[i].get_position_x()-point.getx(),2)+std::pow(near_points[i].get_position_y()-point.gety(),2)+std::pow(near_points[i].get_position_z()-point.getz(),2);
             } else if (_is_spherical) {
-                distance_squared = std::pow(near_points[i].get_position_r()-point.mag3(),2) + std::pow(near_points[i].get_position_theta()-point.theta(),2) + std::pow(near_points[i].get_position_phi()-point.phi(),2);
+                distance_squared = std::pow(near_points[i].get_position_r()-point.mag3(),2) + std::pow(near_points[i].get_position_theta()-point.gettheta(),2) + std::pow(near_points[i].get_position_phi()-point.getphi(),2);
             } else if (_is_cylindrical){
                 distance_squared = std::pow(near_points[i].get_position_rho()-point.getrho(),2) + std::pow(near_points[i].get_position_z()-point.getz(),2) + std::pow(near_points[i].get_position_phi()-point.getphi(),2);
             }

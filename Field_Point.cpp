@@ -48,5 +48,9 @@ threevector Field_Point::find_nearby_E_field(threevector nearby_position){
     double E_x = -(2*_first_d_abc[0]*nearby_position.getx()+_first_d_abc[1]);
     double E_y = -(2*_second_d_abc[0]*nearby_position.gety()+_second_d_abc[1]);
     double E_z = -(2*_third_d_abc[0]*nearby_position.getz()+_third_d_abc[1]);
+    std::cout<<"First abc:"<<_first_d_abc[0]<<", "<<_first_d_abc[1]<<", "<<_first_d_abc[2]<<std::endl;
+    std::cout<<"Second abc:"<<_second_d_abc[0]<<", "<<_second_d_abc[1]<<", "<<_second_d_abc[2]<<std::endl;
+    std::cout<<"Third abc:"<<_third_d_abc[0]<<", "<<_third_d_abc[1]<<", "<<_third_d_abc[2]<<std::endl;
+
     return threevector(E_x, E_y, E_z);
 }

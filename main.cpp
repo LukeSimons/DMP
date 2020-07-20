@@ -141,6 +141,15 @@ static void show_usage(std::string name){
     << "\t\tsuffix(='.txt') DEFAULT,\tBy Default, Save data to "
         << "Data/DiMPl.txt\n\n"
     << std::endl;
+    #if defined CUSTOM_POTENTIAL
+    std::cerr <<"\n\nAdditional Options from CUSTOM_POTENTIAL.\n"
+    << "\t-cf, --customfield CUSTOMFIELD\t\t(string), Specify the Custom "
+        << "Field file name to be used\n"
+    << "\t\tcustom electric potential file name"
+        << "(='Custom_Fields/Default_Field.txt') DEFAULT, \tBy Default, Load "
+	<< "file Custom_Fields/Default_Field.txt\n\n"
+    << std::endl;
+    #endif
     #if defined VARIABLE_CSCALE
     std::cerr << "\n\nAdditional Options from VARIABLE_CSCALE!\n"
     << "\t-cs,--chargescale CHARGESCALE\t\t\t((double), Specify the scale of "
@@ -542,6 +551,19 @@ threevector ParabolicField(const threevector &Position, double Charge,
 }
 #endif
 
+/** @brief Calculate the electric field from a custom potential field file
+ *  @param Position reference to the three vector of particle position
+ *  @return threevector of the custom electric field at \p Position
+ *
+ *  Find the approximate custom electric field at position 
+ *  \p Position
+ */
+#ifdef CUSTOM_POTENTIAL
+threevector CustomField(const threevector &Position, Field_Map &this_field_map){
+    return this_field_map.find_approx_value(Position);
+}
+#endif
+
 /** @brief Main function defining DiMPl program
  *  @param argc the number of command line inputs given by the user
  *  @param argv the character array defining user command line inputs
@@ -552,17 +574,17 @@ threevector ParabolicField(const threevector &Position, double Charge,
  */
 int main(int argc, char* argv[]){
     // Note to self: Delete this
-    Field_Map the_field_map("E_Field_21x21x6.txt");
+    Field_Map the_field_map("Custom_Fields/E_Field_3_cubed.txt");
     //for (int i=0; i<1000000; i++){
-        double i_val = 0.81;
-	double j_val = 13.21;
-        double k_val = 0;
-	threevector pos_one(i_val,j_val,k_val); 
-        std::cout<<"Test Point ("<<i_val<<", "<<j_val<<", "<<k_val<<"): "<<std::endl;
-	threevector E_field_val = the_field_map.find_approx_value(pos_one);
-	std::cout<< "E field x value at test point: "<<E_field_val.getx()<<std::endl;
-	std::cout<< "E field y value at test point: "<<E_field_val.gety()<<std::endl;
-	std::cout<< "E field z value at test point: "<<E_field_val.getz()<<std::endl;
+    //    double i_val = 0.81;
+//	double j_val = 13.21;
+  //      double k_val = 0;
+//	threevector pos_one(i_val,j_val,k_val); 
+  //      std::cout<<"Test Point ("<<i_val<<", "<<j_val<<", "<<k_val<<"): "<<std::endl;
+//	threevector E_field_val = the_field_map.find_approx_value(pos_one);
+//	std::cout<< "E field x value at test point: "<<E_field_val.getx()<<std::endl;
+//	std::cout<< "E field y value at test point: "<<E_field_val.gety()<<std::endl;
+//	std::cout<< "E field z value at test point: "<<E_field_val.getz()<<std::endl;
     //}
 
     // ***** TIMER AND FILE DECLERATIONS        ***** //
@@ -584,6 +606,9 @@ int main(int argc, char* argv[]){
     DECLARE_AXIS();   //!< Data file for tracking free dust axis
     std::ofstream RunDataFile;   //!< Data file for containing the run 
     std::ofstream InputDataFile; //!< Data file for containing the input
+    #ifdef CUSTOM_POTENTIAL
+        std::string input_custom_filename = "Custom_Fields/Default_Field.txt";
+    #endif
 
     // ************************************************** //
 
@@ -729,6 +754,10 @@ int main(int argc, char* argv[]){
             InputStatus = InputFunction(argc,argv,i,ss0,Saves);
         else if( arg == "--output"  || arg == "-o" )    
             InputStatus = InputFunction(argc,argv,i,ss0,suffix);
+        #if defined CUSTOM_POTENTIAL
+	else if( arg == "--customfield" || arg == "-cf")
+	    InputStatus = InputFunction(argc,argv,i,ss0,input_custom_filename);
+        #endif
         else{
             sources.push_back(argv[i]);
         }
@@ -801,6 +830,7 @@ int main(int argc, char* argv[]){
             << "particles. Code won't run!\nsetting Saves = imax";
         Saves = imax;
     }
+    //Note to self: add here a check for invalid filename - use default
 
     // ************************************************** //
 
@@ -813,6 +843,9 @@ int main(int argc, char* argv[]){
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     InputDataFile << "\tjmin\tjfin";
     #endif
+    #if defined CUSTOM_POTENTIAL
+    InputDataFile << "\tcf";
+    #endif
     InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 
         << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn 
         << "\t" << NormVars << "\t" << eTemp << "\t" << eDensity << "\t" 
@@ -823,6 +856,9 @@ int main(int argc, char* argv[]){
         << "\t" << seed << "\t" << Saves << "\t" << suffix;
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     InputDataFile << "\t" << jmin << "\t" << jfin;
+    #endif
+    #if defined CUSTOM_POTENTIAL
+    InputDataFile << "\t" << input_custom_filename;
     #endif
     InputDataFile.close();
 
@@ -1234,12 +1270,22 @@ int main(int argc, char* argv[]){
     #ifdef COULOMB_POTENTIAL
         RunDataFile << "* COULOMB POTENTIAL *\n\n";
     #endif
+    #ifdef CUSTOM_POTENTIAL
+	RunDataFile << "* CUSTOM POTENTIAL *\n\n";
+    #endif
     #ifdef BOLTZMANN_DENSITY
         RunDataFile << "* BOLTZMANN DENSITY *\n\n";
     #endif
 
     // ************************************************** //
 
+    // ***** TRIGGER CREATION OF CUSTOM ELECTRIC FIELD MAP STORAGE ***** //
+    #ifdef CUSTOM_POTENTIAL
+	std::cout<<"File name: "<<input_custom_filename<<std::endl;
+	std::string custom_filestring = "Custom_Fields/" + input_custom_filename;
+        Field_Map this_field_map(custom_filestring);
+    #endif
+    // ************************************************** //
 
     // ***** DEFINE SHARED VARIABLES USED GLOBALLY IN OPERATION    ***** //
     threevector TotalAngularVel(0.0,0.0,Spin*Tau);
@@ -1491,6 +1537,10 @@ int main(int argc, char* argv[]){
                     EField = CoulombField(Position,PotentialNorm,A_Coulomb)
                         +EField_Background;
                 #endif
+                #ifdef CUSTOM_POTENTIAL
+                    EField = CustomField(Position,this_field_map)
+                        +EField_Background;
+                #endif
 
                 UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,
                     Velocity,SPEC_CHARGE);  
@@ -1614,6 +1664,10 @@ int main(int argc, char* argv[]){
                     #ifdef COULOMB_POTENTIAL
                         EField = CoulombField(Position,PotentialNorm,
                             A_Coulomb)+EField_Background;
+                    #endif
+                    #ifdef CUSTOM_POTENTIAL
+                        EField = CustomField(Position,this_field_map)
+                            +EField_Background;
                     #endif
 
                     OldPosition = Position;

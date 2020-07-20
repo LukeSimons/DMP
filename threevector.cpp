@@ -37,7 +37,7 @@ threevector::threevector(double r, double theta, double phiorz, char type)
     }
 
     //! Cylindrical case
-    if(type=='c')
+    else if(type=='c')
     {
         //! Convert from cylindrical to cartesian coordinates
         xcoord = r*cos(theta);

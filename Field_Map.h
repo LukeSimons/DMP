@@ -93,7 +93,8 @@ class Field_Map{
 	    const std::string _dimension_delim = "Number of Dimensions:\t";
 	    const std::string _coord_delim = "Coordinate System:\t";
 	    const std::string _ordered_delim = "Ordered:\t";
-        const int _num_lines_in_header = 7;
+	    const std::string _end_delim = ";";
+        const int _num_lines_in_header = 4;
         std::string _summary_line;
 	    int _dimension_val;
 	    bool _ordered_truth;
@@ -133,6 +134,7 @@ class Field_Map{
     	/** @name Member Methods
         *   @brief Class wide member methods to be used within the class.
         *          Many member methods are called and managed during the constructor processes.
+	*/
         ///@{
         /** @brief text_to_string_vector:
          *      Converts a text file to a vector containing contents of each line.
