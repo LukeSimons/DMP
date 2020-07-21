@@ -30,9 +30,11 @@ Field_Map::Field_Map(std::string field_file_name)
     partition_three_D_grid();
     duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
     std::cout<<"Partitioned three D grid, time: "<< duration<<std::endl;
-    add_quadratic_fit_details_to_all_points();
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    std::cout<<"Fitted all points with a quadratic fit, time: "<<duration<<std::endl;
+    if (!_is_E_Field_defined_truth){
+        add_quadratic_fit_details_to_all_points();
+        duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+        std::cout<<"Fitted all points with a quadratic fit, time: "<<duration<<std::endl;
+    }
 }
 
 void Field_Map::text_to_string_vector(std::string field_file_name)
@@ -56,6 +58,8 @@ void Field_Map::find_header_details()
     std::cout<<_coord_type<<std::endl;
     _ordered_truth = string_to_bool(split_after_delim(_ordered_delim, _line_vector[3])); // and convert string to boolean
     std::cout<<_ordered_truth<<std::endl;
+    _is_E_Field_defined_truth = string_to_bool(split_after_delim(_is_E_Field_defined_delim, _line_vector[4])); // and convert string to boolean
+    std::cout<<_is_E_Field_defined_truth<<std::endl;
     // Check the overriding coordinate system.
     const std::string dimension_mismatch_warning = "WARNING: coordinate system dimensions do not match those specified under `Number of Dimensions'. Proceeding but be mindful of potential errors.";
     if (_coord_type == _CART_1 || _coord_type == _CART_2 || _coord_type == _CART_3){
@@ -134,11 +138,13 @@ bool Field_Map::string_to_bool(std::string string){
 
 void Field_Map::convert_data_line_to_multi_D_array(){
     // Begin by finding the size
+    int num_values = 1;
+    if (_is_E_Field_defined_truth) {num_values = 3;}
     _num_data_points_per_line = _dimension_val + 1;
     _num_data_lines = _line_vector.size() - _num_lines_in_header;
 
     // Create two D grid representation of data
-    double two_D_array[4][_num_data_lines];
+    double two_D_array[3+num_values][_num_data_lines];
     for (int i=0; i<_num_data_lines; i++){
 	    std::string line = _line_vector[i+_num_lines_in_header];
 	    std::string line_data[_num_data_points_per_line];
@@ -146,15 +152,29 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 	        int pos = line.find(_data_delim);
 	        line_data[j] = line.substr(0, pos);
 	        line.erase(0, pos + _data_delim.length());
-		const double value = 0.0 + atof(line_data[j].c_str());
+		    const double value = 0.0 + atof(line_data[j].c_str());
 	        two_D_array[j][i] = value;
 	    }
         if (_dimension_val==1){
-            two_D_array[2][i] = 0.0;
-            two_D_array[3][i] = 0.0;
+            if (_is_E_Field_defined_truth){
+                two_D_array[1][i] = 0.0;
+                two_D_array[2][i] = 0.0;
+                two_D_array[4][i] = 0.0;
+                two_D_array[5][i] = 0.0;
+            }
+            else {
+                two_D_array[2][i] = 0.0;
+                two_D_array[3][i] = 0.0;
+            }
         }
         if (_dimension_val==2){
-            two_D_array[3][i] = 0.0;
+            if (_is_E_Field_defined_truth){
+                two_D_array[2][i] = 0.0;
+                two_D_array[5][i] = 0.0;
+            }
+            else {
+                two_D_array[3][i] = 0.0;
+            }
         }
     }
     // Convert grid representation to multi dimensional array of Field Points
@@ -215,13 +235,25 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 	        for (int k=0; k<three_d_count; k++){
 	            int two_d_array_pos = (k*one_d_count*two_d_count) + j * one_d_count + i; // find corresponding position in the two d grid
                 if (_is_cartesian){
-                    Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos]));
+                    if (_is_E_Field_defined_truth) {
+                        Field_Map_Matrix[i][j][k] = Field_Point(threevector(two_D_array[0][two_d_array_pos], two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos]), threevector(two_D_array[3][two_d_array_pos], two_D_array[4][two_d_array_pos], two_D_array[5][two_d_array_pos]));
+                    } else {
+                        Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos]));
+                    }
                 }
                 else if (_is_spherical) {
-                    Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos], 's'));
+                    if (_is_E_Field_defined_truth) {
+                        Field_Map_Matrix[i][j][k] = Field_Point(threevector(two_D_array[0][two_d_array_pos], two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], 's'), threevector(two_D_array[3][two_d_array_pos], two_D_array[4][two_d_array_pos], two_D_array[5][two_d_array_pos], 's'));
+                    } else {
+                        Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos], 's'));
+                    }
                 }
                 else if (_is_cylindrical) {
-                    Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos], 'c'));
+                    if (_is_E_Field_defined_truth) {
+                        Field_Map_Matrix[i][j][k] = Field_Point(threevector(two_D_array[0][two_d_array_pos], two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], 'c'), threevector(two_D_array[3][two_d_array_pos], two_D_array[4][two_d_array_pos], two_D_array[5][two_d_array_pos], 'c'));
+                    } else {
+                        Field_Map_Matrix[i][j][k] = Field_Point(two_D_array[0][two_d_array_pos], threevector(two_D_array[1][two_d_array_pos], two_D_array[2][two_d_array_pos], two_D_array[3][two_d_array_pos], 'c'));
+                    }
                 }
 	        }
 	    }
@@ -369,153 +401,169 @@ void Field_Map::add_quadratic_fit_details_to_all_points(){
 		        int pos[3] = {i,j,k};
 		        std::vector<std::vector<double>> fits = find_fits(pos);
 		        _Field_Map_Final[i][j][k].add_quadratic_fit(fits);
-		        _Field_Map_Final[i][j][k].find_electric_field();
+		        _Field_Map_Final[i][j][k].find_E_field_at_point(_dimension_val, _is_cartesian, _is_spherical, _is_cylindrical);
 	        }
 	    }
     }
 }
 
 std::vector<std::vector<double>> Field_Map::find_fits(int position[3]){
-    // If an edge situation, repeat the point
-    bool is_first_D_on_low_edge = false;
-    bool is_first_D_on_high_edge = false;
-    bool is_second_D_on_low_edge = false;
-    bool is_second_D_on_high_edge = false;
-    bool is_third_D_on_low_edge = false;
-    bool is_third_D_on_high_edge = false;
-    Field_Point points[7];
-    points[0] =  _Field_Map_Final[position[0]][position[1]][position[2]];
-    if (position[0]==0){
-        points[1]=points[0];
-        is_first_D_on_low_edge=true;
+    std::vector<std::vector<double>> abc_s;
+    // Check dimensionality
+    if (_dimension_val == 1){
+        Field_Point points[3];
+        int central_pos = position[0];
+        // Check if is on the edge and adjust accordingly
+        if (central_pos==0){
+            central_pos = 1;
+        } else if (central_pos==_total_one_d_count-1){
+            central_pos = _total_one_d_count-2;
+        }
+        points[1] =  _Field_Map_Final[central_pos-1][0][0];
+        points[0] =  _Field_Map_Final[central_pos][0][0];
+        points[2] =  _Field_Map_Final[central_pos+1][0][0];
+        double first_D_p0[2];
+        double first_D_p1[2];
+        double first_D_p2[2];
+        first_D_p0[0] = points[0].get_specified_position(1, _is_cartesian, _is_spherical, _is_cylindrical);
+    	first_D_p0[1] = points[0].get_value();
+        first_D_p1[0] = points[1].get_specified_position(1, _is_cartesian, _is_spherical, _is_cylindrical);
+    	first_D_p1[1] = points[1].get_value();
+        first_D_p2[0] = points[2].get_specified_position(1, _is_cartesian, _is_spherical, _is_cylindrical);
+        first_D_p2[1] = points[2].get_value();
+        std::vector<double> first_D_abc = calc_quad_fit(first_D_p0, first_D_p1, first_D_p2);
+        abc_s = {first_D_abc, {0.0,0.0,0.0}, {0.0,0.0,0.0}};
+    } else if (_dimension_val == 2){
+        Field_Point points[6];
+        const int one_d_central_pos = position[0];
+        const int two_d_central_pos = position[1];
+        int shifted_one_d_central_pos = one_d_central_pos;
+        int shifted_two_d_central_pos = two_d_central_pos;
+        // Check if is on the edge and adjust accordingly
+        if (one_d_central_pos==0){
+            shifted_one_d_central_pos = 1;
+        } else if (one_d_central_pos==_total_one_d_count-1){
+            shifted_one_d_central_pos = _total_one_d_count-2;
+        }
+        if (two_d_central_pos==0){
+            shifted_two_d_central_pos = 1;
+        } else if (two_d_central_pos==_total_two_d_count-1){
+            shifted_two_d_central_pos = _total_two_d_count-2;
+        }
+        points[0] =  _Field_Map_Final[shifted_one_d_central_pos-1][two_d_central_pos][0];
+        points[1] =  _Field_Map_Final[shifted_one_d_central_pos][two_d_central_pos][0];
+        points[2] =  _Field_Map_Final[shifted_one_d_central_pos+1][two_d_central_pos][0];
+        points[3] =  _Field_Map_Final[one_d_central_pos][shifted_two_d_central_pos-1][0];
+        points[4] =  _Field_Map_Final[one_d_central_pos][shifted_two_d_central_pos][0];
+        points[5] =  _Field_Map_Final[one_d_central_pos][shifted_two_d_central_pos+1][0];
+        // Find position-value pairs (3 pairs in each dimension)
+        const double first_D_p0[2] = {points[0].get_specified_position(1, _is_cartesian, _is_spherical, _is_cylindrical), points[0].get_value()};
+        const double first_D_p1[2] = {points[1].get_specified_position(1, _is_cartesian, _is_spherical, _is_cylindrical), points[1].get_value()};
+        const double first_D_p2[2] = {points[2].get_specified_position(1, _is_cartesian, _is_spherical, _is_cylindrical), points[2].get_value()};
+        const double second_D_p0[2] = {points[3].get_specified_position(2, _is_cartesian, _is_spherical, _is_cylindrical), points[3].get_value()};
+        const double second_D_p1[2] = {points[4].get_specified_position(2, _is_cartesian, _is_spherical, _is_cylindrical), points[4].get_value()};
+        const double second_D_p2[2] = {points[5].get_specified_position(2, _is_cartesian, _is_spherical, _is_cylindrical), points[5].get_value()};
+        // Calculate fit through the three position-value pairs in each dimension
+        std::vector<double> first_D_abc = calc_quad_fit(first_D_p0, first_D_p1, first_D_p2);
+        std::vector<double> second_D_abc = calc_quad_fit(second_D_p0, second_D_p1, second_D_p2);
+        abc_s = {first_D_abc, second_D_abc, {0.0,0.0,0.0}};
+    } else if (_dimension_val == 3){
+        Field_Point points[9];
+        const int one_d_central_pos = position[0];
+        const int two_d_central_pos = position[1];
+        const int three_d_central_pos = position[2];
+        int shifted_one_d_central_pos = one_d_central_pos;
+        int shifted_two_d_central_pos = two_d_central_pos;
+        int shifted_three_d_central_pos = three_d_central_pos;
+        // Check if is on the edge and adjust accordingly
+        if (one_d_central_pos==0){
+            shifted_one_d_central_pos = 1;
+        } else if (one_d_central_pos==_total_one_d_count-1){
+            shifted_one_d_central_pos = _total_one_d_count-2;
+        }
+        if (two_d_central_pos==0){
+            shifted_two_d_central_pos = 1;
+        } else if (two_d_central_pos==_total_two_d_count-1){
+            shifted_two_d_central_pos = _total_two_d_count-2;
+        }
+        if (three_d_central_pos==0){
+            shifted_three_d_central_pos = 1;
+        } else if (three_d_central_pos==_total_three_d_count-1){
+            shifted_three_d_central_pos = _total_three_d_count-2;
+        }
+        points[0] =  _Field_Map_Final[shifted_one_d_central_pos-1][two_d_central_pos][0];
+        points[1] =  _Field_Map_Final[shifted_one_d_central_pos][two_d_central_pos][three_d_central_pos];
+        points[2] =  _Field_Map_Final[shifted_one_d_central_pos+1][two_d_central_pos][three_d_central_pos];
+        points[3] =  _Field_Map_Final[one_d_central_pos][shifted_two_d_central_pos-1][three_d_central_pos];
+        points[4] =  _Field_Map_Final[one_d_central_pos][shifted_two_d_central_pos][three_d_central_pos];
+        points[5] =  _Field_Map_Final[one_d_central_pos][shifted_two_d_central_pos+1][three_d_central_pos];
+        points[6] =  _Field_Map_Final[one_d_central_pos][two_d_central_pos][shifted_three_d_central_pos-1];
+        points[7] =  _Field_Map_Final[one_d_central_pos][shifted_two_d_central_pos][shifted_three_d_central_pos];
+        points[8] =  _Field_Map_Final[one_d_central_pos][shifted_two_d_central_pos+1][shifted_three_d_central_pos+1];
+        // Find position-value pairs (3 pairs in each dimension)
+        const double first_D_p0[2] = {points[0].get_specified_position(1, _is_cartesian, _is_spherical, _is_cylindrical), points[0].get_value()};
+        const double first_D_p1[2] = {points[1].get_specified_position(1, _is_cartesian, _is_spherical, _is_cylindrical), points[1].get_value()};
+        const double first_D_p2[2] = {points[2].get_specified_position(1, _is_cartesian, _is_spherical, _is_cylindrical), points[2].get_value()};
+        const double second_D_p0[2] = {points[3].get_specified_position(2, _is_cartesian, _is_spherical, _is_cylindrical), points[3].get_value()};
+        const double second_D_p1[2] = {points[4].get_specified_position(2, _is_cartesian, _is_spherical, _is_cylindrical), points[4].get_value()};
+        const double second_D_p2[2] = {points[5].get_specified_position(2, _is_cartesian, _is_spherical, _is_cylindrical), points[5].get_value()};
+        const double third_D_p0[2] = {points[6].get_specified_position(3, _is_cartesian, _is_spherical, _is_cylindrical), points[6].get_value()};
+        const double third_D_p1[2] = {points[7].get_specified_position(3, _is_cartesian, _is_spherical, _is_cylindrical), points[7].get_value()};
+        const double third_D_p2[2] = {points[8].get_specified_position(3, _is_cartesian, _is_spherical, _is_cylindrical), points[8].get_value()};
+        // Calculate fit through the three position-value pairs in each dimension
+        std::vector<double> first_D_abc = calc_quad_fit(first_D_p0, first_D_p1, first_D_p2);
+        std::vector<double> second_D_abc = calc_quad_fit(second_D_p0, second_D_p1, second_D_p2);
+        std::vector<double> third_D_abc = calc_quad_fit(third_D_p0, third_D_p1, third_D_p2);
+        abc_s = {first_D_abc, second_D_abc, third_D_abc};
     }
-    else { points[1] =  _Field_Map_Final[position[0]-1][position[1]][position[2]];}
-
-    if (position[0]==_total_one_d_count-1){
-        points[2]=points[0];
-        is_first_D_on_high_edge=true;
-    }
-    else { points[2] =  _Field_Map_Final[position[0]+1][position[1]][position[2]];}
-
-    if (position[1]==0){
-        points[3]=points[0];
-        is_second_D_on_low_edge=true;
-    }
-    else { points[3] =  _Field_Map_Final[position[0]][position[1]-1][position[2]];}
-
-    if (position[1]==_total_two_d_count-1){
-        points[4]=points[0];
-        is_second_D_on_high_edge=true;
-    }
-    else {points[4] =  _Field_Map_Final[position[0]][position[1]+1][position[2]];}
-
-    if (position[2]==0){
-        points[5]=points[0];
-        is_third_D_on_low_edge=true;
-    }
-    else {points[5] =  _Field_Map_Final[position[0]][position[1]][position[2]-1];}
-
-    if (position[2]==_total_three_d_count-1){
-        points[6]=points[0];
-        is_third_D_on_high_edge=true;
-    }
-    else {points[6] =  _Field_Map_Final[position[0]][position[1]][position[2]+1];}
-    double first_D_p0[2];
-    double first_D_p1[2];
-    double first_D_p2[2];
-    double second_D_p0[2];
-    double second_D_p1[2];
-    double second_D_p2[2];
-    double third_D_p0[2];
-    double third_D_p1[2];
-    double third_D_p2[2];
-    if (_is_cartesian){
-        first_D_p0[0] = points[1].get_position_x();
-	first_D_p0[1] = points[1].get_value();
-        first_D_p1[0] = points[0].get_position_x();
-	first_D_p1[1] = points[0].get_value();
-        first_D_p2[0] = points[2].get_position_x();
-       	first_D_p2[1] = points[2].get_value();
-        second_D_p0[0] = points[3].get_position_y();
-	second_D_p0[1] = points[3].get_value();
-        second_D_p1[0] = points[0].get_position_y();
-       	second_D_p1[1] = points[0].get_value();
-        second_D_p2[0] = points[4].get_position_y();
-	second_D_p2[1] = points[4].get_value();
-        third_D_p0[0] = points[5].get_position_z();
-       	third_D_p0[1] = points[5].get_value();
-        third_D_p1[0] = points[0].get_position_z();
-       	third_D_p1[1] = points[0].get_value();
-        third_D_p2[0] = points[6].get_position_z();
-       	third_D_p2[1] = points[6].get_value();
-    } else if(_is_spherical){
-        first_D_p0[0] = points[1].get_position_r();
-       	first_D_p0[1] = points[1].get_value();
-        first_D_p1[0] = points[0].get_position_r();
-       	first_D_p1[1] = points[0].get_value();
-        first_D_p2[0] = points[2].get_position_r();
-       	first_D_p2[1] = points[2].get_value();
-        second_D_p0[0] = points[3].get_position_theta();
-       	second_D_p0[1] = points[3].get_value();
-        second_D_p1[0] = points[0].get_position_theta();
-       	second_D_p1[1] = points[0].get_value();
-        second_D_p2[0] = points[4].get_position_theta();
-       	second_D_p2[1] = points[4].get_value();
-        third_D_p0[0] = points[5].get_position_phi();
-       	third_D_p0[1] = points[5].get_value();
-        third_D_p1[0] = points[0].get_position_phi();
-       	third_D_p1[1] = points[0].get_value();
-        third_D_p2[0] = points[6].get_position_phi();
-       	third_D_p2[1] = points[6].get_value();
-    } else if(_is_cylindrical){
-        first_D_p0[0] = points[1].get_position_rho();
-       	first_D_p0[1] = points[1].get_value();
-        first_D_p1[0] = points[0].get_position_rho();
-       	first_D_p1[1] = points[0].get_value();
-        first_D_p2[0] = points[2].get_position_rho();
-       	first_D_p2[1] = points[2].get_value();
-        second_D_p0[0] = points[3].get_position_z();
-       	second_D_p0[1] = points[3].get_value();
-        second_D_p1[0] = points[0].get_position_z();
-       	second_D_p1[1] = points[0].get_value();
-        second_D_p2[0] = points[4].get_position_z();
-       	second_D_p2[1] = points[4].get_value();
-        third_D_p0[0] = points[5].get_position_phi();
-       	third_D_p0[1] = points[5].get_value();
-        third_D_p1[0] = points[0].get_position_phi();
-       	third_D_p1[1] = points[0].get_value();
-        third_D_p2[0] = points[6].get_position_phi();
-       	third_D_p2[1] = points[6].get_value();
-    } else {std::cout<<"WARNING: coordinate type not found"<<std::endl;}
-
-    std::vector<double> first_D_abc = calc_quad_fit(first_D_p0, first_D_p1, first_D_p2, is_first_D_on_low_edge, is_first_D_on_high_edge);
-    std::vector<double> second_D_abc = calc_quad_fit(second_D_p0, second_D_p1, second_D_p2, is_second_D_on_low_edge, is_second_D_on_high_edge);
-    std::vector<double> third_D_abc = calc_quad_fit(third_D_p0, third_D_p1, third_D_p2, is_third_D_on_low_edge, is_third_D_on_high_edge);
-    std::vector<std::vector<double>> abc_s = {first_D_abc, second_D_abc, third_D_abc};
     return abc_s;
 }
 
-std::vector<double> Field_Map::calc_quad_fit(double p1[2], double p2[2], double p3[2], bool _is_repeated_low_point, bool _is_repeated_high_point){
+std::vector<double> Field_Map::calc_quad_fit(double p1[2], double p2[2], double p3[2]){
     // solve in the form B = AC, C is unknown, A is matrix
     // Quadratic of the form y = ax^2+bx +c
     // C = {a,b,c}
     // B = {y1,y2,y3}
     std::vector<double> Y(3);
-    if (_is_repeated_low_point&&_is_repeated_high_point){
-	// Straight line between points if all match
-        Y = {0,0,p1[1]};
+    if (p1[0]==p2[0]==p3[0]){
+	// Solution cannot be found (infinity)
+        std::cout<<"ERROR: all three points at same position.\n"
+            <<"Fit is incorrectly returned as (0,0,0).\n"
+            <<"This occurs at position: "<< p1[0] << etd::endl;
+        Y = {0.0,0.0,0.0};
+    } else if ((p1[0]==p2[0] && p1[1]!=p2[1]) || (p2[0]==p3[0] && p2[1]!=p3[1]) || (p1[0]==p3[0] && p1[1]!=p3[1]) ){
+	// Solution cannot be found (infinity)
+        std::cout<<"ERROR: two points at same position but not repeated.\n"
+            <<"Fit is incorrectly returned as (0,0,0).\n"
+            <<"This occurs at position: \n"
+            << "\t(" p1[0]<<", "p1[1]<<")\n"
+            << "\t(" p2[0]<<", "p2[1]<<")\n"
+            << "\t(" p3[0]<<", "p3[1]<<")\n"
+            << std::endl;
+        Y = {0.0,0.0,0.0};
+    } else if ()(p1[0]==p2[0] && p1[1]==p2[1]) || (p1[0]==p3[0] && p1[1]==p3[1]) ){
+	// Repeated point, solution can be found as a straight line
+        std::cout<<"Warning: two points are repeated.\n"
+            <<"This occurs at position: "<< p1[0] << etd::endl;
+        const double b = (p2[1]-p3[1])/(p2[0]-p3[0]);
+    	const double c = p2[1]-b*p2[0];
+    	Y = {0.0,b,c};
+    } else if (p2[0]==p3[0] && p2[1]==p3[1]){
+	// Repeated point, solution can be found as a straight line
+        std::cout<<"Warning: two points are repeated.\n"
+            <<"This occurs at position: "<< p2[0] << etd::endl;
+        const double b = (p1[1]-p2[1])/(p1[0]-p2[0]);
+    	const double c = p1[1]-b*p1[0];
+    	Y = {0.0,b,c};
+    } else if(p1[1]==p2[1]==p3[1]){
+	    // This is a horizontal line between all points.
+	    Y = {0.0,0.0,p1[1]};
     }
-    else if(_is_repeated_low_point){
-	    // use differing two for a linear fit between them
-	    const double b = (p2[1]-p3[1])/(p2[0]-p3[0]);
-	    const double c = p2[1]-b*p2[0];
-	    Y = {0,b,c};
-    }
-    else if(_is_repeated_high_point){
-	// use differing two for a linear fit between them
-	const double b = (p1[1]-p2[1])/(p1[0]-p2[0]);
+    else if( (p2[1]-p1[1])/(p2[0]-p1[0]) == (p3[1]-p2[1])/(p3[0]-p2[0])) ){
+	// This is a linear fit between all points
+	const double b = (p2[1]-p1[1])/(p2[0]-p1[0]);
 	const double c = p1[1]-b*p1[0];
-	Y = {0,b,c};
+	Y = {0.0,b,c};
     }
     else {
     double B[3] = {p1[1], p2[1], p3[1]};
@@ -605,7 +653,7 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
 }
 
 threevector Field_Map::find_approx_value(threevector point){
-    // Note to self: this entire method needs correcting to ensure that there is no excessive use of fi statements and to ensure the distance is logical in spherical and cylindrical contexts.
+    // Note to self: this entire method needs correcting to ensure that there is no excessive use of if statements and to ensure the distance is logical in spherical and cylindrical contexts.
     std::clock_t start;
     double duration;
     start = std::clock();
@@ -678,8 +726,12 @@ threevector Field_Map::find_approx_value(threevector point){
     bool is_exact_pos_found = false;
     threevector exact_E_field_val;
     for (int i=0;i<num_near_points;i++){
-        E_field_values[i] = near_points[i].find_nearby_E_field(point);
-	std::cout<<"E field: "<<E_field_values[i]<<std::endl;
+        if (_is_E_Field_defined_truth || !_CALCULATE_NEARBY_E_FIELD_ON_CURVES) {
+            E_field_values[i] = near_points[i].get_electric_field();
+        } else {
+            E_field_values[i] = near_points[i].get_nearby_E_field(point, _dimension_val, _is_cartesian, _is_spherical, _is_cylindrical);
+        }
+    	std::cout<<"E field: "<<E_field_values[i]<<std::endl;
 	//std::cout<<"Pos:(i,j,k)"<< near_points[i].get_position_x()<<", "<< near_points[i].get_position_y()<<", "<<near_points[i].get_position_z()<<std::endl;
         double distance_squared;
         if (_dimension_val==1){
@@ -707,7 +759,7 @@ threevector Field_Map::find_approx_value(threevector point){
                 distance_squared = std::pow(near_points[i].get_position_rho()-point.getrho(),2) + std::pow(near_points[i].get_position_z()-point.getz(),2) + std::pow(near_points[i].get_position_phi()-point.getphi(),2);
             }
         }
-        
+
 	    if (distance_squared == 0){
 	        is_exact_pos_found = true;
 	        exact_E_field_val = E_field_values[i];

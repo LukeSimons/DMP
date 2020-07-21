@@ -14,12 +14,19 @@
 /** Constructors */
 Field_Point::Field_Point()
 {
-	value = 0.0; position = threevector();
+	_value = 0.0; _position = threevector();
 }
 
 Field_Point::Field_Point( double val, threevector pos)
 {
-	value = val; position = pos;
+	_value = val; _position = pos;
+}
+
+Field_Point::Field_Point( threevector val, threevector pos)
+{
+	_value = 0.0; // Note to self: change this?
+    _electric_field = val;
+    _position = pos;
 }
 
 
@@ -30,27 +37,46 @@ void Field_Point::add_quadratic_fit(std::vector<std::vector<double>> abc_details
     _third_d_abc = abc_details[2];
 }
 
-void Field_Point::find_electric_field(){
-    // Note to self: requires ability to make 1D, 2D
-    //
+threevector Field_Point::calculate_electric_field(threevector position, int dimension, bool is_cartesian, bool is_spherical, bool is_cylindrical){
+    threevector electric_field;
     // E = -grad (V)
-
-    double E_x = -(2*_first_d_abc[0]*position.getx()+_first_d_abc[1]);
-    double E_y = -(2*_second_d_abc[0]*position.gety()+_second_d_abc[1]);
-    double E_z = -(2*_third_d_abc[0]*position.getz()+_third_d_abc[1]);
-    _electric_field = threevector(E_x, E_y, E_z);
+    if (is_cartesian){
+        const double E_x = -(2*_first_d_abc[0]*position.getx()+_first_d_abc[1]);
+        const double E_y = -(2*_second_d_abc[0]*position.gety()+_second_d_abc[1]);
+        const double E_z = -(2*_third_d_abc[0]*position.getz()+_third_d_abc[1]);
+        electric_field = threevector(E_x, E_y, E_z);
+    } else if (is_spherical){
+        const double E_r = -(2*_first_d_abc[0]*position.mag3()+_first_d_abc[1]);
+        double E_theta = 0.0; //updated if necessary
+        double E_phi = 0.0; //updated if necessary
+        if (dimension == 2 || dimension == 3){
+            E_theta = -(1/position.mag3())*(2*_second_d_abc[0]*position.gettheta()+_second_d_abc[1]);
+            if (dimension == 3) {
+                E_phi = -(1/position.mag3()*sin(position.gettheta()))*(2*_third_d_abc[0]*position.getphi()+_third_d_abc[1]);
+            }
+        }
+        electric_field = threevector(E_r, E_theta, E_phi, 's');
+    } else if (is_cylindrical){
+        const double E_rho = -(2*_first_d_abc[0]*position.getrho()+_first_d_abc[1]);
+        double E_z = 0.0; //updated if necessary
+        double E_phi = 0.0; //updated if necessary
+        if (dimension == 2 || dimension == 3){
+            E_z = -(2*_second_d_abc[0]*position.getz()+_second_d_abc[1]);
+            if (dimension == 3) {
+                E_phi = -(1/position.rho())*(2*_third_d_abc[0]*position.getphi()+_third_d_abc[1]);
+            }
+        }
+        electric_field = threevector(E_r, E_theta, E_phi, 's');
+    }
+    return electric_field;
 }
 
-threevector Field_Point::find_nearby_E_field(threevector nearby_position){
-    // Note to self: requires ability to make 1D, 2D
-    //
-    // E = -grad (V)
-    double E_x = -(2*_first_d_abc[0]*nearby_position.getx()+_first_d_abc[1]);
-    double E_y = -(2*_second_d_abc[0]*nearby_position.gety()+_second_d_abc[1]);
-    double E_z = -(2*_third_d_abc[0]*nearby_position.getz()+_third_d_abc[1]);
-    std::cout<<"First abc:"<<_first_d_abc[0]<<", "<<_first_d_abc[1]<<", "<<_first_d_abc[2]<<std::endl;
-    std::cout<<"Second abc:"<<_second_d_abc[0]<<", "<<_second_d_abc[1]<<", "<<_second_d_abc[2]<<std::endl;
-    std::cout<<"Third abc:"<<_third_d_abc[0]<<", "<<_third_d_abc[1]<<", "<<_third_d_abc[2]<<std::endl;
+void Field_Point::find_E_field_at_point(int dimension, bool is_cartesian, bool is_spherical, bool is_cylindrical){
+    _electric_field = calculate_electric_field(_position, dimension, is_cartesian, is_spherical, is_cylindrical);
+}
 
-    return threevector(E_x, E_y, E_z);
+threevector Field_Point::get_nearby_E_field(threevector nearby_position, int dimension, bool is_cartesian, bool is_spherical, bool is_cylindrical){
+    // Note to self: this is just a shell for calculate_electric_field
+
+    return calculate_electric_field(nearby_position, dimension, is_cartesian, is_spherical, is_cylindrical);
 }

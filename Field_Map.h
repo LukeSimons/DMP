@@ -51,6 +51,7 @@ class Field_Map{
         *   @param _three_d_value_holder: as with _one_d_value_holder but for the third dimension
         */
         const bool _DEBUG = true;
+        const bool _CALCULATE_NEARBY_E_FIELD_ON_CURVES = true;
 	    std::vector<std::string> _line_vector;
     	std::vector<std::vector<std::vector<Field_Point>>> _Field_Map_Final;
     	std::vector<std::vector<int>> _one_d_pos_holder;
@@ -93,11 +94,13 @@ class Field_Map{
 	    const std::string _dimension_delim = "Number of Dimensions:\t";
 	    const std::string _coord_delim = "Coordinate System:\t";
 	    const std::string _ordered_delim = "Ordered:\t";
+	    const std::string _is_E_Field_defined_delim = "Is Electric Field Defined:\t";
 	    const std::string _end_delim = ";";
-        const int _num_lines_in_header = 4;
+        const int _num_lines_in_header = 5;
         std::string _summary_line;
 	    int _dimension_val;
 	    bool _ordered_truth;
+	    bool _is_E_Field_defined_truth;
         std::string _coord_type;
         const std::string _CART_1 = "Cartesian_1";
         const std::string _CART_2 = "Cartesian_2";
