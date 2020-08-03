@@ -560,8 +560,13 @@ threevector ParabolicField(const threevector &Position, double Charge,
  */
 #ifdef CUSTOM_POTENTIAL
 threevector CustomField(const threevector &Position, Field_Map &this_field_map){
-    return this_field_map.find_approx_value(Position);
+    return this_field_map.find_approx_value(Position, false);
 }
+threevector CoulombField(const threevector &Position, double Charge, 
+    double COULOMB_NORM){
+    return (COULOMB_NORM*Charge/Position.square())*Position.getunit();
+}
+
 #endif
 
 /** @brief Main function defining DiMPl program
@@ -573,20 +578,7 @@ threevector CustomField(const threevector &Position, Field_Map &this_field_map){
  *  of a charged conducting sphere. See README and docs for more information.
  */
 int main(int argc, char* argv[]){
-    // Note to self: Delete this
-    Field_Map the_field_map("Custom_Fields/E_Field_3_cubed.txt");
-    //for (int i=0; i<1000000; i++){
-    //    double i_val = 0.81;
-//	double j_val = 13.21;
-  //      double k_val = 0;
-//	threevector pos_one(i_val,j_val,k_val); 
-  //      std::cout<<"Test Point ("<<i_val<<", "<<j_val<<", "<<k_val<<"): "<<std::endl;
-//	threevector E_field_val = the_field_map.find_approx_value(pos_one);
-//	std::cout<< "E field x value at test point: "<<E_field_val.getx()<<std::endl;
-//	std::cout<< "E field y value at test point: "<<E_field_val.gety()<<std::endl;
-//	std::cout<< "E field z value at test point: "<<E_field_val.getz()<<std::endl;
-    //}
-
+    
     // ***** TIMER AND FILE DECLERATIONS        ***** //
     clock_t begin = clock();
     std::string filename = "Data/DiMPl";
@@ -1069,10 +1061,11 @@ int main(int argc, char* argv[]){
     izmax += zMaxCoeff*DebyeLength;
     izmin -= zMinCoeff*DebyeLength;
     #else
-    ezmax += zMaxCoeff;
-    ezmin -= zMinCoeff;
-    izmax += zMaxCoeff;
-    izmin -= zMinCoeff;
+    // Note to self: remove these *60
+    ezmax += zMaxCoeff*60;
+    ezmin -= zMinCoeff*60;
+    izmax += zMaxCoeff*60;
+    izmin -= zMinCoeff*60;
     #endif
 
     if( ZBoundForce > 0.0 ){
@@ -1283,7 +1276,149 @@ int main(int argc, char* argv[]){
     #ifdef CUSTOM_POTENTIAL
 	std::cout<<"File name: "<<input_custom_filename<<std::endl;
 	std::string custom_filestring = "Custom_Fields/" + input_custom_filename;
-        Field_Map this_field_map(custom_filestring);
+    Field_Map this_field_map(custom_filestring);
+    const double coulomb_norm = -10416.9;
+    const double charge = 0.121205;
+    //const double coulomb_norm = 12924.6;
+    //const double charge = 0.0373883;
+	threevector point = threevector(1,1,1, 'c');
+	std::cout<<"Made point (1,1,1, c)"<<std::endl;
+	std::cout<<"r: "<<point.mag3()<<std::endl;
+	std::cout<<"theta: "<<point.gettheta()<<std::endl;
+	std::cout<<"phi: "<<point.getphi()<<std::endl;
+	threevector output = this_field_map.find_approx_value(point, true);
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"Er: "<<output.mag3()<<std::endl;
+	std::cout<<"Etheta: "<<output.gettheta()<<std::endl;
+	std::cout<<"Ephi: "<<output.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+    threevector EField_c = CoulombField(point, coulomb_norm,charge);
+	std::cout<<"Coulomb Er: "<<EField_c.mag3()<<std::endl;
+	std::cout<<"Coulomb Etheta: "<<EField_c.gettheta()<<std::endl;
+	std::cout<<"Coulomb Ephi: "<<EField_c.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"---------------------"<<std::endl;
+	point = threevector(1,1,2, 'c');
+	std::cout<<"Made point (1,1,2, 'c')"<<std::endl;
+	std::cout<<"r: "<<point.mag3()<<std::endl;
+	std::cout<<"theta: "<<point.gettheta()<<std::endl;
+	std::cout<<"phi: "<<point.getphi()<<std::endl;
+	output = this_field_map.find_approx_value(point, true);
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"Er: "<<output.mag3()<<std::endl;
+	std::cout<<"Etheta: "<<output.gettheta()<<std::endl;
+	std::cout<<"Ephi: "<<output.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+    EField_c = CoulombField(point, coulomb_norm,charge);
+	std::cout<<"Coulomb Er: "<<EField_c.mag3()<<std::endl;
+	std::cout<<"Coulomb Etheta: "<<EField_c.gettheta()<<std::endl;
+	std::cout<<"Coulomb Ephi: "<<EField_c.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"---------------------"<<std::endl;
+	point = threevector(1,2,1, 'c');
+	std::cout<<"Made point (1,2,1, 'c')"<<std::endl;
+	std::cout<<"r: "<<point.mag3()<<std::endl;
+	std::cout<<"theta: "<<point.gettheta()<<std::endl;
+	std::cout<<"phi: "<<point.getphi()<<std::endl;
+	output = this_field_map.find_approx_value(point, true);
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"Er: "<<output.mag3()<<std::endl;
+	std::cout<<"Etheta: "<<output.gettheta()<<std::endl;
+	std::cout<<"Ephi: "<<output.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+    EField_c = CoulombField(point, coulomb_norm,charge);
+	std::cout<<"Coulomb Er: "<<EField_c.mag3()<<std::endl;
+	std::cout<<"Coulomb Etheta: "<<EField_c.gettheta()<<std::endl;
+	std::cout<<"Coulomb Ephi: "<<EField_c.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"---------------------"<<std::endl;
+	point = threevector(10,35,60);
+	std::cout<<"Made point (10,35,60)"<<std::endl;
+	std::cout<<"r: "<<point.mag3()<<std::endl;
+	std::cout<<"theta: "<<point.gettheta()<<std::endl;
+	std::cout<<"phi: "<<point.getphi()<<std::endl;
+	output = this_field_map.find_approx_value(point, true);
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"Er: "<<output.mag3()<<std::endl;
+	std::cout<<"Etheta: "<<output.gettheta()<<std::endl;
+	std::cout<<"Ephi: "<<output.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+    EField_c = CoulombField(point, coulomb_norm,charge);
+	std::cout<<"Coulomb Er: "<<EField_c.mag3()<<std::endl;
+	std::cout<<"Coulomb Etheta: "<<EField_c.gettheta()<<std::endl;
+	std::cout<<"Coulomb Ephi: "<<EField_c.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"---------------------"<<std::endl;
+	point = threevector(10,35,59.77);
+	std::cout<<"Made point (10,35,59.77)"<<std::endl;
+	std::cout<<"r: "<<point.mag3()<<std::endl;
+	std::cout<<"theta: "<<point.gettheta()<<std::endl;
+	std::cout<<"phi: "<<point.getphi()<<std::endl;
+	output = this_field_map.find_approx_value(point, true);
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"Er: "<<output.mag3()<<std::endl;
+	std::cout<<"Etheta: "<<output.gettheta()<<std::endl;
+	std::cout<<"Ephi: "<<output.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+    EField_c = CoulombField(point, coulomb_norm,charge);
+	std::cout<<"Coulomb Er: "<<EField_c.mag3()<<std::endl;
+	std::cout<<"Coulomb Etheta: "<<EField_c.gettheta()<<std::endl;
+	std::cout<<"Coulomb Ephi: "<<EField_c.getphi()<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+	std::cout<<"-"<<std::endl;
+
+
     #endif
     // ************************************************** //
 
@@ -1525,6 +1660,8 @@ int main(int argc, char* argv[]){
     
                 // ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
                 // Calculate Electric Field
+                std::cout<<"PotentialNorm: "<<PotentialNorm<<std::endl;
+                std::cout<<"A_Coulomb: "<<A_Coulomb<<std::endl;
                 #ifdef DEBYE_POTENTIAL
                     EField = DebyeHuckelField(Position,PotentialNorm,
                         DebyeLength,A_Coulomb)+EField_Background;
@@ -1891,6 +2028,18 @@ int main(int argc, char* argv[]){
             *(1-cos(asin(1.0/eImpactParameter))));
         #endif
 
+        #ifdef CUSTOM_POTENTIAL
+        //Note to self: delete max/min checks
+	const std::vector<std::vector<int>> out_of_bounds = this_field_map.get_num_times_outside_domain();
+	std::cout<<"Number of instances outside of custom-defined domain:"
+		<<"\n\t First Dimension:\n\t\tBelow: "<<out_of_bounds[0][0]
+		<< "\n\t\tAbove: "<< out_of_bounds[0][1]
+		<<"\n\t Second Dimension:\n\t\tBelow: "<<out_of_bounds[1][0]
+		<< "\n\t\tAbove: "<< out_of_bounds[1][1]
+		<<"\n\t Third Dimension:\n\t\tBelow: "<<out_of_bounds[2][0]
+		<< "\n\t\tAbove: "<< out_of_bounds[2][1]<<std::endl;
+
+        #endif
         #ifdef VARIABLE_CSCALE
         if( j_ThisSave > jmin ){ // Handle no charges captured this save
             MeanChargeDiff = TotalChargeInSave/(j_ThisSave)-MeanChargeSave;

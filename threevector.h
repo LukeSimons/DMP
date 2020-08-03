@@ -110,9 +110,9 @@ class threevector{
          */
         inline double getphi()const{
             double phi = atan2(ycoord,xcoord);
-            if(phi < 0.0) phi += 2.0*PI; // atan2 range is -pi to +pi
+            if (phi<0.0) {phi += 2.0*PI;} // atan2 range is -pi to +pi
             return phi;
-        }
+        };
 
         /**
          *  get value of cylindrical coordinate rho from cartesian coordinates

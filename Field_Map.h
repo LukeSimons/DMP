@@ -25,6 +25,10 @@
 #include <ctime> //!< For timer, Note to self: remove this
 #include <cstdio> //!< For clock time conversion, Note to self: remove this
 
+#include "Constants.h"
+
+using namespace dimplconsts;
+
 /** @class Field_Map
  *  @brief Definition of a Field_Map class for use in describing Physics fields
  *  Field_Map Objects contain details of a field comprised of many Field_Point objects
@@ -60,7 +64,8 @@ class Field_Map{
     	std::vector<std::vector<double>> _two_d_value_holder;
     	std::vector<std::vector<int>> _three_d_pos_holder;
     	std::vector<std::vector<double>> _three_d_value_holder;
-
+	std::vector<std::vector<int>> _num_times_outside_domain{3, std::vector<int> (2, 0)}; 
+        std::vector<std::vector<double>> _two_D_array;
         ///@{
         /** Header Details:
         *       Necessary Header structure in the text file
@@ -256,7 +261,7 @@ class Field_Map{
           *    @param _is_repeated_high_point: bool; if the mid point is on the higher edge position of that dimension, then the high point shall just be a repitition of this
           *    @return Y; std::vector<double>; the details of the fit written as {a,b,c}
           */
-         std::vector<double> calc_quad_fit(double p1[2], double p2[2], double p3[2], bool _is_repeated_low_point, bool _is_repeated_high_point);
+         std::vector<double> calc_quad_fit(double p1[2], double p2[2], double p3[2]);
 
          /** @brief two_by_two_mat_det:
           *    Calculates the determinant of a 2x2 matrix
@@ -282,7 +287,7 @@ class Field_Map{
           *    @param value_holder: std::vector<std::vector<double>>; the partitioned value holder matrix
           *    @return closest_positions: std::vector<int> the indices of the closest and second closest positions.
           */
-	     std::vector<int> find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder);
+	     std::vector<int> find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder, int dimension);
 
     public:
 	/** @name Constructors
@@ -309,8 +314,10 @@ class Field_Map{
     *   @param point: threevector; the position threevector of the point at which the field value is required.
     *   @return threevector; approximate electric field value at the point provided
     */
-	threevector find_approx_value(threevector point);
+	threevector find_approx_value(threevector point, bool is_print);
     ///@}
+	inline std::vector<std::vector<int>> get_num_times_outside_domain(){return _num_times_outside_domain;}; 
+
 }; //end of class
 
 #endif /*__FIELD_MAP_H_INCLUDED__ */
