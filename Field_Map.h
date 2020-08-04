@@ -317,7 +317,10 @@ class Field_Map{
 	threevector find_approx_value(threevector point, bool is_print);
     ///@}
 	inline std::vector<std::vector<int>> get_num_times_outside_domain(){return _num_times_outside_domain;}; 
+        
+        void check_spherical_coordinate_range(double ImpactParameter, double maxfactor);
 
+        void check_cylindrical_coordinate_range(double lower_z_lim, double upper_z_lim);
 }; //end of class
 
 #endif /*__FIELD_MAP_H_INCLUDED__ */

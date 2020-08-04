@@ -51,15 +51,10 @@ void Field_Map::text_to_string_vector(std::string field_file_name)
 void Field_Map::find_header_details()
 {
     _summary_line = split_after_delim(_summary_delim, _line_vector[0]);
-    std::cout<<_summary_line<<std::endl;
     _dimension_val = std::stoi(split_after_delim(_dimension_delim, _line_vector[1])); // and convert string to integer
-    std::cout<<_dimension_val<<std::endl;
     _coord_type = split_after_delim(_coord_delim, _line_vector[2]);
-    std::cout<<_coord_type<<std::endl;
     _ordered_truth = string_to_bool(split_after_delim(_ordered_delim, _line_vector[3])); // and convert string to boolean
-    std::cout<<_ordered_truth<<std::endl;
     _is_E_Field_defined_truth = string_to_bool(split_after_delim(_is_E_Field_defined_delim, _line_vector[4])); // and convert string to boolean
-    std::cout<<_is_E_Field_defined_truth<<std::endl;
     // Check the overriding coordinate system.
     const std::string dimension_mismatch_warning = "WARNING: coordinate system dimensions do not match those specified under `Number of Dimensions'. Proceeding but be mindful of potential errors.";
     if (_coord_type == _CART_1 || _coord_type == _CART_2 || _coord_type == _CART_3){
@@ -139,14 +134,8 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     else {_num_data_points_per_line=1+_dimension_val;two_d_array_width=4;}
     
     _num_data_lines = _line_vector.size() - _num_lines_in_header;
-    std::cout<<"_num_data_lines"<<_num_data_lines<<std::endl;
-    std::cout<<"_num_data_points_per_line"<<_num_data_points_per_line<<std::endl;
 
-    // Create two D grid representation of data
-    // Put onto the heap
-    //_two_D_array = double[x][y];
     _two_D_array = std::vector<std::vector<double>>(two_d_array_width, std::vector<double>(_num_data_lines));
-    std::cout<<"HERE"<<std::endl;
     for (int i=0; i<_num_data_lines; i++){
 	    std::string line = _line_vector[i+_num_lines_in_header];
 	    std::string line_data[_num_data_points_per_line];
@@ -331,23 +320,11 @@ void Field_Map::convert_data_line_to_multi_D_array(){
         for (int j_true=two_d_low_error_count; j_true<two_d_count-two_d_high_error_count; j_true++) {
 	        for (int k_true=three_d_low_error_count; k_true<three_d_count-three_d_high_error_count; k_true++){
 	            int two_d_array_pos = (k_true*one_d_count*two_d_count) + j_true * one_d_count + i_true; // find corresponding position in the two d grid
-		    //if (i_count==0&&j_count==0){std::cout<<"==="<<two_D_array[5][two_d_array_pos]<<"("<<two_D_array[3][two_d_array_pos]<<", "<<two_D_array[4][two_d_array_pos]<<")"<<std::endl;}
                 if (_is_cartesian){
                     if (_is_E_Field_defined_truth) {
                         Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], _two_D_array[1][two_d_array_pos], _two_D_array[2][two_d_array_pos], threevector(_two_D_array[3][two_d_array_pos], _two_D_array[4][two_d_array_pos], _two_D_array[5][two_d_array_pos]), _is_cartesian, _is_spherical, _is_cylindrical);
                     } else {
                         Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], threevector(_two_D_array[1][two_d_array_pos], _two_D_array[2][two_d_array_pos], _two_D_array[3][two_d_array_pos]));
-			double val = _two_D_array[0][two_d_array_pos];
-			double x = _two_D_array[1][two_d_array_pos];
-			double y = _two_D_array[2][two_d_array_pos];
-			double z = _two_D_array[3][two_d_array_pos];
-/**			if (x>-0.30304 && x<-0.30302 && y>0.909090 && y<0.909092&& z>0.707070 && z<0.707072){
-                            std::cout<<"x: "<< x <<std::endl;
-			    std::cout<<"y: "<< y <<std::endl;
-                            std::cout<<"z: "<< z <<std::endl;
-                            std::cout<<"val: "<< val <<std::endl;
-                            std::cout<<"+++" <<std::endl;
-                        }*/
                     }
                 }
                 else if (_is_spherical) {
@@ -360,12 +337,6 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 			double pos_theta = _two_D_array[4][two_d_array_pos];
 		        if ( E_field_theta == 0.0) {is_theta_zero_found = true; E_field_theta+=delta;}
 		        if ( pos_theta == 0.0) {is_theta_zero_found = true; pos_theta+=delta;}
-			//std::cout<< "u:"<<E_field_theta-pos_theta<<"; "<<E_field_theta<<", "<<pos_theta<<std::endl;
-			//std::cout<<two_D_array[0][two_d_array_pos]<<", "<<two_D_array[1][two_d_array_pos]<<", "<<two_D_array[2][two_d_array_pos]<<", "<<two_D_array[3][two_d_array_pos]<<", "<<two_D_array[4][two_d_array_pos]<<", "<<two_D_array[5][two_d_array_pos]<<std::endl;
-			//E_Field = threevector(two_D_array[0][two_d_array_pos], E_field_theta, two_D_array[2][two_d_array_pos], 's');
-			//std::cout<< "v:"<<E_Field.gettheta()<<std::endl;
-			//pos = threevector(two_D_array[3][two_d_array_pos], pos_theta, two_D_array[5][two_d_array_pos], 's');
-			//std::cout<< "w:"<<E_Field.gettheta()-pos.gettheta()<<"; "<<E_Field.gettheta()<<", "<<pos.gettheta()<<std::endl;
                         
                         Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], E_field_theta, _two_D_array[2][two_d_array_pos], threevector(_two_D_array[3][two_d_array_pos], pos_theta, _two_D_array[5][two_d_array_pos], 's'), _is_cartesian, _is_spherical, _is_cylindrical);
                     } else {
@@ -373,7 +344,6 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 		        if ( pos_theta == 0.0) {is_theta_zero_found = true; pos_theta+=delta;}
                         Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], threevector(_two_D_array[1][two_d_array_pos], pos_theta, _two_D_array[3][two_d_array_pos], 's'));
                     }
-		    if (i_count == 0 && j_count == 0){std::cout<<k_count<<". "<<Field_Map_Matrix[i_count][j_count][k_count].get_position_r()<<", "<<Field_Map_Matrix[i_count][j_count][k_count].get_position_phi()<<std::endl;}
                 }
                 else if (_is_cylindrical) {
 		    // Note cylindrical defined in text file as rho, z, phi;
@@ -396,21 +366,9 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     
     _Field_Map_Final = Field_Map_Matrix;
     
-    //for (int i=0; i<20; i++){
-    //    std::cout<<i<<". x,y,z: "<<_Field_Map_Final[1][6][i].get_position_x()<<", "<<_Field_Map_Final[1][6][i].get_position_y()<<", "<<_Field_Map_Final[1][6][i].get_position_z()<<"; phi: "<<_Field_Map_Final[1][6][i].get_position_phi()<<std::endl;
-    //}
-    //std::cout<<"First Dimension: "<<std::endl;
-    //for (int i=0; i<_total_one_d_count; i++){
-    //    std::cout<<i<<". r: "<<_Field_Map_Final[i][0][0].get_position_r()<<", Theta: "<<_Field_Map_Final[i][0][0].get_position_theta()<<", Phi: "<<_Field_Map_Final[i][0][0].get_position_phi()<<std::endl;
-    //}
-    //std::cout<<"Second Dimension: "<<std::endl;
-    //for (int i=0; i<_total_two_d_count; i++){
-    //    std::cout<<i<<". r: "<<_Field_Map_Final[0][i][0].get_position_r()<<", Theta: "<<_Field_Map_Final[0][i][0].get_position_theta()<<", Phi: "<<_Field_Map_Final[0][i][0].get_position_phi()<<std::endl;
-    //}
-    //std::cout<<"Third Dimension: "<<std::endl;
-    //for (int i=0; i<_total_three_d_count; i++){
-    //    std::cout<<i<<". r: "<<_Field_Map_Final[0][0][i].get_position_r()<<", Theta: "<<_Field_Map_Final[0][0][i].get_position_theta()<<", Phi: "<<_Field_Map_Final[0][0][i].get_position_phi()<<std::endl;
-    //}
+    //Empty because no longer needed
+    const std::vector<double> blank = {};
+    _two_D_array = {blank};
 }
 
 void Field_Map::partition_three_D_grid(){
@@ -450,7 +408,6 @@ void Field_Map::find_per_dimension(int dimension){
     } else{
         std::cout<<warning<<std::endl;
     }
-    std::cout<<"The total count. Dimension: "<<dimension<<", count:"<<count<<std::endl;
     std::vector<std::vector<double>> value_holder; // holds the value in the field at key positions
     std::vector<std::vector<int>> pos_holder; // holds the index position in the field at key positions
     int num_secs = log2(count); // find the log_2 value
@@ -504,17 +461,6 @@ void Field_Map::find_per_dimension(int dimension){
 	    _three_d_value_holder = value_holder;
     } else{
         std::cout<<warning<<std::endl;
-    }
-    for (int i=0; i<pos_holder.size(); i++){
-	std::cout<<"Row "<< i<<". :"<<std::endl;
-	 for (int j=0; j<pos_holder[i].size(); j++){
-	     std::cout<<", "<<pos_holder[i][j];
-	 }
-	 std::cout<<":"<<std::endl;
-	 for (int j=0; j<value_holder[i].size(); j++){
-	     std::cout<<", "<<value_holder[i][j];
-	 }
-	 std::cout<<":"<<std::endl;
     }
 }
 
@@ -780,18 +726,8 @@ std::vector<double> Field_Map::calc_quad_fit(double p1[2], double p2[2], double 
     double y1 = (top_row[0]*B[0]+top_row[1]*B[1]+top_row[2]*B[2])/A_det;
     double y2 = (mid_row[0]*B[0]+mid_row[1]*B[1]+mid_row[2]*B[2])/A_det;
     double y3 = (bot_row[0]*B[0]+bot_row[1]*B[1]+bot_row[2]*B[2])/A_det;
-    //std::cout<<"====================="<<std::endl;
-    //if (!std::isfinite(y1)){std::cout<<p1[0]<<", "<<p1[1]<<std::endl;}
-    //if (!std::isfinite(y2)){std::cout<<p2[0]<<", "<<p2[1]<<std::endl;}
-    //if (!std::isfinite(y3)){std::cout<<p3[0]<<", "<<p3[1]<<std::endl;}
 
     Y = {y1,y2,y3};
-    }
-    if (Y[0]>1690.47&&Y[0]<1690.49&&Y[1]>-1719.58&&Y[1]<-1719.56&&Y[2]>-694.349&&Y[2]<-694.347){
-	std::cout<<"x, xval"<<p1[0]<<", "<<p1[1]<<std::endl;
-	std::cout<<"y, yval"<<p2[0]<<", "<<p2[1]<<std::endl;
-	std::cout<<"z, zval"<<p3[0]<<", "<<p3[1]<<std::endl;
-	std::cout<<"==="<<std::endl;
     }
     return Y;
 }
@@ -830,9 +766,6 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
     if (value < value_holder[num_secs-2][test_point]){
         test_point -= 1;
     }
-    //std::cout<<"Below index, value: "<<pos_holder[num_secs-2][test_point]<<", "<<value_holder[num_secs-2][test_point]<<std::endl;
-    //std::cout<<"Above index, value: "<<pos_holder[num_secs-2][test_point+1]<<", "<<value_holder[num_secs-2][test_point+1]<<std::endl;
-
     // check diff to this value, diff to next value etc. until buffer
     int num_to_check = 1+pos_holder[num_secs-2][test_point+1] - pos_holder[num_secs-2][test_point];
 	int index_of_test_point = pos_holder[num_secs-2][test_point];
@@ -859,9 +792,7 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
 
 threevector Field_Map::find_approx_value(threevector point, bool is_print){
     // Note to self: this entire method needs correcting to ensure that there is no excessive use of if statements and to ensure the distance is logical in spherical and cylindrical contexts.
-    std::clock_t start;
-    double duration;
-    start = std::clock();
+
     //std::cout<<"Started looking for value."<<std::endl;
     std::vector<int> one_d_close_pos(2);
     std::vector<int> two_d_close_pos(2);
@@ -990,15 +921,216 @@ threevector Field_Map::find_approx_value(threevector point, bool is_print){
 	    }
     }
     if (is_exact_pos_found){
-        duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-        //std::cout<<"Finished looking for value, time: "<< duration<<std::endl;
         return exact_E_field_val;
     }
     else {
-        duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-        //std::cout<<"Finished looking for value, time: "<< duration<<std::endl;
         return threevector(summed_weighted_values.getx()/summed_weight, summed_weighted_values.gety()/summed_weight, summed_weighted_values.getz()/summed_weight);
     }
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    //std::cout<<"Finished looking for value, time: "<< duration<<std::endl;
+}
+
+void Field_Map::check_spherical_coordinate_range(double ImpactParameter, double maxfactor){
+    // Upper r-limit
+    bool is_full_space_defined = true;
+    const double upper_r_lim_squared = ImpactParameter*ImpactParameter*maxfactor;
+    const double delta = 1e-4; // gives user input a little margin for error
+    
+    if (_is_cartesian){
+	std::cout<<"Warning! Spherical injection has been chosen, yet the custom potential field has been defined using cartesian geometry.\n\tProceeding, but please be mindful."<<std::endl;
+	const double x_min = _one_d_value_holder[0][0];
+        const double x_max = _one_d_value_holder[0][2];
+	const double x_limiting_val = std::min(std::abs(x_min), x_max);
+	double r_upper_val_squared = x_limiting_val*x_limiting_val;
+	// Check for symmetry
+	if (std::abs(x_min+x_max)>delta){
+	    std::cout<<"Warning! The user-defined x range is not symmetric. Proceeding, but take caution."<<std::endl;
+	}
+	if (_dimension_val == 2 || _dimension_val == 3){
+	    const double y_min = _two_d_value_holder[0][0];
+            const double y_max = _two_d_value_holder[0][2];
+	    const double y_limiting_val = std::min(std::abs(y_min), y_max);
+	    r_upper_val_squared += y_limiting_val*y_limiting_val;
+	    if (std::abs(y_min+y_max)>delta){
+	        std::cout<<"Warning! The user-defined y range is not symmetric. Proceeding, but take caution."<<std::endl;
+	    }
+	    if (_dimension_val == 3){
+	        const double z_min = _three_d_value_holder[0][0];
+                const double z_max = _three_d_value_holder[0][2];
+	        const double z_limiting_val = std::min(std::abs(z_min), z_max);
+	        r_upper_val_squared += z_limiting_val*z_limiting_val;
+	        if (std::abs(z_min+z_max)>delta){
+	            std::cout<<"Warning! The user-defined z range is not symmetric. Proceeding, but take caution."<<std::endl;
+	        }
+	    }
+	}
+	if (r_upper_val_squared < upper_r_lim_squared){
+	    is_full_space_defined = false;
+	}
+    } else if (_is_spherical){
+        const double r_upper_val = _one_d_value_holder[0][2];
+	if (r_upper_val*r_upper_val < upper_r_lim_squared){
+	    is_full_space_defined = false;
+	}
+	if (_dimension_val == 2 || _dimension_val == 3){
+	    // Check for theta-value completeness
+	    const double theta_lower_val = _two_d_value_holder[0][0];
+	    const double theta_upper_val = _two_d_value_holder[0][2];
+	    const double delta = 1e-4;
+	    if (theta_lower_val > delta){
+		std::cout<<"Warning! The user-defined theta range does not start at 0.0. Proceeding using extrapolation, but take caution."<<std::endl;
+	    }
+	    if (theta_upper_val < PI-delta){
+		std::cout<<"Warning! The user-defined theta range does not end at pi. Proceeding using extrapolation, but take caution."<<std::endl;
+	    }
+	    if (_dimension_val == 3){
+	        // Check for phi-value completeness
+	        const double phi_lower_val = _three_d_value_holder[0][0];
+	        const double phi_upper_val = _three_d_value_holder[0][2];
+		const double delta = 1e-4;
+		if (phi_lower_val > delta){
+		    std::cout<<"Warning! The user-defined phi range does not start at 0. Proceeding using extrapolation, but take caution."<<std::endl;
+		}
+		if (phi_upper_val < 2*PI-delta){
+		    std::cout<<"Warning! The user-defined phi range does not end at 2*pi. Proceeding using extrapolation, but take caution."<<std::endl;
+		}
+	    }
+	}
+    } else if (_is_cylindrical){
+	std::cout<<"Warning! Spherical injection has been chosen, yet the custom potential field has been defined using cylindrical geometry.\n\tProceeding, but please be mindful."<<std::endl;
+	const double max_rho = _one_d_value_holder[0][2];
+        double r_upper_val_squared = max_rho*max_rho;
+	if (_dimension_val == 2 || _dimension_val == 3){
+	    // Check for z-value symmetry
+	    const double z_min = _two_d_value_holder[0][0];
+            const double z_max = _two_d_value_holder[0][2];
+	    const double z_limiting_val = std::min(std::abs(z_min), z_max);
+	    r_upper_val_squared += z_limiting_val*z_limiting_val;
+	    if (std::abs(z_min+z_max)>delta){
+		std::cout<<"Warning! The user-defined z range is not symmetric. Proceeding, but take caution."<<std::endl;
+	    }
+	    if (_dimension_val == 3){
+	        // Check for phi-value completeness
+	        const double phi_lower_val = _three_d_value_holder[0][0];
+	        const double phi_upper_val = _three_d_value_holder[0][2];
+		const double delta = 1e-4;
+		if (phi_lower_val > delta){
+		    std::cout<<"Warning! The user-defined phi range does not start at 0. Proceeding using extrapolation, but take caution."<<std::endl;
+		}
+		if (phi_upper_val < 2*PI-delta){
+		    std::cout<<"Warning! The user-defined phi range does not end at 2*pi. Proceeding using extrapolation, but take caution."<<std::endl;
+		}
+	    }
+	}
+	if (r_upper_val_squared < upper_r_lim_squared){
+	    is_full_space_defined = false;
+	}
+    }
+    if (!is_full_space_defined){
+	// Note to self: finish this by returning new impact parameter.
+        std::cout<<"Warning! The user-defined range does not cover the specified spherical injection domain space. Proceeding using extrapolation but please consider expanding the defined potential space or using a different impact parameter."<<std::endl;
+    }
+}
+
+void Field_Map::check_cylindrical_coordinate_range(double lower_z_lim, double upper_z_lim){
+    // Upper r-limit
+    bool is_full_lower_z_lim_defined = true;
+    bool is_full_upper_z_lim_defined = true;
+    const double delta = 1e-4; // gives user input a little margin for error
+    
+    if (_is_cartesian){
+	std::cout<<"Warning! Cylindrical injection has been chosen, yet the custom potential field has been defined using cartesian geometry.\n\tProceeding, but please be mindful."<<std::endl;
+	const double x_min = _one_d_value_holder[0][0];
+        const double x_max = _one_d_value_holder[0][2];
+	// Check for symmetry
+	if (std::abs(x_min+x_max)>delta){
+	    std::cout<<"Warning! The user-defined x range is not symmetric. Proceeding, but take caution."<<std::endl;
+	}
+	if (_dimension_val == 2 || _dimension_val == 3){
+	    const double y_min = _two_d_value_holder[0][0];
+            const double y_max = _two_d_value_holder[0][2];
+	    if (std::abs(y_min+y_max)>delta){
+	        std::cout<<"Warning! The user-defined y range is not symmetric. Proceeding, but take caution."<<std::endl;
+	    }
+	    if (_dimension_val == 3){
+	        const double z_min = _three_d_value_holder[0][0];
+                const double z_max = _three_d_value_holder[0][2];
+	        if (std::abs(z_min+z_max)>delta){
+	            std::cout<<"Warning! The user-defined z range is not symmetric. Proceeding, but take caution."<<std::endl;
+	        }
+	        if (z_max < upper_z_lim){
+	            is_full_upper_z_lim_defined = false;
+	        }
+	        if (z_min > lower_z_lim){
+	            is_full_lower_z_lim_defined = false;
+	        }
+	    }
+	}
+    } else if (_is_spherical){
+	std::cout<<"Warning! Cylindrical injection has been chosen, yet the custom potential field has been defined using spherical geometry.\n\tProceeding, but please be mindful."<<std::endl;
+        const double r_upper_val = _one_d_value_holder[0][2];
+	const double limiting_z = std::min(std::abs(lower_z_lim), upper_z_lim);
+	if (4*r_upper_val/std::sqrt(3) < limiting_z){
+	    // Cube does not fit inside sphere
+	    is_full_upper_z_lim_defined = false;
+	    is_full_lower_z_lim_defined = false;
+	}
+	if (_dimension_val == 2 || _dimension_val == 3){
+	    // Check for theta-value completeness
+	    const double theta_lower_val = _two_d_value_holder[0][0];
+	    const double theta_upper_val = _two_d_value_holder[0][2];
+	    const double delta = 1e-4;
+	    if (theta_lower_val > delta){
+		std::cout<<"Warning! The user-defined theta range does not start at 0.0. Proceeding using extrapolation, but take caution."<<std::endl;
+	    }
+	    if (theta_upper_val < PI-delta){
+		std::cout<<"Warning! The user-defined theta range does not end at pi. Proceeding using extrapolation, but take caution."<<std::endl;
+	    }
+	    if (_dimension_val == 3){
+	        // Check for phi-value completeness
+	        const double phi_lower_val = _three_d_value_holder[0][0];
+	        const double phi_upper_val = _three_d_value_holder[0][2];
+		const double delta = 1e-4;
+		if (phi_lower_val > delta){
+		    std::cout<<"Warning! The user-defined theta range does not start at 0. Proceeding using extrapolation, but take caution."<<std::endl;
+		}
+		if (phi_upper_val < 2*PI-delta){
+		    std::cout<<"Warning! The user-defined theta range does not end at 2*pi. Proceeding using extrapolation, but take caution."<<std::endl;
+		}
+	    }
+	}
+    } else if (_is_cylindrical){
+	if (_dimension_val == 2 || _dimension_val == 3){
+	    // Check for z-value symmetry
+	    const double z_min = _two_d_value_holder[0][0];
+            const double z_max = _two_d_value_holder[0][2];
+	    if (std::abs(z_min+z_max)>delta){
+		std::cout<<"Warning! The user-defined z range is not symmetric. Proceeding, but take caution."<<std::endl;
+	    }
+	    if (z_max < upper_z_lim){
+	        is_full_upper_z_lim_defined = false;
+	    }
+	    if (z_min > lower_z_lim){
+	        is_full_lower_z_lim_defined = false;
+	    }
+	    if (_dimension_val == 3){
+	        // Check for phi-value completeness
+	        const double phi_lower_val = _three_d_value_holder[0][0];
+	        const double phi_upper_val = _three_d_value_holder[0][2];
+		const double delta = 1e-4;
+		if (phi_lower_val > delta){
+		    std::cout<<"Warning! The user-defined theta range does not start at 0. Proceeding using extrapolation, but take caution."<<std::endl;
+		}
+		if (phi_upper_val < 2*PI-delta){
+		    std::cout<<"Warning! The user-defined theta range does not end at 2*pi. Proceeding using extrapolation, but take caution."<<std::endl;
+		}
+	    }
+	}
+    }
+    if (!is_full_upper_z_lim_defined){
+	// Note to self: finish this by returning new impact parameter.
+        std::cout<<"Warning! The user-defined range does not cover the specified cylindrical injection domain space for the upper z limit. Proceeding using extrapolation but please consider expanding the defined potential space or using a different z-max parameter."<<std::endl;
+    }
+    if (!is_full_lower_z_lim_defined){
+	// Note to self: finish this by returning new impact parameter.
+        std::cout<<"Warning! The user-defined range does not cover the specified cylindrical injection domain space for the lower z limit. Proceeding using extrapolation but please consider expanding the defined potential space or using a different z-min parameter."<<std::endl;
+    }
 }

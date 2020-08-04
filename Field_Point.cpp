@@ -123,7 +123,6 @@ threevector Field_Point::convert_electric_field(double one_d_val, double two_d_v
         E_z = three_d_val;
     } else if (is_spherical){
         // Find positions in spherical coordinates
-        const double pos_r = position.mag3();
         const double pos_theta = position.gettheta();
         const double pos_phi = position.getphi();
         
@@ -143,8 +142,6 @@ threevector Field_Point::convert_electric_field(double one_d_val, double two_d_v
         E_z = (cos_pos_theta*E_r)+(-sin_pos_theta*E_theta);
     } else if (is_cylindrical){
         // Find positions in Cylindrical coordinates
-        const double pos_rho = position.getrho();
-        const double pos_z = position.getz();
         const double pos_phi = position.getphi();
         
         // Declare electric field in cylindrical coordinates

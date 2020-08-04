@@ -124,3 +124,9 @@ Additional Options from VARIABLE_CSCALE OR VARIABLE_ASCALE!
 
 	-jf,--jfin JMIN			(int), Specify the number of particles to be collected in final save
 		jfin(=100) DEFAULT,		By Default, collect 100 particles in the final save
+
+
+
+Additional Options from CUSTOM_POTENTIAL
+    -cf, --customfield CUSTOMFIELD			(string), Specify the Custom Field file name to be used
+        custom electric potential file name(='Custom_Fields/Default_Field.txt') DEFAULT, 	By Default, Load file Custom_Fields/Default_Field.txt
