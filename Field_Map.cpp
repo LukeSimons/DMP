@@ -132,7 +132,7 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     double two_d_array_width;
     if (_is_E_Field_defined_truth) {_num_data_points_per_line=2*_dimension_val; two_d_array_width=6;}
     else {_num_data_points_per_line=1+_dimension_val;two_d_array_width=4;}
-    
+
     _num_data_lines = _line_vector.size() - _num_lines_in_header;
 
     _two_D_array = std::vector<std::vector<double>>(two_d_array_width, std::vector<double>(_num_data_lines));
@@ -244,7 +244,7 @@ void Field_Map::convert_data_line_to_multi_D_array(){
         }
     }
     // Sort Out Invalid Situations:
-    
+
     //    1. r is less than or equal to 0
     //    2. theta is less than 0 or greater than pi
     //    3. phi is less than 0 or greater than two pi
@@ -287,19 +287,19 @@ void Field_Map::convert_data_line_to_multi_D_array(){
         }
 	if (one_d_low_error_count != 0){
 	    std::cout<<"WARNING: There was a field defined at r/rho values below 0. These have been removed but caution should be taken."<<std::endl;
-	} 
+	}
 	if (two_d_low_error_count != 0){
 	    std::cout<<"WARNING: There was a field defined at theta values below 0. These have been removed but caution should be taken."<<std::endl;
-	} 
+	}
 	if (two_d_high_error_count != 0){
 	    std::cout<<"WARNING: There was a field defined at theta values above pi. These have been removed but caution should be taken."<<std::endl;
-	} 
+	}
 	if (three_d_low_error_count != 0){
 	    std::cout<<"WARNING: There was a field defined at phi values below 0. These have been removed but caution should be taken."<<std::endl;
-	} 
+	}
 	if (three_d_high_error_count != 0){
 	    std::cout<<"WARNING: There was a field defined at phi values above 2pi. These have been removed but caution should be taken."<<std::endl;
-	} 
+	}
     }
 
     _total_one_d_count = one_d_count-one_d_low_error_count;
@@ -330,14 +330,14 @@ void Field_Map::convert_data_line_to_multi_D_array(){
                 else if (_is_spherical) {
 		    // Note spherical defined in text file as r,theta,phi
 		    // Threevector in order: r, theta, phi
-		    
+
                     if (_is_E_Field_defined_truth) {
 			// Check if theta is 0 (in this case phi would be badly defined so shift theta by delta)
 			double E_field_theta = _two_D_array[1][two_d_array_pos];
 			double pos_theta = _two_D_array[4][two_d_array_pos];
 		        if ( E_field_theta == 0.0) {is_theta_zero_found = true; E_field_theta+=delta;}
 		        if ( pos_theta == 0.0) {is_theta_zero_found = true; pos_theta+=delta;}
-                        
+
                         Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], E_field_theta, _two_D_array[2][two_d_array_pos], threevector(_two_D_array[3][two_d_array_pos], pos_theta, _two_D_array[5][two_d_array_pos], 's'), _is_cartesian, _is_spherical, _is_cylindrical);
                     } else {
 			double pos_theta = _two_D_array[2][two_d_array_pos];
@@ -363,9 +363,9 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 	j_count=0;
     }
     if (is_theta_zero_found){std::cout<<"WARNING: A provided theta value was 0 which would cause a badly defined phi.\n\t Theta has been shifted by "<<delta<<" to accomodate this, but caution should be taken."<<std::endl;}
-    
+
     _Field_Map_Final = Field_Map_Matrix;
-    
+
     //Empty because no longer needed
     const std::vector<double> blank = {};
     _two_D_array = {blank};
@@ -928,209 +928,219 @@ threevector Field_Map::find_approx_value(threevector point, bool is_print){
     }
 }
 
-void Field_Map::check_spherical_coordinate_range(double ImpactParameter, double maxfactor){
-    // Upper r-limit
-    bool is_full_space_defined = true;
-    const double upper_r_lim_squared = ImpactParameter*ImpactParameter*maxfactor;
+
+void Field_Map::check_coordinate_domain_symmetry(int dimension_to_check){
+    double min;
+    double max;
     const double delta = 1e-4; // gives user input a little margin for error
-    
-    if (_is_cartesian){
-	std::cout<<"Warning! Spherical injection has been chosen, yet the custom potential field has been defined using cartesian geometry.\n\tProceeding, but please be mindful."<<std::endl;
-	const double x_min = _one_d_value_holder[0][0];
-        const double x_max = _one_d_value_holder[0][2];
-	const double x_limiting_val = std::min(std::abs(x_min), x_max);
-	double r_upper_val_squared = x_limiting_val*x_limiting_val;
-	// Check for symmetry
-	if (std::abs(x_min+x_max)>delta){
-	    std::cout<<"Warning! The user-defined x range is not symmetric. Proceeding, but take caution."<<std::endl;
-	}
-	if (_dimension_val == 2 || _dimension_val == 3){
-	    const double y_min = _two_d_value_holder[0][0];
-            const double y_max = _two_d_value_holder[0][2];
-	    const double y_limiting_val = std::min(std::abs(y_min), y_max);
-	    r_upper_val_squared += y_limiting_val*y_limiting_val;
-	    if (std::abs(y_min+y_max)>delta){
-	        std::cout<<"Warning! The user-defined y range is not symmetric. Proceeding, but take caution."<<std::endl;
-	    }
-	    if (_dimension_val == 3){
-	        const double z_min = _three_d_value_holder[0][0];
-                const double z_max = _three_d_value_holder[0][2];
-	        const double z_limiting_val = std::min(std::abs(z_min), z_max);
-	        r_upper_val_squared += z_limiting_val*z_limiting_val;
-	        if (std::abs(z_min+z_max)>delta){
-	            std::cout<<"Warning! The user-defined z range is not symmetric. Proceeding, but take caution."<<std::endl;
-	        }
-	    }
-	}
-	if (r_upper_val_squared < upper_r_lim_squared){
-	    is_full_space_defined = false;
-	}
-    } else if (_is_spherical){
-        const double r_upper_val = _one_d_value_holder[0][2];
-	if (r_upper_val*r_upper_val < upper_r_lim_squared){
-	    is_full_space_defined = false;
-	}
-	if (_dimension_val == 2 || _dimension_val == 3){
-	    // Check for theta-value completeness
-	    const double theta_lower_val = _two_d_value_holder[0][0];
-	    const double theta_upper_val = _two_d_value_holder[0][2];
-	    const double delta = 1e-4;
-	    if (theta_lower_val > delta){
-		std::cout<<"Warning! The user-defined theta range does not start at 0.0. Proceeding using extrapolation, but take caution."<<std::endl;
-	    }
-	    if (theta_upper_val < PI-delta){
-		std::cout<<"Warning! The user-defined theta range does not end at pi. Proceeding using extrapolation, but take caution."<<std::endl;
-	    }
-	    if (_dimension_val == 3){
-	        // Check for phi-value completeness
-	        const double phi_lower_val = _three_d_value_holder[0][0];
-	        const double phi_upper_val = _three_d_value_holder[0][2];
-		const double delta = 1e-4;
-		if (phi_lower_val > delta){
-		    std::cout<<"Warning! The user-defined phi range does not start at 0. Proceeding using extrapolation, but take caution."<<std::endl;
-		}
-		if (phi_upper_val < 2*PI-delta){
-		    std::cout<<"Warning! The user-defined phi range does not end at 2*pi. Proceeding using extrapolation, but take caution."<<std::endl;
-		}
-	    }
-	}
-    } else if (_is_cylindrical){
-	std::cout<<"Warning! Spherical injection has been chosen, yet the custom potential field has been defined using cylindrical geometry.\n\tProceeding, but please be mindful."<<std::endl;
-	const double max_rho = _one_d_value_holder[0][2];
-        double r_upper_val_squared = max_rho*max_rho;
-	if (_dimension_val == 2 || _dimension_val == 3){
-	    // Check for z-value symmetry
-	    const double z_min = _two_d_value_holder[0][0];
-            const double z_max = _two_d_value_holder[0][2];
-	    const double z_limiting_val = std::min(std::abs(z_min), z_max);
-	    r_upper_val_squared += z_limiting_val*z_limiting_val;
-	    if (std::abs(z_min+z_max)>delta){
-		std::cout<<"Warning! The user-defined z range is not symmetric. Proceeding, but take caution."<<std::endl;
-	    }
-	    if (_dimension_val == 3){
-	        // Check for phi-value completeness
-	        const double phi_lower_val = _three_d_value_holder[0][0];
-	        const double phi_upper_val = _three_d_value_holder[0][2];
-		const double delta = 1e-4;
-		if (phi_lower_val > delta){
-		    std::cout<<"Warning! The user-defined phi range does not start at 0. Proceeding using extrapolation, but take caution."<<std::endl;
-		}
-		if (phi_upper_val < 2*PI-delta){
-		    std::cout<<"Warning! The user-defined phi range does not end at 2*pi. Proceeding using extrapolation, but take caution."<<std::endl;
-		}
-	    }
-	}
-	if (r_upper_val_squared < upper_r_lim_squared){
-	    is_full_space_defined = false;
-	}
+    const std::string coordinate_name = get_coordinate_name(dimension_to_check);
+    const std::string symmetric_warning_message = "Warning! The user-defined" + coordinate_name + "range is not symmetric. Proceeding, but take caution.";
+    if (dimension_to_check == 1){
+         min = _one_d_value_holder[0][0];
+         max = _one_d_value_holder[0][2];
+    } else if (dimension_to_check == 2){
+         min = _two_d_value_holder[0][0];
+         max = _two_d_value_holder[0][2];
+    } else if (dimension_to_check == 3){
+         min = _three_d_value_holder[0][0];
+         max = _three_d_value_holder[0][2];
     }
-    if (!is_full_space_defined){
-	// Note to self: finish this by returning new impact parameter.
-        std::cout<<"Warning! The user-defined range does not cover the specified spherical injection domain space. Proceeding using extrapolation but please consider expanding the defined potential space or using a different impact parameter."<<std::endl;
+    if (std::abs(min+max)>delta){
+	    std::cout<<symmetric_warning_message<<std::endl;
+	}
+}
+
+void Field_Map::check_coordinate_domain_completeness(int dimension_to_check){
+    double min;
+    double max;
+    const double delta = 1e-4; // gives user input a little margin for error
+    const std::string coordinate_name = get_coordinate_name(dimension_to_check);
+    const std::string symmetric_warning_message = "Warning! The user-defined" + coordinate_name + "range is not complete. Proceeding using extrapolation, but take caution.";
+    if (dimension_to_check == 2){
+        min = _two_d_value_holder[0][0];
+        max = _two_d_value_holder[0][2];
+        if (min > delta){
+            const std::string min_string = std::to_str(min);
+		    std::cout<<symmetric_warning_message<<"\n\tDefined lower limit: "<<min_string<<std::endl;
+	    }
+	    if (max < PI-delta){
+            const std::string max_string = std::to_str(max);
+		    std::cout<<symmetric_warning_message<<"\n\tDefined upper limit: "<<max_string<<std::endl;
+	    }
+    } else if (dimension_to_check == 3){
+        min = _three_d_value_holder[0][0];
+        max = _three_d_value_holder[0][2];
+        if (min > delta){
+            const std::string min_string = std::to_str(min);
+		    std::cout<<symmetric_warning_message<<"\n\tDefined lower limit: "<<min_string<<std::endl;
+	    }
+	    if (max < 2*PI-delta){
+            const std::string max_string = std::to_str(max);
+		    std::cout<<symmetric_warning_message<<"\n\tDefined upper limit: "<<max_string<<std::endl;
+	    }
     }
 }
 
-void Field_Map::check_cylindrical_coordinate_range(double lower_z_lim, double upper_z_lim){
-    // Upper r-limit
-    bool is_full_lower_z_lim_defined = true;
-    bool is_full_upper_z_lim_defined = true;
-    const double delta = 1e-4; // gives user input a little margin for error
-    
+std::vector<double> Field_Map::find_complicit_domain_limits(bool is_spherical_injection, bool is_cylindrical_injection, double z_min_dimpl_pars, double z_max_dimpl_pars, double max_radius_dimpl_pars){
+    double map_z_min;
+    double map_z_max;
+    double new_z_min;
+    double new_z_max;
+    const std::string z_limit_warning_message = "Warning! The user-defined custom potential map does not cover the full range of the inputted DiMPl pars. The z limit of the DiMPl pars shall be altered to the limit of the custom potential map.";
+
+    double map_rho_max;
+    double new_rho_max;
+    const std::string rho_limit_warning_message = "Warning! The user-defined custom potential map does not cover the full range of the inputted DiMPl pars. The radial limit of the DiMPl pars shall be altered to the limit of the custom potential map.";
+
     if (_is_cartesian){
-	std::cout<<"Warning! Cylindrical injection has been chosen, yet the custom potential field has been defined using cartesian geometry.\n\tProceeding, but please be mindful."<<std::endl;
-	const double x_min = _one_d_value_holder[0][0];
-        const double x_max = _one_d_value_holder[0][2];
-	// Check for symmetry
-	if (std::abs(x_min+x_max)>delta){
-	    std::cout<<"Warning! The user-defined x range is not symmetric. Proceeding, but take caution."<<std::endl;
-	}
-	if (_dimension_val == 2 || _dimension_val == 3){
-	    const double y_min = _two_d_value_holder[0][0];
-            const double y_max = _two_d_value_holder[0][2];
-	    if (std::abs(y_min+y_max)>delta){
-	        std::cout<<"Warning! The user-defined y range is not symmetric. Proceeding, but take caution."<<std::endl;
-	    }
-	    if (_dimension_val == 3){
-	        const double z_min = _three_d_value_holder[0][0];
-                const double z_max = _three_d_value_holder[0][2];
-	        if (std::abs(z_min+z_max)>delta){
-	            std::cout<<"Warning! The user-defined z range is not symmetric. Proceeding, but take caution."<<std::endl;
-	        }
-	        if (z_max < upper_z_lim){
-	            is_full_upper_z_lim_defined = false;
-	        }
-	        if (z_min > lower_z_lim){
-	            is_full_lower_z_lim_defined = false;
-	        }
-	    }
-	}
-    } else if (_is_spherical){
-	std::cout<<"Warning! Cylindrical injection has been chosen, yet the custom potential field has been defined using spherical geometry.\n\tProceeding, but please be mindful."<<std::endl;
-        const double r_upper_val = _one_d_value_holder[0][2];
-	const double limiting_z = std::min(std::abs(lower_z_lim), upper_z_lim);
-	if (4*r_upper_val/std::sqrt(3) < limiting_z){
-	    // Cube does not fit inside sphere
-	    is_full_upper_z_lim_defined = false;
-	    is_full_lower_z_lim_defined = false;
-	}
-	if (_dimension_val == 2 || _dimension_val == 3){
-	    // Check for theta-value completeness
-	    const double theta_lower_val = _two_d_value_holder[0][0];
-	    const double theta_upper_val = _two_d_value_holder[0][2];
-	    const double delta = 1e-4;
-	    if (theta_lower_val > delta){
-		std::cout<<"Warning! The user-defined theta range does not start at 0.0. Proceeding using extrapolation, but take caution."<<std::endl;
-	    }
-	    if (theta_upper_val < PI-delta){
-		std::cout<<"Warning! The user-defined theta range does not end at pi. Proceeding using extrapolation, but take caution."<<std::endl;
-	    }
-	    if (_dimension_val == 3){
-	        // Check for phi-value completeness
-	        const double phi_lower_val = _three_d_value_holder[0][0];
-	        const double phi_upper_val = _three_d_value_holder[0][2];
-		const double delta = 1e-4;
-		if (phi_lower_val > delta){
-		    std::cout<<"Warning! The user-defined theta range does not start at 0. Proceeding using extrapolation, but take caution."<<std::endl;
-		}
-		if (phi_upper_val < 2*PI-delta){
-		    std::cout<<"Warning! The user-defined theta range does not end at 2*pi. Proceeding using extrapolation, but take caution."<<std::endl;
-		}
-	    }
-	}
+        map_z_min = _three_d_value_holder[0][0];
+        map_z_max = _three_d_value_holder[0][2];
+        const double limiting_x = std::min(std::abs(_one_d_value_holder[0][0]), _one_d_value_holder[0][2]);
+        const double limiting_y = std::min(std::abs(_two_d_value_holder[0][0]), _two_d_value_holder[0][2]);
+        map_rho_max = std::sqrt(limiting_x*limiting_x+limiting_y*limiting_y);
+    } else if (_is_spherical) {
+        const double map_r = _one_d_value_holder[0][2];
+        if (is_spherical_injection){
+            map_z_max = map_r;
+            map_z_min = -map_r;
+            map_rho_max = map_r;
+        }
+        if (is_cylindrical_injection){
+            if (map_r < max_radius_dimpl_pars){
+                // compress the radius of injection.
+                const double limiting_z_dimpl_pars = std::min(std::abs(z_min_dimpl_pars), z_max_dimpl_pars);
+                if (map_r < limiting_z_dimpl_pars){
+                    // map is fully within dimpl pars, compress both rho and z to get as much coverage as possible
+                    map_z_max = map_r/std::sqrt(3);
+                    map_z_min = -map_z_max;
+                    map_rho_max = map_r*std::sqrt(2/3);
+                } else {
+                    // map has coverage over some z limit so keep as much z as possible and compress rho accordingly
+                    map_z_max = limiting_z_dimpl_pars;
+                    map_z_min = -map_z_max;
+                    map_rho_max = std::sqrt(map_r*map_r - limiting_z_dimpl_pars*limiting_z_dimpl_pars);
+                }
+            } else {
+                // take the radius of injection to be incompressible.
+                map_z_max = std::sqrt(map_r*map_r - max_radius_dimpl_pars*max_radius_dimpl_pars);
+                map_z_min = -map_z_max;
+                map_rho_max = map_r;
+            }
+        }
     } else if (_is_cylindrical){
-	if (_dimension_val == 2 || _dimension_val == 3){
-	    // Check for z-value symmetry
-	    const double z_min = _two_d_value_holder[0][0];
-            const double z_max = _two_d_value_holder[0][2];
-	    if (std::abs(z_min+z_max)>delta){
-		std::cout<<"Warning! The user-defined z range is not symmetric. Proceeding, but take caution."<<std::endl;
-	    }
-	    if (z_max < upper_z_lim){
-	        is_full_upper_z_lim_defined = false;
-	    }
-	    if (z_min > lower_z_lim){
-	        is_full_lower_z_lim_defined = false;
-	    }
-	    if (_dimension_val == 3){
-	        // Check for phi-value completeness
-	        const double phi_lower_val = _three_d_value_holder[0][0];
-	        const double phi_upper_val = _three_d_value_holder[0][2];
-		const double delta = 1e-4;
-		if (phi_lower_val > delta){
-		    std::cout<<"Warning! The user-defined theta range does not start at 0. Proceeding using extrapolation, but take caution."<<std::endl;
-		}
-		if (phi_upper_val < 2*PI-delta){
-		    std::cout<<"Warning! The user-defined theta range does not end at 2*pi. Proceeding using extrapolation, but take caution."<<std::endl;
-		}
-	    }
-	}
+        map_z_min = _two_d_value_holder[0][0];
+        map_z_max = _two_d_value_holder[0][2];
+        map_rho_max = _one_d_value_holder[0][2];
     }
-    if (!is_full_upper_z_lim_defined){
-	// Note to self: finish this by returning new impact parameter.
-        std::cout<<"Warning! The user-defined range does not cover the specified cylindrical injection domain space for the upper z limit. Proceeding using extrapolation but please consider expanding the defined potential space or using a different z-max parameter."<<std::endl;
+
+
+    if (map_z_min > z_min_dimpl_pars){
+        const std::string z_min_dimpl_pars_string = std::to_string(z_min_dimpl_pars);
+        const std::string map_z_min_string = std::to_string(map_z_min);
+        std::cout<<z_limit_warning_message<<"\n\t Old z lower bound (zmincoeff): "<<z_min_dimpl_pars<<"\n\t New z lower bound (zmincoeff): "<<map_z_min_string <<std::endl;
+        new_z_min = map_z_min;
+    } else {
+        new_z_min = z_min_dimpl_pars; // keep old value
     }
-    if (!is_full_lower_z_lim_defined){
-	// Note to self: finish this by returning new impact parameter.
-        std::cout<<"Warning! The user-defined range does not cover the specified cylindrical injection domain space for the lower z limit. Proceeding using extrapolation but please consider expanding the defined potential space or using a different z-min parameter."<<std::endl;
+    if (map_z_max < z_max_dimpl_pars){
+        const std::string z_min_dimpl_pars_string = std::to_string(z_min_dimpl_pars);
+        const std::string map_z_min_string = std::to_string(map_z_min);
+        std::cout<<z_limit_warning_message<<"\n\t Old z Upper bound (zmaxcoeff): "<<z_min_dimpl_pars<<"\n\t New z upper bound (zmaxcoeff): "<<map_z_min_string <<std::endl;
+        new_z_max = map_z_max;
+    } else {
+        new_z_max = z_max_dimpl_pars; // keep old value
     }
+
+    if (map_rho_max < max_radius_dimpl_pars){
+        const std::string max_radius_dimpl_pars_string = std::to_string(max_radius_dimpl_pars);
+        const std::string map_rho_max_string = std::to_string(map_rho_max);
+        std::cout<<rho_limit_warning_message<<"\n\t Old radial limit (impactpar): "<<max_radius_dimpl_pars<<"\n\t New radial limit (impactpar): "<<map_rho_max_string <<std::endl;
+        new_rho_max = map_rho_max;
+    } else {
+        new_rho_max  = max_radius_dimpl_pars; // keep old value
+    }
+
+    std::vector<double> new_lim_vals = {new_z_min, new_z_max, new_rho_max};
+    return new_lim_vals;
+}
+
+void Field_Map::check_dust_grain_map_coverage(double a1, double a2, double a3){
+    double map_r_min;
+    // Cartesian should be fine, so long as it is symmetric and covers dimpl domain which is checked elsewhere.
+
+    if (_is_spherical || _is_cylindrical) {
+        const double limiting_a = std::min(std::min(a1, a2), a3);
+        const double map_r_min = _one_d_value_holder[0][0];
+
+        if (limiting_a < map_r_min){
+            const std::string limiting_a_string = std::to_string(limiting_a);
+            const std::string map_r_min_string = std::to_string(map_r_min);
+            const std::string r_limit_warning_message = "Warning! The user-defined custom potential map does not reach the dust grain surface. Proceeding using extrapolation, but please take caution.";
+
+            std::cout<<r_limit_warning_message<<"\n\t Dust grain radius limiting value: "<<limiting_a_string<<"\n\t Lowest radial potential value: "<<map_r_min_string <<std::endl;
+        }
+    }
+}
+
+std::string Field_Map::get_coordinate_name(int dimension){
+    std::string coordinate_name;
+    if (_is_cartesian){
+        if (dimension==1){coordinate_name = 'x';}
+        else if (dimension==2){coordinate_name = 'y';}
+        else if (dimension==3){coordinate_name = 'z';}
+    } else if (_is_spherical){
+        if (dimension==1){coordinate_name = 'r';}
+        else if (dimension==2){coordinate_name = 'theta';}
+        else if (dimension==3){coordinate_name = 'phi';}
+    } else if (_is_cylindrical){
+        if (dimension==1){coordinate_name = 'rho';}
+        else if (dimension==2){coordinate_name = 'z';}
+        else if (dimension==3){coordinate_name = 'phi';}
+    }
+    return coordinate_name;
+}
+
+void Field_Map::check_domain(bool is_spherical_injection, bool is_cylindrical_injection){
+   // Check for symmetry and completeness.
+   // Check for logical choise of coordinate system.
+   // Check the z and radial injection limits set by dimpl are covered by the custom map
+   // Check for dust limits
+   const std::string conflicting_map_injection_warning_message = "Warning! The injection method coordinate system chosen is different to the custom potential map coordinate system.\n\tProceeding, but please be mindful.";
+
+   if (_is_cartesian){
+       if (is_spherical_injection){
+           std::cout<<conflicting_map_injection_warning_message<<"\n\tSpherical injection, cartesian potential map."<<std::endl;
+       }
+       if (is_cylindrical_injection){
+           std::cout<<conflicting_map_injection_warning_message<<"\n\tCylindrical injection, cartesian potential map."<<std::endl;
+       }
+       check_coordinate_domain_symmetry(1);
+       if (_dimension_val==2||_dimension_val==3){
+           check_coordinate_domain_symmetry(2);
+           if (_dimension_val==3){
+               check_coordinate_domain_symmetry(3);
+           }
+       }
+   } else if (_is_spherical){
+       if (is_cylindrical_injection){
+           std::cout<<conflicting_map_injection_warning_message<<"\n\tCylindrical injection, spherical potential map."<<std::endl;
+       }
+       if (_dimension_val==2||_dimension_val==3){
+           check_coordinate_domain_completeness(2);
+           if (_dimension_val==3){
+               check_coordinate_domain_completeness(3);
+           }
+       }
+   } else if (_is_cylindrical){
+       if (is_spherical_injection){
+           std::cout<<conflicting_map_injection_warning_message<<"\n\tSpherical injection, cylindrical potential map."<<std::endl;
+       }
+       if (_dimension_val==2||_dimension_val==3){
+           check_coordinate_domain_symmetry(2);
+           if (_dimension_val==3){
+               check_coordinate_domain_completeness(3);
+           }
+       }
+   }
+   check_dust_grain_map_coverage(a1, a2, a3);
 }

@@ -64,7 +64,7 @@ class Field_Map{
     	std::vector<std::vector<double>> _two_d_value_holder;
     	std::vector<std::vector<int>> _three_d_pos_holder;
     	std::vector<std::vector<double>> _three_d_value_holder;
-	std::vector<std::vector<int>> _num_times_outside_domain{3, std::vector<int> (2, 0)}; 
+	std::vector<std::vector<int>> _num_times_outside_domain{3, std::vector<int> (2, 0)};
         std::vector<std::vector<double>> _two_D_array;
         ///@{
         /** Header Details:
@@ -289,6 +289,13 @@ class Field_Map{
           */
 	     std::vector<int> find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder, int dimension);
 
+         void check_coordinate_domain_symmetry(int dimension_to_check);
+         void check_coordinate_domain_completeness(int dimension_to_check);
+         std::vector<double> find_complicit_domain_limits(bool is_spherical_injection, bool is_cylindrical_injection, double z_min_dimpl_pars, double z_max_dimpl_pars, double max_radius_dimpl_pars);
+         void check_dust_grain_map_coverage(double a1, double a2, double a3);
+         std::string get_coordinate_name(int dimension);
+         void check_domain(bool is_spherical_injection, bool is_cylindrical_injection);
+
     public:
 	/** @name Constructors
 	 *  @brief constructs a Field_Map class using a specfied string detailing the location of a custom Field Map
@@ -316,8 +323,8 @@ class Field_Map{
     */
 	threevector find_approx_value(threevector point, bool is_print);
     ///@}
-	inline std::vector<std::vector<int>> get_num_times_outside_domain(){return _num_times_outside_domain;}; 
-        
+	inline std::vector<std::vector<int>> get_num_times_outside_domain(){return _num_times_outside_domain;};
+
         void check_spherical_coordinate_range(double ImpactParameter, double maxfactor);
 
         void check_cylindrical_coordinate_range(double lower_z_lim, double upper_z_lim);

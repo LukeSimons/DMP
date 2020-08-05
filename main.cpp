@@ -1,14 +1,14 @@
 /** @file main.cpp
- *  @brief DiMPl program to calculate behaviour of conducting spheres in 
+ *  @brief DiMPl program to calculate behaviour of conducting spheres in
  *  plasmas with background flow and magnetic fields
- *  
+ *
  *  @author Luke Simons (ls5115@ic.ac.uk)
  *  @bug No known bugs
  */
 
 #include <omp.h>     //!< For omp parallelisation
 #include <iostream>  //!< for std::cout
-#include <array>    
+#include <array>
 #include <random>    //!< for std::normal_distribution<> etc.
 #include <fstream>   //!< for std::ofstream
 #include <ctime>     //!< for clock()
@@ -163,11 +163,11 @@ static void show_usage(std::string name){
         << "VARIABLE_ASCALE!\n"
     << "\t-jm,--jmin JMIN\t\t\t(int), Specify the number of particles to be "
         << "collected before dynamic saving\n"
-    << "\t\tjmin(=20) DEFAULT,\t\tBy Default, re-assess dynamic scale after " 
+    << "\t\tjmin(=20) DEFAULT,\t\tBy Default, re-assess dynamic scale after "
         << "collecting 20 particles\n\n"
-    << "\t-jf,--jfin JMIN\t\t\t(int), Specify the number of particles to be " 
+    << "\t-jf,--jfin JMIN\t\t\t(int), Specify the number of particles to be "
         << "collected in final save\n"
-    << "\t\tjfin(=100) DEFAULT,\t\tBy Default, collect 100 particles in the " 
+    << "\t\tjfin(=100) DEFAULT,\t\tBy Default, collect 100 particles in the "
         << "final save\n\n"
     << std::endl;
     #endif
@@ -184,11 +184,11 @@ static void show_usage(std::string name){
  *
  *  Process user command line input and return status of success of failure
  */
-template<typename T> int InputFunction(int &argc, char* argv[], int &i, 
+template<typename T> int InputFunction(int &argc, char* argv[], int &i,
 std::stringstream &ss0, T &Temp){
     if (i + 1 < argc) { //!< Make sure we aren't at the end of argv!
         i+=1; //!< Increment 'i' so we don't get the next argv[i].
-        ss0 << argv[i]; 
+        ss0 << argv[i];
         ss0 >> Temp;
         ss0.clear(); ss0.str("");
         return 0;
@@ -210,11 +210,11 @@ std::stringstream &ss0, T &Temp){
  *  Function to determine whether a particle undergoes a charge exchange
  *  collision with a neutral particle.
  */
-bool collision_probability(double time, double velocity, double meanfreepath, 
+bool collision_probability(double time, double velocity, double meanfreepath,
     std::mt19937 &mt)
 {
     //!< Random uniform Distribution
-    std::uniform_real_distribution<double> rad(0.0, 1.0); 
+    std::uniform_real_distribution<double> rad(0.0, 1.0);
     double u = rad(mt); //!< Random number between 0 and 1
     bool returnvalue = (u < 1.0-exp(-time*velocity/meanfreepath));
     return returnvalue;
@@ -234,7 +234,7 @@ bool collision_probability(double time, double velocity, double meanfreepath,
  *  convert a velocity in spherical coordinates to a velocity in cartesian
  *  coordinates, at a position given in spherical coordinates.
  */
-void velocity_in_cartesian_coords(double* v, double phi, double theta, 
+void velocity_in_cartesian_coords(double* v, double phi, double theta,
     double* vx, double* vy, double* vz)
 {
     *vx = (v[0] * cos(phi) * sin(theta))
@@ -273,15 +273,15 @@ void nrv_pair(double sd, double* nrv1, double* nrv2, std::mt19937 &mt)
     *nrv2 = sd * r * sin(theta);
 }
 
-/** @brief probability distribution function of inclination angle theta, under a 
+/** @brief probability distribution function of inclination angle theta, under a
  *  flow mach u.
  *  @param theta the angle of inclination of the distribution
  *  @param u flow velocity normalised to thermal velocity
  *  @param sigma standard deviation of the distribution
- *  @return double 
+ *  @return double
  *
- *  probability distribution from inclination angle \p theta, under a flow mach 
- *  \p u 
+ *  probability distribution from inclination angle \p theta, under a flow mach
+ *  \p u
  */
 double thetaPDF(double theta, double u, double sigma)
 {
@@ -294,8 +294,8 @@ double thetaPDF(double theta, double u, double sigma)
  *  @param u flow velocity normalised to thermal velocity
  *  @param sigma standard deviation of the distribution
  *  @param tol the tolerance of maximisation function, default=1e-6
- *  probability distribution from inclination angle \p theta, under a flow mach 
- *  \p u 
+ *  probability distribution from inclination angle \p theta, under a flow mach
+ *  \p u
  *
  *  Evaluate maximum value of theta pdf, for use in rejection sampling
  */
@@ -310,7 +310,7 @@ double thetaPDFMax(double u, double sigma, double tol=1e-6)
         theta = theta_0;
         while (theta < theta_1)
         {
-            if (thetaPDF(theta,u,sigma) >= thetaPDF(theta-d_theta,u,sigma) 
+            if (thetaPDF(theta,u,sigma) >= thetaPDF(theta-d_theta,u,sigma)
                 && (thetaPDF(theta,u,sigma) >= thetaPDF(theta+d_theta,u,sigma)))
             {
                 theta_0 = theta-d_theta;
@@ -339,20 +339,20 @@ double thetaPDFMax(double u, double sigma, double tol=1e-6)
  *  @param ThermalVel the thermal velocity defining width of distribution
  *  @param mt mersenne twister which generates random numbers
  *
- *  Generate the random initial positions and velocities of particles over 
+ *  Generate the random initial positions and velocities of particles over
  *  distributions determined by switches. Default is uniformly distributed
- *  positions over circular area with velocities given by rand_mwts(). 
+ *  positions over circular area with velocities given by rand_mwts().
  *  Spherical injection and point injection are also possible
  */
-void GenerateOrbit(threevector &Position, threevector &Velocity, 
-    const double &ImpactParameter, const double &ProbUpper, const double &zmin, 
+void GenerateOrbit(threevector &Position, threevector &Velocity,
+    const double &ImpactParameter, const double &ProbUpper, const double &zmin,
     const double zmax, const double DriftNorm, const double ThermalVel,
     const double xThetaPDFMax, std::mt19937 &mt){
 
     // ***** DEFINE RANDOM NUMBER GENERATOR ***** //
-    //!< See 
+    //!< See
     //!< https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
-    //!< search for 
+    //!< search for
     //!< "Each component of the velocity vector has a normal distribution"
 
     std::uniform_real_distribution<double> rad(0.0, 1.0);
@@ -375,8 +375,8 @@ void GenerateOrbit(threevector &Position, threevector &Velocity,
         Position.setx(ImpactParameter*sin(theta_pos)*cos(phi_pos));
         Position.sety(ImpactParameter*sin(theta_pos)*sin(phi_pos));
         Position.setz(ImpactParameter*cos(theta_pos));
-    
-    
+
+
         // ***** RANDOMISE VELOCITY SPHERICALLY ***** //
 /*  POT Style velocity generation
         double v[3],v_temp[3];  //!< 0 is v_r, 1 is v_phi, and 2 is v_theta
@@ -385,11 +385,11 @@ void GenerateOrbit(threevector &Position, threevector &Velocity,
 
         if (v[0] > 0.0) {
             //!< No point injecting a particle at the outer boundary
-            //!<   with positive radial velocity. 
+            //!<   with positive radial velocity.
             v[0] = -v[0];
         }
 */
-        
+
         double invel = rand_mwts(0.0,ThermalVel,mt);
         std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
         double v[3], v_temp[3];
@@ -400,14 +400,14 @@ void GenerateOrbit(threevector &Position, threevector &Velocity,
         /* Translate the injection velocity in spherical coordinates into
            the desired Cartesian coordinates. Luckily I already had this
            worked out for John and me's spherical absorber problem! */
-        velocity_in_cartesian_coords(v, phi_pos, theta_pos, 
+        velocity_in_cartesian_coords(v, phi_pos, theta_pos,
             &(v_temp[0]), &(v_temp[1]), &(v_temp[2]));
 
         Velocity.setx(v_temp[0]);
         Velocity.sety(v_temp[1]);
         Velocity.setz(v_temp[2]+DriftNorm);
 
-        //!< For case of flow, if the injected particle is 
+        //!< For case of flow, if the injected particle is
         //!< expected to leave the simulation domain immediately,
         //!< reflect the position
         if( Velocity.getz()*Position.getz() > 0.0 )
@@ -435,10 +435,10 @@ void GenerateOrbit(threevector &Position, threevector &Velocity,
         double theta_pos = 2*PI*rad(mt);
         Position.setx(radial_pos*cos(theta_pos));
         Position.sety(radial_pos*sin(theta_pos));
-    
+
         // ***** RANDOMISE VELOCITY CYLINDRICALLY ***** //
         // Following work from:
-        // Generating equally weighted test particles from the one-way flux of 
+        // Generating equally weighted test particles from the one-way flux of
         // a drifting Maxwellian
         // T Makkonen, M I Airila & T Kurki-Suonio
         // http://iopscience.iop.org/article/10.1088/0031-8949/90/1/015204/data
@@ -447,12 +447,12 @@ void GenerateOrbit(threevector &Position, threevector &Velocity,
 
         if( rad(mt) > ProbUpper ){
             Position.setz(zmax);
-            // Generate z-velocity here to determine starting position 
-            invel = -rand_mwts(-DriftNorm,ThermalVel,mt);   
+            // Generate z-velocity here to determine starting position
+            invel = -rand_mwts(-DriftNorm,ThermalVel,mt);
         }else{
             Position.setz(zmin);
-            // Generate z-velocity here to determine starting position 
-            invel = rand_mwts(DriftNorm,ThermalVel,mt); 
+            // Generate z-velocity here to determine starting position
+            invel = rand_mwts(DriftNorm,ThermalVel,mt);
         }
         std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
 
@@ -470,26 +470,26 @@ void GenerateOrbit(threevector &Position, threevector &Velocity,
  *  @param Velocity reference to the three vector of particle velocity
  *  @param SPEC_CHARGE the charge of plasma particle species
  *
- *  Solve particle trajectories explicitly by the Boris algorithm. updates 
- *  velocity using the Boris method, Birdsall, Plasma Physics via Computer 
+ *  Solve particle trajectories explicitly by the Boris algorithm. updates
+ *  velocity using the Boris method, Birdsall, Plasma Physics via Computer
  *  Simulation, p.62
  */
-static void UpdateVelocityBoris(double MASS, const threevector& Efield, 
-    const threevector& BField, double dt, threevector &Velocity, 
+static void UpdateVelocityBoris(double MASS, const threevector& Efield,
+    const threevector& BField, double dt, threevector &Velocity,
     const int SPEC_CHARGE){
 
     /*magnitude of t, squared*/
     double t_mag2 = (BField*0.5*SPEC_CHARGE*dt).square();
 
     /*v prime*/
-    threevector v_prime = Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt 
+    threevector v_prime = Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt
         + ((Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt)^BField
         *0.5*SPEC_CHARGE*dt);
-    
+
     /*v prime*/
-    threevector v_plus = Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt 
+    threevector v_plus = Velocity + Efield*0.5*(SPEC_CHARGE/MASS)*dt
         + (v_prime^(2.0*BField*0.5*SPEC_CHARGE*dt*(1.0/(1.0+t_mag2))));
-    
+
     /*v n+1/2*/
     Velocity = v_plus + Efield*0.5*(SPEC_CHARGE/MASS)*dt;
 }
@@ -500,11 +500,11 @@ static void UpdateVelocityBoris(double MASS, const threevector& Efield,
  *  @param COULOMB_NORM the normalisation of the electric field
  *  @return threevector of the coulomb electric field at \p Position
  *
- *  Calculate the coulomb electric field for a \p Charge at position 
+ *  Calculate the coulomb electric field for a \p Charge at position
  *  \p Position with normalisation \p COULOMB_NORM
  */
 #ifdef COULOMB_POTENTIAL
-threevector CoulombField(const threevector &Position, double Charge, 
+threevector CoulombField(const threevector &Position, double Charge,
     double COULOMB_NORM){
     return (COULOMB_NORM*Charge/Position.square())*Position.getunit();
 }
@@ -517,12 +517,12 @@ threevector CoulombField(const threevector &Position, double Charge,
  *  @param COULOMB_NORM the normalisation of the electric field
  *  @return threevector of the debye-huckel electric field at \p Position
  *
- *  Calculate the debye-huckel electric field for a \p Charge at position 
- *  \p Position with normalisation \p COULOMB_NORM and debye length 
+ *  Calculate the debye-huckel electric field for a \p Charge at position
+ *  \p Position with normalisation \p COULOMB_NORM and debye length
  *  \p DebyeLength
  */
 #ifdef DEBYE_POTENTIAL
-threevector DebyeHuckelField(const threevector &Position, double Charge, 
+threevector DebyeHuckelField(const threevector &Position, double Charge,
     double DebyeLength, double COULOMB_NORM){
     if(Charge==0.0) return threevector(0.0,0.0,0.0);
     return COULOMB_NORM*Charge*(1.0/(Position.mag3()))
@@ -538,12 +538,12 @@ threevector DebyeHuckelField(const threevector &Position, double Charge,
  *  @param COULOMB_NORM the normalisation of the electric field
  *  @return threevector of the parabolic electric field at \p Position
  *
- *  Calculate the parabolic electric field for a \p Charge at position 
- *  \p Position with normalisation \p COULOMB_NORM and length scale 
+ *  Calculate the parabolic electric field for a \p Charge at position
+ *  \p Position with normalisation \p COULOMB_NORM and length scale
  *  \p SheathLength
  */
 #ifdef PARABOLIC_POTENTIAL
-threevector ParabolicField(const threevector &Position, double Charge, 
+threevector ParabolicField(const threevector &Position, double Charge,
     double SheathLength, double COULOMB_NORM){
     if( (Position.mag3()-1.0) > SheathLength ) return threevector(0.0,0.0,0.0);
     return (-2.0*COULOMB_NORM*Charge*(Position.mag3()-1.0-SheathLength)
@@ -555,7 +555,7 @@ threevector ParabolicField(const threevector &Position, double Charge,
  *  @param Position reference to the three vector of particle position
  *  @return threevector of the custom electric field at \p Position
  *
- *  Find the approximate custom electric field at position 
+ *  Find the approximate custom electric field at position
  *  \p Position
  */
 #ifdef CUSTOM_POTENTIAL
@@ -569,11 +569,11 @@ threevector CustomField(const threevector &Position, Field_Map &this_field_map){
  *  @param argv the character array defining user command line inputs
  *  @return return status defining the status of the program
  *
- *  DiMPl calculates the trajectories of ions and electrons in the vicinity 
+ *  DiMPl calculates the trajectories of ions and electrons in the vicinity
  *  of a charged conducting sphere. See README and docs for more information.
  */
 int main(int argc, char* argv[]){
-    
+
     // ***** TIMER AND FILE DECLERATIONS        ***** //
     clock_t begin = clock();
     std::string filename = "Data/DiMPl";
@@ -591,7 +591,7 @@ int main(int argc, char* argv[]){
     DECLARE_TOT();    //!< Data file for the particle totals
     DECLARE_REF();    //!< Data file for the reflections
     DECLARE_AXIS();   //!< Data file for tracking free dust axis
-    std::ofstream RunDataFile;   //!< Data file for containing the run 
+    std::ofstream RunDataFile;   //!< Data file for containing the run
     std::ofstream InputDataFile; //!< Data file for containing the input
     #ifdef CUSTOM_POTENTIAL
     const std::string FIELD_DIRECTORY = "Custom_Fields";
@@ -607,12 +607,12 @@ int main(int argc, char* argv[]){
     double Radius    = 1e-6;  //!< m, Radius of dust
     double Spin      = 0.0;   //!< hz, Initial rotation rate
     double Density   = 19600; //!< kg m^-^3, Tungsten
-    double Potential = -2.5;  //!< Normalised Potential, 
+    double Potential = -2.5;  //!< Normalised Potential,
     double BMag      = 1.0;   //!< Tesla, Magnitude of magnetic field
     double BMagIn    = BMag;  //!< (arb), input magnetic field, in Tesla
     bool   NormVars  = false; //!< Normalised to Sonmor & Laframboise?
     double a1        = 1.0;   //!< Semi-axis for x in dust-grain radii
-    double a2        = 1.0;   //!< Semi-axis for y in dust-grain radii 
+    double a2        = 1.0;   //!< Semi-axis for y in dust-grain radii
     double a3        = 1.0;   //!< Semi-axis for z in dust-grain radii
     #ifdef FREE_AXIS
         threevector DustAxis(0.0,0.0,0.0);
@@ -658,7 +658,7 @@ int main(int argc, char* argv[]){
     // ***** RANDOM NUMBER GENERATOR        ***** //
     //!< Arb, Seed for the random number generator
     double seed     = 1.0;
-    
+
     // ************************************************** //
 
     // ***** DETERMINE USER INPUT ***** //
@@ -670,79 +670,79 @@ int main(int argc, char* argv[]){
         if     ( arg == "--help"    || arg == "-h" ){
             show_usage( argv[0]); return 0;
         }
-        else if( arg == "--radius"  || arg == "-r" )    
+        else if( arg == "--radius"  || arg == "-r" )
             InputStatus = InputFunction(argc,argv,i,ss0,Radius);
-        else if( arg == "--spin"    || arg == "-s" )    
+        else if( arg == "--spin"    || arg == "-s" )
             InputStatus = InputFunction(argc,argv,i,ss0,Spin);
-        else if( arg == "--semix"   || arg == "-a1")    
+        else if( arg == "--semix"   || arg == "-a1")
             InputStatus = InputFunction(argc,argv,i,ss0,a1);
-        else if( arg == "--semiy"   || arg == "-a2")    
+        else if( arg == "--semiy"   || arg == "-a2")
             InputStatus = InputFunction(argc,argv,i,ss0,a2);
-        else if( arg == "--semiz"   || arg == "-a3")    
+        else if( arg == "--semiz"   || arg == "-a3")
             InputStatus = InputFunction(argc,argv,i,ss0,a3);
-        else if( arg == "--density"     || arg == "-d" )    
+        else if( arg == "--density"     || arg == "-d" )
             InputStatus = InputFunction(argc,argv,i,ss0,Density);
-        else if( arg == "--efieldx"   || arg == "-ex" )    
+        else if( arg == "--efieldx"   || arg == "-ex" )
             InputStatus = InputFunction(argc,argv,i,ss0,EFieldx);
-        else if( arg == "--efieldy"   || arg == "-ey" )    
+        else if( arg == "--efieldy"   || arg == "-ey" )
             InputStatus = InputFunction(argc,argv,i,ss0,EFieldy);
-        else if( arg == "--efieldz"   || arg == "-ez" )    
+        else if( arg == "--efieldz"   || arg == "-ez" )
             InputStatus = InputFunction(argc,argv,i,ss0,EFieldz);
-        else if( arg == "--potential"   || arg == "-p" )    
+        else if( arg == "--potential"   || arg == "-p" )
             InputStatus = InputFunction(argc,argv,i,ss0,Potential);
-        else if( arg == "--magfield"    || arg == "-m" )    
+        else if( arg == "--magfield"    || arg == "-m" )
             InputStatus = InputFunction(argc,argv,i,ss0,BMagIn);
-        else if( arg == "--normalised"  || arg == "-n" )    
+        else if( arg == "--normalised"  || arg == "-n" )
             InputStatus = InputFunction(argc,argv,i,ss0,NormVars);
-        else if( arg == "--etemp"   || arg == "-te")    
+        else if( arg == "--etemp"   || arg == "-te")
             InputStatus = InputFunction(argc,argv,i,ss0,eTemp);
-        else if( arg == "--edensity"    || arg == "-ne")    
+        else if( arg == "--edensity"    || arg == "-ne")
             InputStatus = InputFunction(argc,argv,i,ss0,eDensity);
-        else if( arg == "--imass"   || arg == "-mi")    
+        else if( arg == "--imass"   || arg == "-mi")
             InputStatus = InputFunction(argc,argv,i,ss0,iMass);
-        else if( arg == "--itemp"   || arg == "-ti")    
+        else if( arg == "--itemp"   || arg == "-ti")
             InputStatus = InputFunction(argc,argv,i,ss0,iTemp);
-        else if( arg == "--idensity"    || arg == "-ni")    
+        else if( arg == "--idensity"    || arg == "-ni")
             InputStatus = InputFunction(argc,argv,i,ss0,iDensity);
-        else if( arg == "--ichance"     || arg == "-c" )    
+        else if( arg == "--ichance"     || arg == "-c" )
             InputStatus = InputFunction(argc,argv,i,ss0,iChance);
-        else if( arg == "--zmaxcoeff"   || arg == "-u" )    
+        else if( arg == "--zmaxcoeff"   || arg == "-u" )
             InputStatus = InputFunction(argc,argv,i,ss0,zMaxCoeff);
-        else if( arg == "--zmincoeff"   || arg == "-l" )    
+        else if( arg == "--zmincoeff"   || arg == "-l" )
             InputStatus = InputFunction(argc,argv,i,ss0,zMinCoeff);
-        else if( arg == "--zboundforce" || arg == "-z" )    
+        else if( arg == "--zboundforce" || arg == "-z" )
             InputStatus = InputFunction(argc,argv,i,ss0,ZBoundForce);
-        else if( arg == "--impactpar"   || arg == "-b" )    
+        else if( arg == "--impactpar"   || arg == "-b" )
             InputStatus = InputFunction(argc,argv,i,ss0,ImpactPar);
-        else if( arg == "--forceimppar" || arg == "-f" )    
+        else if( arg == "--forceimppar" || arg == "-f" )
             InputStatus = InputFunction(argc,argv,i,ss0,ForceImpPar);
-        else if( arg == "--imax"    || arg == "-i" )    
+        else if( arg == "--imax"    || arg == "-i" )
             InputStatus = InputFunction(argc,argv,i,ss0,imax);
         #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
-        else if( arg == "--jmin"    || arg == "-jm")    
+        else if( arg == "--jmin"    || arg == "-jm")
             InputStatus = InputFunction(argc,argv,i,ss0,jmin);
-        else if( arg == "--jfin"    || arg == "-jf")    
+        else if( arg == "--jfin"    || arg == "-jf")
             InputStatus = InputFunction(argc,argv,i,ss0,jfin);
         #endif
         #if defined VARIABLE_CSCALE
         else if( arg == "--chargescale" || arg == "-cs")
             InputStatus = InputFunction(argc,argv,i,ss0,ChargeScale);
         #endif
-        else if( arg == "--jmax"    || arg == "-j" )    
+        else if( arg == "--jmax"    || arg == "-j" )
             InputStatus = InputFunction(argc,argv,i,ss0,jmax);
-        else if( arg == "--rmax"    || arg == "-rm")    
+        else if( arg == "--rmax"    || arg == "-rm")
             InputStatus = InputFunction(argc,argv,i,ss0,reflectionsmax);
-        else if( arg == "--time"    || arg == "-t" )    
+        else if( arg == "--time"    || arg == "-t" )
             InputStatus = InputFunction(argc,argv,i,ss0,TimeStepFactor);
-        else if( arg == "--number"  || arg == "-no")    
+        else if( arg == "--number"  || arg == "-no")
             InputStatus = InputFunction(argc,argv,i,ss0,num);
         else if( arg == "--driftvel"    || arg == "-v" )
             InputStatus = InputFunction(argc,argv,i,ss0,DriftVel);
-        else if( arg == "--seed"    || arg == "-se")    
+        else if( arg == "--seed"    || arg == "-se")
             InputStatus = InputFunction(argc,argv,i,ss0,seed);
-        else if( arg == "--saves"   || arg == "-sa")    
+        else if( arg == "--saves"   || arg == "-sa")
             InputStatus = InputFunction(argc,argv,i,ss0,Saves);
-        else if( arg == "--output"  || arg == "-o" )    
+        else if( arg == "--output"  || arg == "-o" )
             InputStatus = InputFunction(argc,argv,i,ss0,suffix);
         #if defined CUSTOM_POTENTIAL
 	else if( arg == "--customfield" || arg == "-cf")
@@ -760,23 +760,23 @@ int main(int argc, char* argv[]){
 
     // ***** INPUT CHECKING ***** //
     if( Radius < 0.0 )
-        std::cerr << "\nError! Probe Radius is negative\nRadius : " 
+        std::cerr << "\nError! Probe Radius is negative\nRadius : "
             << Radius;
     if( Density < 0.0 )
-        std::cerr << "\nError! Probe Density is negative\nDensity : " 
+        std::cerr << "\nError! Probe Density is negative\nDensity : "
             << Density;
     if( eTemp < 0.0 )
-        std::cerr << "\nError! Electron Temperature is negative\neTemp : " 
+        std::cerr << "\nError! Electron Temperature is negative\neTemp : "
             << eTemp;
     if( eDensity < 0.0 )
         std::cerr << "\nError! Electron Density is negative\neDensity : " << eDensity;
     if( iMass < 1.0 )
         std::cerr << "\nError! Ion Mass is less than 1\niMass : " << iMass;
     if( iTemp < 0.0 )
-        std::cerr << "\nError! Ion Temperature is negative\niTemp : " 
+        std::cerr << "\nError! Ion Temperature is negative\niTemp : "
             << iTemp;
     if( iDensity < 0.0 )
-        std::cerr << "\nError! Ion Density is negative\niDensity : " 
+        std::cerr << "\nError! Ion Density is negative\niDensity : "
             << iDensity;
     if( iChance < 0.0 && iChance != -0.5 )
         std::cout << "\nWarning! Chance of generating Ion is negative, "
@@ -791,7 +791,7 @@ int main(int argc, char* argv[]){
         std::cerr << "\nError! Force Vertical Boundaries Parameter is "
             << "negative\nZBoundForce : " << ZBoundForce;
     if( ImpactPar < 0.0 )
-        std::cerr << "\nError! Impact Parameter is negative\nImpactPar : " 
+        std::cerr << "\nError! Impact Parameter is negative\nImpactPar : "
             << ImpactPar;
     if( ForceImpPar < 0.0 )
         std::cerr << "\nError! Force Impact Parameter is negative\n"
@@ -801,11 +801,11 @@ int main(int argc, char* argv[]){
             << "reflectionsmax : " << reflectionsmax;
     if( imax < jmax )
         std::cerr << "\nError! Total particle goal less than captured particle "
-            << "goal\nimax < jmax : " 
+            << "goal\nimax < jmax : "
             << imax << " < " << jmax;
     if( jmax < num )
         std::cout << "\nWarning! Save interval less than captured particle "
-            << "goal. No Angular data recorded\nnum < jmax : " 
+            << "goal. No Angular data recorded\nnum < jmax : "
             << num << " < " << jmax;
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     if( jfin == jmin ){
@@ -832,7 +832,7 @@ int main(int argc, char* argv[]){
         //Note to self: some method for quitting the program. Put default string as constant defined elsewhere
     }
     #endif
-    
+
 
     // ************************************************** //
 
@@ -848,13 +848,13 @@ int main(int argc, char* argv[]){
     #if defined CUSTOM_POTENTIAL
     InputDataFile << "\tcf";
     #endif
-    InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2 
-        << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn 
-        << "\t" << NormVars << "\t" << eTemp << "\t" << eDensity << "\t" 
-        << iMass << "\t" << iTemp << "\t" << iDensity << "\t" << iChance 
+    InputDataFile << "\n" << Radius << "\t" << Spin << "\t" << a1 << "\t" << a2
+        << "\t" << a3 << "\t" << Density  << "\t" << Potential << "\t" << BMagIn
+        << "\t" << NormVars << "\t" << eTemp << "\t" << eDensity << "\t"
+        << iMass << "\t" << iTemp << "\t" << iDensity << "\t" << iChance
         << "\t" << zMaxCoeff << "\t" << zMinCoeff << "\t" << ZBoundForce
-        << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t" 
-        << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel 
+        << "\t" << ImpactPar << "\t" << ForceImpPar << "\t" << imax << "\t"
+        << jmax  << "\t" << TimeStepFactor << "\t" << num << "\t" << DriftVel
         << "\t" << seed << "\t" << Saves << "\t" << suffix;
     #if defined VARIABLE_CSCALE || defined VARIABLE_ASCALE
     InputDataFile << "\t" << jmin << "\t" << jfin;
@@ -888,7 +888,7 @@ int main(int argc, char* argv[]){
     //!< Otherwise, singly charged electron
 
     //!< If species is positively charged, we assume it's a singly charged ion. Otherwise, singly charged electron
-    double MASS = iMass*dimplconsts::Mp;  //!< kg, This is the Mass to which quantities are normalised 
+    double MASS = iMass*dimplconsts::Mp;  //!< kg, This is the Mass to which quantities are normalised
     a1 = 1.0/(a1*a1);
     a2 = 1.0/(a2*a2);
     a3 = 1.0/(a3*a3);
@@ -898,16 +898,16 @@ int main(int argc, char* argv[]){
     if( NormVars ){
         if( iChance == 0.0 ){ // If we are simulating only Electrons
             // BMag normalised to Electrons
-            BMag = sqrt(PI/2.0)*BMagIn*sqrt(Me*eTemp/echarge)/Radius;   
+            BMag = sqrt(PI/2.0)*BMagIn*sqrt(Me*eTemp/echarge)/Radius;
         }else{  // If we are simulating only Ions or Ions and electrons.
             // BMag normalised to Ions
-            BMag = sqrt(PI/2.0)*BMagIn*sqrt(MASS*iTemp/echarge)/Radius;   
+            BMag = sqrt(PI/2.0)*BMagIn*sqrt(MASS*iTemp/echarge)/Radius;
         }
         DriftVel = DriftVel*sqrt(echarge*iTemp/MASS);
     }else{
         // Convert from SI Potential to normalised potential
         BMag = BMagIn;
-        Potential = Potential*echarge/(echarge*eTemp); 
+        Potential = Potential*echarge/(echarge*eTemp);
     }
 
     // Normalise TIME to the Gyro-Radius of an Ion at B=100T
@@ -918,13 +918,13 @@ int main(int argc, char* argv[]){
     double Tau = MASS/(echarge*MAGNETIC);
 
     // Normalised Charge,
-    double PotentialNorm 
-        = Potential*(eTemp*echarge)*4*PI*epsilon0*Radius/pow(echarge,2.0);  
-    double DriftNorm     
+    double PotentialNorm
+        = Potential*(eTemp*echarge)*4*PI*epsilon0*Radius/pow(echarge,2.0);
+    double DriftNorm
         = DriftVel*Tau/(Radius);
-    double DebyeLength   
+    double DebyeLength
         = sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2.0)))/Radius;
-    double A_Coulomb     
+    double A_Coulomb
         = MASS/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
 
     #ifdef VARIABLE_CSCALE
@@ -933,9 +933,9 @@ int main(int argc, char* argv[]){
     }
     #endif
     #ifdef VARIABLE_ASCALE
-    double AngularScalei 
+    double AngularScalei
         = MASS*iDensity*sqrt(echarge*iTemp/MASS)*Tau*0.001/(Radius);
-    double AngularScalee 
+    double AngularScalee
         = MASS*eDensity*sqrt(echarge*eTemp/MASS)*Tau*0.001/(MassRatio*Radius);
     #else
     double AngularScalei = 1.0;
@@ -950,7 +950,7 @@ int main(int argc, char* argv[]){
     threevector Bhat(0.0,0.0,1.0);  // Direction of magnetic field, z dir.
 
     // ************************************************** //
-    
+
 
     // ***** DEFINE SIMULATION SPACE        ***** //
     // See: https://en.wikipedia.org/wiki/Maxwell%E2%80%93Boltzmann_distribution
@@ -969,28 +969,28 @@ int main(int argc, char* argv[]){
         TimeStepe = 0.01/eThermalVel;
     }
     if( BMag != 0.0 ){ // If Magnetic field is non-zero
-        // Calculate thermal GyroRadius for ions and electrons normalised to 
+        // Calculate thermal GyroRadius for ions and electrons normalised to
         // dust grain radii
-        iRhoTherm   = iThermalVel/(BMag/MAGNETIC); 
-        eRhoTherm   = eThermalVel/(pow(MassRatio,2)*BMag/MAGNETIC); 
+        iRhoTherm   = iThermalVel/(BMag/MAGNETIC);
+        eRhoTherm   = eThermalVel/(pow(MassRatio,2)*BMag/MAGNETIC);
 
         if( NormVars ){
             iRhoTherm   = 1.0/BMagIn;
             eRhoTherm   = 1.0/BMagIn;
-            
+
             // If there is a finite probability of simulating ions
-            if( iChance != 0.0 ){ 
+            if( iChance != 0.0 ){
                 eRhoTherm = 1.0/(BMagIn*MassRatio);
             }
         }
         // Time step limited by gyro-motion
         if( TimeStepFactor*eRhoTherm/eThermalVel < TimeStepe ){
             // 1% of Gyro-radius size
-            TimeStepe = TimeStepFactor*eRhoTherm/eThermalVel;   
+            TimeStepe = TimeStepFactor*eRhoTherm/eThermalVel;
         }
         if( TimeStepFactor*iRhoTherm/iThermalVel < TimeStepi ){
             // 1% of Gyro-radius size
-            TimeStepi = TimeStepFactor*iRhoTherm/iThermalVel;   
+            TimeStepi = TimeStepFactor*iRhoTherm/iThermalVel;
         }
         if( Potential == 0.0 ){
             // Uncharged sphere, time step limited by gyro-motion or thermal
@@ -1012,7 +1012,7 @@ int main(int argc, char* argv[]){
             TimeStepi   = TimeStepFactor*DebyeLength/iThermalVel;
         }
         if( TimeStepFactor*DebyeLength/eThermalVel < TimeStepe ){
-            TimeStepe   = TimeStepFactor*DebyeLength/eThermalVel;  
+            TimeStepe   = TimeStepFactor*DebyeLength/eThermalVel;
         }
         #endif
         #ifdef PARABOLIC_POTENTIAL
@@ -1020,7 +1020,7 @@ int main(int argc, char* argv[]){
             TimeStepi   = TimeStepFactor*DebyeLength/iThermalVel;
         }
         if( TimeStepFactor*DebyeLength/eThermalVel < TimeStepe ){
-            TimeStepe   = TimeStepFactor*DebyeLength/eThermalVel;  
+            TimeStepe   = TimeStepFactor*DebyeLength/eThermalVel;
         }
         #endif
     }
@@ -1032,9 +1032,9 @@ int main(int argc, char* argv[]){
     }else{
         semiaxisDistortion=a2;
     }
-    double iImpactParameter 
+    double iImpactParameter
         = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(iRhoTherm+DebyeLength);
-    double eImpactParameter 
+    double eImpactParameter
         = 1.0/sqrt(semiaxisDistortion)+ImpactPar*(eRhoTherm+DebyeLength);
 
     #ifdef SELF_CONS_CHARGE
@@ -1057,10 +1057,10 @@ int main(int argc, char* argv[]){
 
     #ifdef COULOMB_POTENTIAL
     // Balance Coulomb to thermal energy
-    double iCoulombImpactParameter  
+    double iCoulombImpactParameter
         = 10.0*fabs(echarge*echarge*PotentialNorm
-        /(2*PI*epsilon0*echarge*iTemp))/Radius; 
-    double eCoulombImpactParameter  
+        /(2*PI*epsilon0*echarge*iTemp))/Radius;
+    double eCoulombImpactParameter
         = 10.0*fabs(echarge*echarge*PotentialNorm
         /(2*PI*epsilon0*echarge*eTemp))/Radius;
     ezmax += zMaxCoeff*eCoulombImpactParameter;
@@ -1078,10 +1078,10 @@ int main(int argc, char* argv[]){
     izmax += zMaxCoeff*DebyeLength;
     izmin -= zMinCoeff*DebyeLength;
     #elif defined CUSTOM_POTENTIAL
-    ezmax += zMaxCoeff;
-    ezmin -= zMinCoeff;
-    izmax += zMaxCoeff;
-    izmin -= zMinCoeff;
+    ezmax += zMaxCoeff*DebyeLength;
+    ezmin -= zMinCoeff*DebyeLength;
+    izmax += zMaxCoeff*DebyeLength;
+    izmin -= zMinCoeff*DebyeLength;
     #else
     ezmax += zMaxCoeff;
     ezmin -= zMinCoeff;
@@ -1102,59 +1102,26 @@ int main(int argc, char* argv[]){
     #ifdef CUSTOM_POTENTIAL
     // Check Dust has field described in the vicinity
     // Check field defined up to the z lim and provide spherical-cylindrical-cartesian check
-    const double simulation_min = std::min(ezmin,izmin);
-    const double simulation_max = std::max(ezmax,izmax);
-    //Dust radius 1/sqrt a1
-    //Note to self change the root 3 cube thing
+    std::cout<<"Debye Length: "<<DebyeLength<<std::endl;
+    bool is_spherical_injection;
+    bool is_cylindrical_injection;
     #ifdef SPHERICAL_INJECTION
     is_spherical_injection = true;
-    const double maxfactor = 1.01;
-    this_field_map.check_spherical_coordinate_range(ImpactParameter, maxfactor);
+    is_cylindrical_injection = false;
     #else
-    this_field_map.check_cylindrical_coordinate_range(simulation_min, simulation_max);
+    is_spherical_injection = false;
+    is_cylindrical_injection = true;
     #endif
-    
-    /**
-    #ifdef NO_SPHERE
-        -
-    #elif defined DISK
-    const double maxval = 1.0;
-    this_field_map.check_disk_coordinate_range(a1, a2, maxval);
-    #else 
-    const double minval = 1.0;
-    this_field_map.check_disk_coordinate_range(a1, a2, a3, minval);
-    #endif
-    // Note to self: only got as far as checking z range, still need to do dust coverage and x-y max range
-    this_field_map.check_coordinate_system(is_spherical_injection);
-    this_field_map.check_coordinate_range(min,max);
-    this_field_map.check_dust_range(dust_radius);
-    
-                // ***** DEFINE SIMULATION BOUNDARY CONDITIONS       ***** //
-                #ifdef SPHERICAL_INJECTION
-                    EdgeCondition = ((Position.getx()*Position.getx()
-                        +Position.gety()*Position.gety()
-                        +Position.getz()*Position.getz()) 
-                    <= ImpactParameter*ImpactParameter*1.01);
-                #else
-                    EdgeCondition = (Position.getz() >= zmin 
-                        && Position.getz() <= zmax);
-                #endif
-                
-                
-                    #ifdef NO_SPHERE
-                        SphereCondition = true;
-                    #elif defined DISK
-                        SphereCondition 
-                            = ( (Velocity.getz()*Position.getz() < 0.0) 
-                            && (sqrt(Position.getx()*Position.getx()*a1
-                            +Position.gety()*Position.gety()*a2) < 1.0) );
-                    #else
-                        SphereCondition 
-                            = (sqrt(Position.getx()*Position.getx()*a1
-                            +Position.gety()*Position.gety()*a2
-                            +Position.getz()*Position.getz()*a3) > 1.0);
-                    #endif
-    */
+    check_domain(is_spherical_injection, is_cylindrical_injection);
+    const std::vector<double> new_e_lim_vals = check_domain_limit_complicity(is_spherical_injection, is_cylindrical_injection, ezmin, ezmax, eImpactParameter);
+    ezmin = new_e_lim_vals[0];
+    ezmax = new_e_lim_vals[1];
+    eImpactParameter = new_e_lim_vals[2];
+
+    const std::vector<double> new_i_lim_vals = check_domain_limit_complicity(is_spherical_injection, is_cylindrical_injection, izmin, izmax, iImpactParameter);
+    izmin = new_i_lim_vals[0];
+    izmax = new_i_lim_vals[1];
+    iImpactParameter = new_i_lim_vals[2];
     #endif
     // ************************************************** //
 
@@ -1167,48 +1134,48 @@ int main(int argc, char* argv[]){
     double iThetaPDFMax = 0.0;
     double eThetaPDFMax = 0.0;
     #endif
-    
+
     // ************************************************** //
 
     // ***** DEFINE PROBABILITY OF ION GENERATION   ***** //
     // Define ratio of flux of electrons to ions
-    // The min and max heights must match as long as the ProbabilityOfIon 
+    // The min and max heights must match as long as the ProbabilityOfIon
     // is the same for both the top and bottom surfaces.
     assert(fabs(ezmax)==fabs(ezmin));
     assert(fabs(izmax)==fabs(izmin));
     #ifdef BOLTZMANN_DENSITY
         #ifdef SPHERICAL_INJECTION
             #ifdef COULOMB_POTENTIAL
-            double BoltzmanneDensity 
+            double BoltzmanneDensity
                 = eDensity*exp(PotentialNorm*echarge*echarge
                 /(4.0*PI*epsilon0*eImpactParameter*Radius*echarge*eTemp));
-            double BoltzmanniDensity 
+            double BoltzmanniDensity
                 = iDensity*exp(-PotentialNorm*echarge*echarge
                 /(4.0*PI*epsilon0*iImpactParameter*Radius*echarge*iTemp));
             #else
-            double BoltzmanneDensity 
+            double BoltzmanneDensity
                 = eDensity*exp(PotentialNorm*echarge*echarge
                 *exp(-(eImpactParameter-1.0)/DebyeLength)
                 /(4.0*PI*epsilon0*eImpactParameter*Radius*echarge*eTemp));
-            double BoltzmanniDensity 
+            double BoltzmanniDensity
                 = iDensity*exp(-PotentialNorm*echarge*
                 *exp(-(iImpactParameter-1.0)/DebyeLength)
                 /(4.0*PI*epsilon0*iImpactParameter*Radius*echarge*iTemp));
             #endif
         #else
             #ifdef COULOMB_POTENTIAL
-            double BoltzmanneDensity 
+            double BoltzmanneDensity
                 = eDensity*exp(PotentialNorm*echarge*echarge
                 /(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
-            double BoltzmanniDensity 
+            double BoltzmanniDensity
                 = iDensity*exp(-PotentialNorm*echarge*echarge
                 /(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
             #else
-            double BoltzmanneDensity 
+            double BoltzmanneDensity
                 = eDensity*exp(PotentialNorm*echarge*echarge
                 *exp(-(ezmax-1.0)/DebyeLength)
                 /(4.0*PI*epsilon0*ezmax*Radius*echarge*eTemp));
-            double BoltzmanniDensity 
+            double BoltzmanniDensity
                 = iDensity*exp(-PotentialNorm*echarge*echarge
                 *exp(-(izmax-1.0)/DebyeLength)
                 /(4.0*PI*epsilon0*izmax*Radius*echarge*iTemp));
@@ -1219,22 +1186,22 @@ int main(int argc, char* argv[]){
         double BoltzmanniDensity = iDensity;
     #endif
 
-    double PosFluxi 
+    double PosFluxi
         = BoltzmanniDensity*((iThermalVel/sqrt(2.0*PI))
         *exp(-0.5*DriftNorm*DriftNorm/(iThermalVel*iThermalVel))
         +DriftNorm*0.5*(1.0+erf(DriftNorm/(sqrt(2.0)*iThermalVel))))
         *pow(iImpactParameter,2);
-    double NegFluxi 
+    double NegFluxi
         = BoltzmanniDensity*((iThermalVel/sqrt(2.0*PI))
         *exp(-0.5*DriftNorm*DriftNorm/(iThermalVel*iThermalVel))
         -DriftNorm*0.5*(1.0+erf(-DriftNorm/(sqrt(2.0)*iThermalVel))))
         *pow(iImpactParameter,2);
-    double PosFluxe 
+    double PosFluxe
         = BoltzmanneDensity*((eThermalVel/sqrt(2.0*PI))
         *exp(-0.5*DriftNorm*DriftNorm/(eThermalVel*eThermalVel))
         +DriftNorm*0.5*(1.0+erf(DriftNorm/(sqrt(2.0)*eThermalVel))))
         *pow(eImpactParameter,2);
-    double NegFluxe 
+    double NegFluxe
         = BoltzmanneDensity*((eThermalVel/sqrt(2.0*PI))
         *exp(-0.5*DriftNorm*DriftNorm/(eThermalVel*eThermalVel))
         -DriftNorm*0.5*(1.0+erf(-DriftNorm/(sqrt(2.0)*eThermalVel))))
@@ -1250,8 +1217,8 @@ int main(int argc, char* argv[]){
     double ProbabilityOfIon = ProbOfPosFluxi+ProbOfNegFluxi;
     if( iChance >= 0.0 && iChance <= 1.0 ){
         ProbabilityOfIon = iChance;
-        TotalFluxProbability 
-            = ProbabilityOfIon*(PosFluxi + NegFluxi) 
+        TotalFluxProbability
+            = ProbabilityOfIon*(PosFluxi + NegFluxi)
             + (1.0-ProbabilityOfIon)*(PosFluxe + NegFluxe);
 
         ProbOfPosFluxe = (1.0-ProbabilityOfIon)*PosFluxe / TotalFluxProbability;
@@ -1293,7 +1260,7 @@ int main(int argc, char* argv[]){
 
     unsigned long long NumberOfIons = ProbabilityOfIon*imax;
     unsigned long long NumberOfElectrons = imax-NumberOfIons;
-    
+
     RunDataFile.open(filename + suffix);
     RunDataFile << "## Run Data File ##\n";
     RunDataFile << "#Date: " << dt;
@@ -1318,14 +1285,14 @@ int main(int argc, char* argv[]){
         <<"\na3 (1/Radius):\t\t"<<(1.0/sqrt(a3))<<"\nDensity (kg m^-^3):\t"
         <<Density<<"\nCharge (1/echarge):\t\t"<<PotentialNorm
         <<"\nB Field (T or Radius/GyroRad):\t"<<BMag
-        <<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength 
+        <<"\nDebyeLength (1/Radius):\t\t"<<DebyeLength
         <<"\nDrift Norm (Radius/Tau):\t"<<DriftNorm
         <<"\nTime Norm [Tau] (s):\t\t"<<Tau<<"\n\n"<<"RNG Seed (arb):\t\t"
         <<seed<<"\nOMP_THREADS (arb):\t"<<omp_get_max_threads()<<"\n\n";
 
     #ifdef SPHERICAL_INJECTION
         RunDataFile << "* SPHERICAL INJECTION *\n";
-    #else 
+    #else
         RunDataFile << "* CYLINDRICAL INJECTION *\n";
     #endif
     #ifdef NO_SPHERE
@@ -1366,11 +1333,11 @@ int main(int argc, char* argv[]){
 
     #ifdef VARIABLE_CSCALE
     // Initialise the mean charge as starting charge
-    double MeanChargeSave    = PotentialNorm;  
+    double MeanChargeSave    = PotentialNorm;
     double TotalChargeInSave = PotentialNorm;
     double MeanChargeDiff(0.0);    // Initial Mean charge diff is zero
     double OldMeanChargeDiff(0.0); // Initial Mean charge diff is zero
-    #endif  
+    #endif
 
     #ifdef VARIABLE_ASCALE
     threevector MeanAngularVelSave(0.0,0.0,Spin*Tau);
@@ -1383,7 +1350,7 @@ int main(int argc, char* argv[]){
     threevector LinearMomentumSum(0.0,0.0,0.0);
     threevector AngularMomentumSum(0.0,0.0,0.0);
     #endif
-    
+
     #ifdef TEST_ANGMOM
     threevector INITIAL_AMOM(0.0,0.0,0.0);
     threevector FINAL_AMOM(0.0,0.0,0.0);
@@ -1448,8 +1415,8 @@ int main(int argc, char* argv[]){
         double ImpactParameter;
         double ThermalVel;
         double xThetaPDFMax;
-        double zmax;   
-        double zmin;   
+        double zmax;
+        double zmin;
         double TimeStep;
         double TotalTime;
         double SpeciesMass;
@@ -1470,29 +1437,29 @@ int main(int argc, char* argv[]){
             // ***** LOOP UNTIL JMAX PARTICLES ARE COLLECTED    ***** //
             // Loop until we reach a certain number of particles jmax
             if( j <= jmax ){
-    
-                //std::cout << "\n" << omp_get_thread_num() << "/" 
+
+                //std::cout << "\n" << omp_get_thread_num() << "/"
                 //<< omp_get_num_threads();
-    
+
                 // ***** DETERMINE IF IT'S AN ELECTRON OR ION ***** //
                 // MassRatio squared because of absence of mass in Boris solver
                 #pragma omp critical
                 {
-                if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon 
-                    && i_simulated < NumberOfIons ){ 
+                if( rad(randnumbers[omp_get_thread_num()]) < ProbabilityOfIon
+                    && i_simulated < NumberOfIons ){
                     // If this is the case, we need to generate an ion
                     BMagNorm = BMag/MAGNETIC;
                     ImpactParameter=iImpactParameter;
                     ThermalVel=iThermalVel;
                     xThetaPDFMax=iThetaPDFMax;
-                    zmax    = izmax; 
+                    zmax    = izmax;
                     zmin    = izmin ;
                     TimeStep = TimeStepi;
                     SpeciesMass = 1.0;
                     ProbUpper = ProbOfPosFluxi/(ProbOfPosFluxi+ProbOfNegFluxi);
                     SPEC_CHARGE=1;
                     i_simulated = i_simulated + 1;
-                    
+
                 }else{ // If this is the case, we need to generate an electron
                     if( e_simulated < NumberOfElectrons ){
                         BMagNorm = BMag*pow(MassRatio,2)/MAGNETIC;
@@ -1503,7 +1470,7 @@ int main(int argc, char* argv[]){
                         zmin= ezmin; // Top of Simulation Domain, in Dust Radii
                         TimeStep = TimeStepe;
                         SpeciesMass = 1.0/pow(MassRatio,2);
-                        ProbUpper 
+                        ProbUpper
                             = ProbOfPosFluxe/(ProbOfPosFluxe+ProbOfNegFluxe);
                         SPEC_CHARGE=-1;
                         e_simulated = e_simulated + 1;
@@ -1512,11 +1479,11 @@ int main(int argc, char* argv[]){
                         ImpactParameter=iImpactParameter;
                         ThermalVel=iThermalVel;
                         xThetaPDFMax=iThetaPDFMax;
-                        zmax    = izmax; 
+                        zmax    = izmax;
                         zmin    = izmin ;
                         TimeStep = TimeStepi;
                         SpeciesMass = 1.0;
-                        ProbUpper 
+                        ProbUpper
                             = ProbOfPosFluxi/(ProbOfPosFluxi+ProbOfNegFluxi);
                         SPEC_CHARGE=-1;
                         SPEC_CHARGE=1;
@@ -1539,17 +1506,17 @@ int main(int argc, char* argv[]){
                     zmax,DriftNorm,ThermalVel,xThetaPDFMax,
                     randnumbers[omp_get_thread_num()]);
 
-                TotalTime = 0.0; 
+                TotalTime = 0.0;
                 InitialPos = Position;
                 InitialVel = Velocity;
 
                 // ************************************************** //
-    
+
 
                 // ***** TESTING AREA               ***** //
                 // ***** ANGULAR-MOMENTUM TEST          ***** //
                 #ifdef TEST_ANGMOM
-                #pragma omp critical 
+                #pragma omp critical
                 {
                     // For Angular Momentum Calculations
                     ADD_I_AMOM(SpeciesMass*(Position^Velocity));
@@ -1564,9 +1531,9 @@ int main(int argc, char* argv[]){
                     // For debugging look at initial positions
                     PRINT_VPD(Position); PRINT_VPD("\t");
                     PRINT_VPD(Velocity); PRINT_VPD("\t");
-                    PRINT_VPD(Velocity*(Position.getunit())); PRINT_VPD("\t");  
+                    PRINT_VPD(Velocity*(Position.getunit())); PRINT_VPD("\t");
                     PRINT_VPD( sqrt(pow(Velocity.getx(),2)
-                        +pow(Velocity.gety(),2))*SpeciesMass); 
+                        +pow(Velocity.gety(),2))*SpeciesMass);
                     PRINT_VPD("\n");    // For debugging look at gyro-radii
                 }
                 #endif
@@ -1574,7 +1541,7 @@ int main(int argc, char* argv[]){
                 C_INITIAL_VEL(); D_INITIAL_VEL();   // For energy calculations
                 C_INITIAL_POT(); D_INITIAL_POT();   // For energy calculations
                 #ifdef SAVE_APPROACH
-                    double MinPos 
+                    double MinPos
                         = sqrt(zmax*zmax+ImpactParameter*ImpactParameter);
                 #endif
                 // ***** RECORD TRACK DATA, DEBUG AND TEST  ***** //
@@ -1587,8 +1554,8 @@ int main(int argc, char* argv[]){
                     +Position.getz()*Position.getz()));
 
                 // ************************************************** //
-    
-    
+
+
                 // ***** TAKE INITIAL HALF STEP BACKWARDS ***** //
                 // Calculate Electric Field
                 #ifdef DEBYE_POTENTIAL
@@ -1609,26 +1576,26 @@ int main(int argc, char* argv[]){
                 #endif
 
                 UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,
-                    Velocity,SPEC_CHARGE);  
-    
+                    Velocity,SPEC_CHARGE);
+
                 OldPosition.setx(0.0);
                 OldPosition.sety(0.0);
                 OldPosition.setz(0.0);
-    
+
                 // ************************************************** //
-    
+
 
                 // ***** DEFINE SIMULATION BOUNDARY CONDITIONS       ***** //
                 #ifdef SPHERICAL_INJECTION
                     EdgeCondition = ((Position.getx()*Position.getx()
                         +Position.gety()*Position.gety()
-                        +Position.getz()*Position.getz()) 
+                        +Position.getz()*Position.getz())
                     <= ImpactParameter*ImpactParameter*1.01);
                 #else
-                    EdgeCondition = (Position.getz() >= zmin 
+                    EdgeCondition = (Position.getz() >= zmin
                         && Position.getz() <= zmax);
                 #endif
-                
+
 
                 #ifdef NO_SPHERE
                     SphereCondition = true;
@@ -1644,8 +1611,8 @@ int main(int argc, char* argv[]){
                 // ************************************************** //
 
                 // ***** DEFINE REFLECTION TERMINATION CONDITION       ***** //
-                // While we don't exceed a specified number of reflections to 
-                // catch trapped orbits AND while the particle is not inside 
+                // While we don't exceed a specified number of reflections to
+                // catch trapped orbits AND while the particle is not inside
                 // the sphere and not outside the simulation domain
                 reflections=0;
                 unsigned int r_max = reflectionsmax;
@@ -1664,13 +1631,13 @@ int main(int argc, char* argv[]){
                     double delta_a = 2.0*sqrt((vx*vx+vy*vy)+vz*vz/(2.0*PI)
                         +2*PotentialNorm/(BMag*BMag));
                     //std::cout << "\ne-\tr0 = " << r0 << "\t\tdelta_a = " << delta_a << "\n";
-                    if(  delta_a < 0.0 || delta_a >= 2.0 || 
+                    if(  delta_a < 0.0 || delta_a >= 2.0 ||
                         delta_a/2 < r0 ){
                         EdgeCondition = false;
                     }
                     #endif
                     #endif
-/*                  // Compare vertical kinetic energy to potential. 
+/*                  // Compare vertical kinetic energy to potential.
                     // it's smaller, reject orbit
                     // immediately before simulating
                     #ifdef DEBYE_POTENTIAL
@@ -1716,7 +1683,7 @@ int main(int argc, char* argv[]){
 
 
                 // ***** DO PARTICLE PATH INTEGRATION       ***** //
-                while( SphereCondition && EdgeCondition 
+                while( SphereCondition && EdgeCondition
                     && reflections < r_max ){
 
                     #ifdef DEBYE_POTENTIAL
@@ -1747,7 +1714,7 @@ int main(int argc, char* argv[]){
                         double Lambda = 1.0/(Density*CrossSection);
                         //!< Charge exchange collision
                         if( collision_probability(Tau,Velocity.mag3(),Lambda,
-                            randnumbers[omp_get_thread_num()]) ){ 
+                            randnumbers[omp_get_thread_num()]) ){
                                 GenerateOrbit(DummyPosition,Velocity,
                                 ImpactParameter,ProbUpper,zmin,zmax,0.0,
                                 iThermalVel,xThetaPDFMax,
@@ -1755,7 +1722,7 @@ int main(int argc, char* argv[]){
                         }
                     #endif
                     TotalTime+=TimeStep;
-                    
+
 
                     if( (Velocity.getz()*PreviousVelocity <= 0.0) ){
                         reflections ++;
@@ -1763,7 +1730,7 @@ int main(int argc, char* argv[]){
 
                     Position+=TimeStep*Velocity;
                     #ifdef SAVE_APPROACH
-                    if( OldPosition.mag3() > Position.mag3() 
+                    if( OldPosition.mag3() > Position.mag3()
                         || Position.mag3() < MinPos ){
                         MinPos = Position.mag3();
                     }
@@ -1774,23 +1741,23 @@ int main(int argc, char* argv[]){
                             +Position.gety()*Position.gety()
                             +Position.getz()*Position.getz())
                             <= ImpactParameter*ImpactParameter*1.01);
-                    #else 
-                        EdgeCondition = (Position.getz() >= zmin 
+                    #else
+                        EdgeCondition = (Position.getz() >= zmin
                             && Position.getz() <= zmax);
                     #endif
                     SphereCondition = (sqrt(Position.getx()*Position.getx()*a1
                         +Position.gety()*Position.gety()*a2
                         +Position.getz()*Position.getz()*a3) > 1.0);
-                
+
                     #ifdef NO_SPHERE
                         SphereCondition = true;
                     #elif defined DISK
-                        SphereCondition 
-                            = ( (Velocity.getz()*Position.getz() < 0.0) 
+                        SphereCondition
+                            = ( (Velocity.getz()*Position.getz() < 0.0)
                             && (sqrt(Position.getx()*Position.getx()*a1
                             +Position.gety()*Position.gety()*a2) < 1.0) );
                     #else
-                        SphereCondition 
+                        SphereCondition
                             = (sqrt(Position.getx()*Position.getx()*a1
                             +Position.gety()*Position.gety()*a2
                             +Position.getz()*Position.getz()*a3) > 1.0);
@@ -1799,7 +1766,7 @@ int main(int argc, char* argv[]){
 
                     RECORD_TRACK("\n"); RECORD_TRACK(Position);
                     RECORD_TRACK("\t"); RECORD_TRACK(Velocity);
-                    RECORD_TRACK("\t"); 
+                    RECORD_TRACK("\t");
                     RECORD_TRACK(sqrt(Position.getx()*Position.getx()
                         +Position.gety()*Position.gety()
                         +Position.getz()*Position.getz()));
@@ -1808,25 +1775,25 @@ int main(int argc, char* argv[]){
                 CLOSE_TRACK();
 
                 // ************************************************** //
-    
+
                 // ***** PERFORM END OF TRAJECTORY CALCULATIONS      ***** //
                 FinalPosition = 0.5*(OldPosition+Position);
-                AngularMom = SpeciesMass*(FinalPosition^Velocity);      
+                AngularMom = SpeciesMass*(FinalPosition^Velocity);
                 #pragma omp critical
                 {
                     // In this case it was captured!
                     if( sqrt(Position.getx()*Position.getx()*a1
                         +Position.gety()*Position.gety()*a2
-                        +Position.getz()*Position.getz()*a3) < 1.0 ){ 
-                        double AngVelNorm 
+                        +Position.getz()*Position.getz()*a3) < 1.0 ){
+                        double AngVelNorm
                             = 5.0*SpeciesMass*MASS/(2.0*DustMass*AngularScalei);
-                        AngularVel 
+                        AngularVel
                             = (AngVelNorm)*((FinalPosition^Velocity)
                             -(FinalPosition^(TotalAngularVel^FinalPosition)));
 
                         #ifdef FREE_AXIS
                         unsigned long long n_gen = imax/smax;
-                        double TimeScale 
+                        double TimeScale
                             = n_gen/(2.0*PI*iImpactParameter*iImpactParameter
                             *Radius*Radius*Radius*iDensity*iThermalVel);
                         DustAxis += TotalAngularVel*TimeScale;
@@ -1839,14 +1806,14 @@ int main(int argc, char* argv[]){
                         PRINT_FP(fabs(FinalPosition.mag3()-1)); PRINT_FP("\n");
                         TotalAngularVel += AngularVel;
                         TotalAngularMom += AngularMom;
-                        
+
                         j ++; j_ThisSave ++;
                         CapturedCharge += SPEC_CHARGE;
 
                         PRINT_CHARGE(j)         PRINT_CHARGE("\t")
                         PRINT_CHARGE(PotentialNorm)     PRINT_CHARGE("\t")
                         PRINT_CHARGE(SPEC_CHARGE);  PRINT_CHARGE("\n")
-//                      PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity)); 
+//                      PRINT_AMOM((AngVelNorm)*(FinalPosition^Velocity));
 //                      PRINT_AMOM("\t");
 //                      PRINT_AMOM((AngVelNorm)
 //                      *(FinalPosition^Velocity)*(1.0/Tau)); PRINT_AMOM("\n");
@@ -1867,8 +1834,8 @@ int main(int argc, char* argv[]){
                             SAVE_AXIS()
                         }
                         // In this case it was trapped!
-                    }else if( reflections >= r_max ){ 
-                        TrappedParticles ++; 
+                    }else if( reflections >= r_max ){
+                        TrappedParticles ++;
                         TrappedCharge += SPEC_CHARGE;
                     }else{              // In this case it missed!
                         if(j % num == 0){
@@ -1877,7 +1844,7 @@ int main(int argc, char* argv[]){
                             SAVE_APP()
                         }
                         #ifdef SAVE_MOM
-                        LinearMomentumSum += SpeciesMass*Velocity;  
+                        LinearMomentumSum += SpeciesMass*Velocity;
                         AngularMomentumSum += AngularMom;
                         #endif
                         TotalLostMom += SpeciesMass*Velocity;
@@ -1891,7 +1858,7 @@ int main(int argc, char* argv[]){
                     PRINT_AMOM("FMom = "); PRINT_AMOM(FINAL_AMOM);
                     PRINT_AMOM("\n");
                     C_FINAL_POT(); D_FINAL_POT();
-                    PRINT_ENERGY(i); PRINT_ENERGY("\t"); 
+                    PRINT_ENERGY(i); PRINT_ENERGY("\t");
                     PRINT_ENERGY(100*(Velocity.square()
                         /InitialVel.square()-1.0));
                     PRINT_ENERGY("\t");
@@ -1912,7 +1879,7 @@ int main(int argc, char* argv[]){
                     PRINT_ENERGY((0.5*MASS*SpeciesMass*Velocity.square()
                         *Radius*Radius/(Tau*Tau)+SPEC_CHARGE*FinalPot)/
                         (0.5*MASS*SpeciesMass*InitialVel.square()
-                        *Radius*Radius/(Tau*Tau)+SPEC_CHARGE*InitialPot)-1.0);  
+                        *Radius*Radius/(Tau*Tau)+SPEC_CHARGE*InitialPot)-1.0);
                     PRINT_ENERGY("\n");
                     TotalNum ++;
                     TotalCharge += SPEC_CHARGE;
@@ -1923,10 +1890,10 @@ int main(int argc, char* argv[]){
         // ***** PRINT ANGULAR MOMENTUM AND CHARGE DATA ***** //
         clock_t end = clock();
         double elapsd_secs = double(end-begin)/CLOCKS_PER_SEC;
-        RunDataFile << "\n\n***** Save : " << s << " Completed in " 
+        RunDataFile << "\n\n***** Save : " << s << " Completed in "
             << elapsd_secs << "s\n\n";
-   
-        #ifdef SAVE_CURRENTS 
+
+        #ifdef SAVE_CURRENTS
 //      Calculate currents for cylindrical geometry with shape factor
         double CyliCurr = 0.5*BoltzmanniDensity*(j+CapturedCharge)
             *pow(iImpactParameter,2.0)/(2.0
@@ -1976,7 +1943,7 @@ int main(int argc, char* argv[]){
             if( (MeanChargeDiff < 0 && OldMeanChargeDiff > 0 )
                 || (MeanChargeDiff > 0 && OldMeanChargeDiff < 0)  ){
                 UPDATE_CSCALE(); // Update charging scale
-                
+
                 // Don't allow charging scale to fall below 1.0e
                 if( fabs(ChargeScale) <= 1.0 ){
                     ChargeScale = 1.0;
@@ -1994,20 +1961,20 @@ int main(int argc, char* argv[]){
         #endif
         #ifdef VARIABLE_ASCALE
         if( j_ThisSave > jmin ){ // Handle no charges captured this save
-            MeanAngularVelDiff 
+            MeanAngularVelDiff
                 = TotalAngularVelThisStep*(1.0/j_ThisSave)-MeanAngularVelSave;
-            // If change of sign in Mean Diff, then approaching equilibrium           
-            if( (MeanAngularVelDiff.getz() < 0 
+            // If change of sign in Mean Diff, then approaching equilibrium
+            if( (MeanAngularVelDiff.getz() < 0
                 && OldMeanAngularVelDiff.getz() > 0 )
-                || (MeanAngularVelDiff.getz() > 0 
+                || (MeanAngularVelDiff.getz() > 0
                 && OldMeanAngularVelDiff.getz() < 0 ) ){
                 UPDATE_ASCALE();
 
                 // Don't allow angular scale to fall below specified value
-                if( fabs(AngularScalee) 
+                if( fabs(AngularScalee)
                     >= 10.0*MASS*iDensity*sqrt(echarge*iTemp/MASS)
                     *Tau/(Radius) ){
-                    AngularScalee 
+                    AngularScalee
                         = 10.0*MASS*eDensity
                         *sqrt(echarge*iTemp/MASS)*Tau/(Radius);
                     if( jmin == jfin )
@@ -2015,10 +1982,10 @@ int main(int argc, char* argv[]){
 
                     jmin = jfin;
                 }
-                if( fabs(AngularScalei) 
+                if( fabs(AngularScalei)
                     >= 10.0*MASS*eDensity*sqrt(echarge*eTemp/MASS)
                     *Tau/(MassRatio*Radius) ){
-                    AngularScalei 
+                    AngularScalei
                         = 10.0*MASS*eDensity
                         *sqrt(echarge*eTemp/MASS)*Tau/(MassRatio*Radius);
 
@@ -2051,24 +2018,24 @@ int main(int argc, char* argv[]){
 
         // If Mean Charge is deviating by less than 0.1%
         // and this is smaller than charge scale length
-        //if( fabs(MeanChargeDiff/PotentialNorm) < 0.001 
-        //  && MeanChargeDiff != 0.0 && ChargeScale/PotentialNorm < 0.01 ){ 
-        //  RunDataFile << "\n\n* Equilibrium Reached! after saves = " << s 
+        //if( fabs(MeanChargeDiff/PotentialNorm) < 0.001
+        //  && MeanChargeDiff != 0.0 && ChargeScale/PotentialNorm < 0.01 ){
+        //  RunDataFile << "\n\n* Equilibrium Reached! after saves = " << s
         //  << " *";
         //  s = smax;
         //}
-    
+
         // ***** PRINT CHARGE AND PATH COUNTERS     ***** //
-        if( (i_simulated < NumberOfIons || e_simulated < NumberOfElectrons) 
+        if( (i_simulated < NumberOfIons || e_simulated < NumberOfElectrons)
             && s == smax ){
             std::cerr << "\nError! Total particle goal was not reached! Data "
                 << "may be invalid!";
             RunDataFile << "\n\n* Error! Total particle goal was not reached! "
                 << "*";
-            RunDataFile << "\n\n*i_sim =  " << i_simulated << "\te_sim = " 
+            RunDataFile << "\n\n*i_sim =  " << i_simulated << "\te_sim = "
                 << e_simulated << "* ";
         }
-    
+
         // ************************************************** //
 
 
