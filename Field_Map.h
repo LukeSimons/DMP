@@ -54,7 +54,7 @@ class Field_Map{
         *   @param _three_d_pos_holder: as with _one_d_pos_holder but for the third dimension
         *   @param _three_d_value_holder: as with _one_d_value_holder but for the third dimension
         */
-        const bool _DEBUG = true;
+        const bool _DEBUG = false;
         const bool _CALCULATE_NEARBY_E_FIELD_ON_CURVES = true;
 	    std::vector<std::string> _line_vector;
     	std::vector<std::vector<std::vector<Field_Point>>> _Field_Map_Final;
@@ -66,6 +66,13 @@ class Field_Map{
     	std::vector<std::vector<double>> _three_d_value_holder;
 	std::vector<std::vector<int>> _num_times_outside_domain{3, std::vector<int> (2, 0)};
         std::vector<std::vector<double>> _two_D_array;
+        double _debye_length;
+        double _dust_radius;
+        bool _is_spherical_injection;
+        bool _is_cylindrical_injection;
+        double _a1;
+        double _a2;
+        double _a3;
         ///@{
         /** Header Details:
         *       Necessary Header structure in the text file
@@ -96,16 +103,22 @@ class Field_Map{
         *       Cylindrical systems are in the form: (rho,z,phi). Note this change in convention is since typically phi will be symmetrical
         */
         const std::string _summary_delim = "Summary:\t";
-	    const std::string _dimension_delim = "Number of Dimensions:\t";
-	    const std::string _coord_delim = "Coordinate System:\t";
-	    const std::string _ordered_delim = "Ordered:\t";
-	    const std::string _is_E_Field_defined_delim = "Is Electric Field Defined:\t";
-	    const std::string _end_delim = ";";
-        const int _num_lines_in_header = 5;
+        const std::string _dimension_delim = "Number of Dimensions:\t";
+        const std::string _coord_delim = "Coordinate System:\t";
+        const std::string _ordered_delim = "Ordered:\t";
+        const std::string _is_E_Field_defined_delim = "Is Electric Field Defined:\t";
+        const std::string _is_pos_dust_radius_normalised_delim = "Positions Normalised to Dust Radius:\t";
+        const std::string _is_pos_debye_length_normalised_delim = "Positions Normalised to Debye Length:\t";
+        const std::string _is_potential_normalised_delim = "Potential/Electric Field Normalised via phi = (-eV)/kBTe):\t";
+        const std::string _end_delim = ";";
+        const int _num_lines_in_header = 9;
         std::string _summary_line;
-	    int _dimension_val;
-	    bool _ordered_truth;
-	    bool _is_E_Field_defined_truth;
+	int _dimension_val;
+	bool _ordered_truth;
+        bool _is_E_Field_defined_truth;
+        bool _is_pos_dust_radius_normalised_truth;
+        bool _is_pos_debye_length_normalised_truth;
+        bool _is_potential_normalised_truth;
         std::string _coord_type;
         const std::string _CART_1 = "Cartesian_1";
         const std::string _CART_2 = "Cartesian_2";
@@ -119,6 +132,9 @@ class Field_Map{
         bool _is_cartesian = false;
         bool _is_spherical = false;
         bool _is_cylindrical = false;
+        double _map_z_min;
+        double _map_z_max;
+        double _map_rho_max;
         ///@}
         ///@{
         /** Data Details:
@@ -291,11 +307,15 @@ class Field_Map{
 
          void check_coordinate_domain_symmetry(int dimension_to_check);
          void check_coordinate_domain_completeness(int dimension_to_check);
-         std::vector<double> find_complicit_domain_limits(bool is_spherical_injection, bool is_cylindrical_injection, double z_min_dimpl_pars, double z_max_dimpl_pars, double max_radius_dimpl_pars);
-         void check_dust_grain_map_coverage(double a1, double a2, double a3);
+         void check_dust_grain_map_coverage();
+         void check_domain();
          std::string get_coordinate_name(int dimension);
-         void check_domain(bool is_spherical_injection, bool is_cylindrical_injection);
-
+         std::vector<double> get_values_from_data_string(std::string line, int num_data_points_per_line);
+         void check_text_file_settings();
+         bool is_expected_num_data_points_in_line(std::string line, int expected_num_data_points_per_line);
+         int find_expected_number_data_points_per_line();
+         double normalise_position_if_necessary(double old_position_value);
+         void find_domain_limits();
     public:
 	/** @name Constructors
 	 *  @brief constructs a Field_Map class using a specfied string detailing the location of a custom Field Map
@@ -310,7 +330,7 @@ class Field_Map{
      *            Calls method to find the relationship between neighbouring Field_Points to create a quadratic fit between them.
      *   @param field_file_name: std::string; the name of the file containing the field details.
      */
-	Field_Map(std::string field_file_name);
+	Field_Map(std::string field_file_name, double dust_radius, double debye_length, bool is_spherical_injection, bool is_cylindrical_injection, double a1, double a2, double a3);
     ///@}
 
     /** @name Public methods
@@ -324,10 +344,11 @@ class Field_Map{
 	threevector find_approx_value(threevector point, bool is_print);
     ///@}
 	inline std::vector<std::vector<int>> get_num_times_outside_domain(){return _num_times_outside_domain;};
-
-        void check_spherical_coordinate_range(double ImpactParameter, double maxfactor);
-
-        void check_cylindrical_coordinate_range(double lower_z_lim, double upper_z_lim);
+	inline double get_map_z_max(){return _map_z_max;};
+	inline double get_map_z_min(){return _map_z_min;};
+	inline double get_map_rho_max(){return _map_rho_max;};
+        void shrink_map_to_fit(double z_min, double z_max, double rho);
+        
 }; //end of class
 
 #endif /*__FIELD_MAP_H_INCLUDED__ */
