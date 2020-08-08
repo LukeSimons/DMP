@@ -54,7 +54,7 @@ class Field_Map{
         *   @param _three_d_pos_holder: as with _one_d_pos_holder but for the third dimension
         *   @param _three_d_value_holder: as with _one_d_value_holder but for the third dimension
         */
-        const bool _DEBUG = false;
+        const bool _DEBUG = true;
         const bool _CALCULATE_NEARBY_E_FIELD_ON_CURVES = true;
 	    std::vector<std::string> _line_vector;
     	std::vector<std::vector<std::vector<Field_Point>>> _Field_Map_Final;
@@ -68,11 +68,13 @@ class Field_Map{
         std::vector<std::vector<double>> _two_D_array;
         double _debye_length;
         double _dust_radius;
+        double _dust_potential;
         bool _is_spherical_injection;
         bool _is_cylindrical_injection;
         double _a1;
         double _a2;
         double _a3;
+        double _Potential_Normalisation_Factor;
         ///@{
         /** Header Details:
         *       Necessary Header structure in the text file
@@ -109,9 +111,11 @@ class Field_Map{
         const std::string _is_E_Field_defined_delim = "Is Electric Field Defined:\t";
         const std::string _is_pos_dust_radius_normalised_delim = "Positions Normalised to Dust Radius:\t";
         const std::string _is_pos_debye_length_normalised_delim = "Positions Normalised to Debye Length:\t";
-        const std::string _is_potential_normalised_delim = "Potential/Electric Field Normalised via phi = (-eV)/kBTe):\t";
+        const std::string _is_potential_normalised_delim = "Potential/Electric Field Normalised via phi = (-eV)/(kBTe):\t";
+        const std::string _is_initial_dust_pot_delim = "Find Dust Grain Potential from this custom field map:\t";
+        const std::string _is_initial_dust_rad_delim = "Find Dust Grain Radius from this custom field map:\t";
         const std::string _end_delim = ";";
-        const int _num_lines_in_header = 9;
+        const int _num_lines_in_header = 11;
         std::string _summary_line;
 	int _dimension_val;
 	bool _ordered_truth;
@@ -119,6 +123,8 @@ class Field_Map{
         bool _is_pos_dust_radius_normalised_truth;
         bool _is_pos_debye_length_normalised_truth;
         bool _is_potential_normalised_truth;
+        bool _is_initial_dust_pot_truth;
+        bool _is_initial_dust_rad_truth;
         std::string _coord_type;
         const std::string _CART_1 = "Cartesian_1";
         const std::string _CART_2 = "Cartesian_2";
@@ -190,7 +196,7 @@ class Field_Map{
           *      Takes a string and returns a boolean
           *  @return the corresponding boolean
           */
-	     bool string_to_bool(std::string string);
+	     bool string_to_bool(std::string string, std::string delim);
 
          /** @brief convert_data_line_to_multi_D_array:
           *      Take raw data (in an ordered fashion) and transform it to a multi dimensional array.
@@ -316,6 +322,10 @@ class Field_Map{
          int find_expected_number_data_points_per_line();
          double normalise_position_if_necessary(double old_position_value);
          void find_domain_limits();
+         int get_shrunk_point(double new_val, double old_val, int dimension, bool are_values_positive);
+         bool check_if_vectors_differ(std::vector<int> one, std::vector<int> two);
+         void find_dust_potential_and_dust_radius(double dimpl_pars_dust_potential, double dimpl_pars_dust_radius, double unnormalised_debye_length);
+         double normalise_electric_component_if_necessary(double old_electric_component_value);
     public:
 	/** @name Constructors
 	 *  @brief constructs a Field_Map class using a specfied string detailing the location of a custom Field Map
@@ -330,8 +340,9 @@ class Field_Map{
      *            Calls method to find the relationship between neighbouring Field_Points to create a quadratic fit between them.
      *   @param field_file_name: std::string; the name of the file containing the field details.
      */
-	Field_Map(std::string field_file_name, double dust_radius, double debye_length, bool is_spherical_injection, bool is_cylindrical_injection, double a1, double a2, double a3);
+	void construct_in_full(std::string field_file_name, double dimpl_pars_dust_potential, double dimpl_pars_dust_radius, double unnormalised_debye_length, double Potential_Normalisation_Factor, bool is_spherical_injection, bool is_cylindrical_injection, double a1, double a2, double a3);
     ///@}
+	Field_Map();
 
     /** @name Public methods
     */
@@ -343,11 +354,15 @@ class Field_Map{
     */
 	threevector find_approx_value(threevector point, bool is_print);
     ///@}
-	inline std::vector<std::vector<int>> get_num_times_outside_domain(){return _num_times_outside_domain;};
+        void check_num_times_outside_domain();
 	inline double get_map_z_max(){return _map_z_max;};
 	inline double get_map_z_min(){return _map_z_min;};
 	inline double get_map_rho_max(){return _map_rho_max;};
         void shrink_map_to_fit(double z_min, double z_max, double rho);
+        void set_new_map_limits(double new_rho_limit);
+	inline double get_debye_length(){return _debye_length;};
+	inline double get_dust_radius(){return _dust_radius;};
+	inline double get_dust_potential(){return _dust_potential;};
         
 }; //end of class
 

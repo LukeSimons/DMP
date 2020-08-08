@@ -22,8 +22,9 @@
 #include "Constants.h"  //!< Define Pre-processor Directives and constants
 #include "threevector.h"//!< For threevector class
 #include "rand_mwts.h"  //!< Functions to generate correct 1-way maxwellian flux
-#include "Field_Point.h" //!< For Field_Point class (contains value and position vector)
+#if defined CUSTOM_POTENTIAL
 #include "Field_Map.h" //!< For Field_Map class (contains details of map of field point objects)
+#endif
 
 using namespace dimplconsts;
 
@@ -825,11 +826,14 @@ int main(int argc, char* argv[]){
     // Check if file exists
     std::ifstream f(custom_filestring);
     if (!f.good()){
-        std::cerr<<"\nError! Field file not found in "<<FIELD_DIRECTORY<<" directory.\n"
-            << "Target File: "<<input_custom_filename<<"\n"
-            << "Using Default File: "<<DEFAULT_FIELD_FILENAME<<"\n";
-        input_custom_filename = DEFAULT_FIELD_FILENAME;
-        //Note to self: some method for quitting the program. Put default string as constant defined elsewhere
+        std::cerr<<"Error! Field file not found in "<<FIELD_DIRECTORY
+            <<" directory.\n"<< "Target File: "
+            <<input_custom_filename<<"\n";
+	    return EXIT_FAILURE;
+    } else if (input_custom_filename == DEFAULT_FIELD_FILENAME){
+        std::cout<<"Warning! Trying to proceed using the default custom field map: "<<input_custom_filename;
+        std::cout << "\nContinue?...\n";
+        std::cin.get();
     }
     #endif
 
@@ -875,6 +879,45 @@ int main(int argc, char* argv[]){
 
     // ************************************************** //
 
+    // ***** TRIGGER CREATION OF CUSTOM ELECTRIC FIELD MAP STORAGE ***** //
+    #ifdef CUSTOM_POTENTIAL
+	custom_filestring = FIELD_DIRECTORY + DIRECTORY_DELIM + input_custom_filename;
+    bool is_spherical_injection = false;
+    bool is_cylindrical_injection = false;
+    #ifdef SPHERICAL_INJECTION
+    is_spherical_injection = true;
+    #else
+    is_cylindrical_injection = true;
+    #endif
+    Field_Map this_field_map;
+    // Note to self: highlight how this (mass and magnetic) is defined below
+    double this_MASS = iMass*dimplconsts::Mp;  //!< kg, This is the Mass to which quantities are normalised
+    double this_MAGNETIC(1);
+    double unnormalised_DebyeLength = sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2.0)));
+    const double Potential_Normalisation
+        = (eTemp*echarge)*4*PI*epsilon0*Radius/pow(echarge,2.0);
+    
+    const double E_Field_Normalisation
+        = this_MASS/(4.0*PI*epsilon0*this_MAGNETIC*this_MAGNETIC*Radius*Radius*Radius);
+    // Note to self: check this makes sense
+    const double Potential_Normalisation_Factor = Potential_Normalisation*E_Field_Normalisation;
+    try
+    {
+        this_field_map.construct_in_full(custom_filestring, Potential, Radius, unnormalised_DebyeLength, Potential_Normalisation_Factor, is_spherical_injection, is_cylindrical_injection, 1.0/(a1*a1), 1.0/(a2*a2), 1.0/(a3*a3));
+    }
+    catch(const std::exception&)
+    {
+        return EXIT_FAILURE;    
+    }
+    Radius = this_field_map.get_dust_radius();
+    Potential = this_field_map.get_dust_potential();
+    std::cout<<"Radius: "<<Radius<<std::endl;
+    std::cout<<"Potential: "<<Potential<<std::endl;
+    std::cout<<"get_debye_length: "<<this_field_map.get_debye_length()<<std::endl;
+    
+    #endif
+    // ************************************************** //
+
     // ***** ENACT NORMALISATION SCHEME ***** //
 
     //!< If species is positively charged, we assume it's a singly charged ion.
@@ -910,6 +953,8 @@ int main(int argc, char* argv[]){
     double MAGNETIC(1);
     double Tau = MASS/(echarge*MAGNETIC);
 
+    
+    std::cout<<"eTemp: "<<eTemp<<std::endl;
     // Normalised Charge,
     double PotentialNorm
         = Potential*(eTemp*echarge)*4*PI*epsilon0*Radius/pow(echarge,2.0);
@@ -919,6 +964,7 @@ int main(int argc, char* argv[]){
         = sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2.0)))/Radius;
     double A_Coulomb
         = MASS/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
+    std::cout<<"DebyeLength: "<<DebyeLength<<std::endl;
 
     #ifdef VARIABLE_CSCALE
     if( ChargeScale == 0.0 ){
@@ -942,21 +988,6 @@ int main(int argc, char* argv[]){
     threevector EField_Background(EFieldx,EFieldy,EFieldz);
     threevector Bhat(0.0,0.0,1.0);  // Direction of magnetic field, z dir.
 
-    // ************************************************** //
-
-    // ***** TRIGGER CREATION OF CUSTOM ELECTRIC FIELD MAP STORAGE ***** //
-    #ifdef CUSTOM_POTENTIAL
-	custom_filestring = FIELD_DIRECTORY + DIRECTORY_DELIM + input_custom_filename;
-    bool is_spherical_injection = false;
-    bool is_cylindrical_injection = false;
-    #ifdef SPHERICAL_INJECTION
-    is_spherical_injection = true;
-    #else
-    is_cylindrical_injection = true;
-    #endif
-    Field_Map this_field_map(custom_filestring, Radius, DebyeLength, is_spherical_injection, is_cylindrical_injection, a1, a2, a3);
-    
-    #endif
     // ************************************************** //
 
 
@@ -1053,32 +1084,28 @@ int main(int argc, char* argv[]){
     }
     #endif
     
-    #ifdef CUSTOM_POTENTIAL
-    const double field_map_rho_max = this_field_map.get_map_rho_max();
-    // If -f not used, scale as below
-    iImpactParameter = 3*(iRhoTherm+DebyeLength);
-    eImpactParameter = 3*(eRhoTherm);
-    if (iImpactParameter>field_map_rho_max||eImpactParameter>field_map_rho_max){
-        std::cerr<<"ERROR: the custom field map domain is not large enough in the radial direction.\n\tPlease choose a larger coverage of the custom field map."<<std::endl;
-        //Note to self: quit program
-    }
-    if( ForceImpPar > 0.0 ){
-        if (ForceImpPar > field_map_rho_max){
-            std::cerr<<"ERROR: zboundforce provided is larger than the custom field map domain.\n\tPlease redefine the zboundforce or choose a larger coverage of the custom field map."<<std::endl;
-            //Note to self: quit program
-        } else {
-            iImpactParameter = ForceImpPar;
-            eImpactParameter = ForceImpPar;
-            //Note to self: shrink map accordingly
-        }
-    }
-    #else
+    
     if( ForceImpPar > 0.0 ){
         iImpactParameter = ForceImpPar;
         eImpactParameter = ForceImpPar;
     }
-    #endif
     
+    #ifdef CUSTOM_POTENTIAL
+    const double field_map_rho_max = this_field_map.get_map_rho_max();
+    // Note to self: should just automatically scale as below?
+    //iImpactParameter = 3*(iRhoTherm+DebyeLength);
+    //eImpactParameter = 3*(eRhoTherm); 
+    if (iImpactParameter>field_map_rho_max||eImpactParameter>field_map_rho_max){
+        std::cerr<<"ERROR: the custom field map domain is not large enough in the radial direction.\n\tPlease choose a larger coverage of the custom field map."<<std::endl;
+        return EXIT_FAILURE;
+    } else {
+        // For a spherically defined potential map with cylindrical injection,
+        //     allow the cylinder to cover a greater z-range  if rho 
+        //     limit is small.
+        const double new_rho_limit = std::max(iImpactParameter, eImpactParameter);
+        this_field_map.set_new_map_limits(new_rho_limit);
+    }
+    #endif
 
     double ezmax = 1.0/sqrt(a3);
     double ezmin = -1.0/sqrt(a3);
@@ -1119,26 +1146,20 @@ int main(int argc, char* argv[]){
     izmin -= zMinCoeff;
     #endif
     
-    #ifdef CUSTOM_POTENTIAL
-    if(ZBoundForce>ezmax){
-        std::cerr<<"ERROR: zboundforce provided is larger than the custom field map domain.\n\tPlease redefine the zboundforce or choose a larger coverage of the custom field map."<<std::endl;
-        //Note to self: quit program
-    } else {
-        ezmax = ZBoundForce;
-        ezmin = -ezmax;
-        izmax = ezmax;
-        izmin = ezmin;
-        //Note to self: shrink map accordingly.
-    }
-    #else
+    
     if( ZBoundForce > 0.0 ){
+        #ifdef CUSTOM_POTENTIAL
+        if(ZBoundForce>ezmax){
+            std::cerr<<"ERROR: zboundforce provided is larger than the custom field map domain.\n\tPlease redefine the zboundforce or choose a larger coverage of the custom field map."<<std::endl;
+            return EXIT_FAILURE;
+        }
+        #endif
         ezmax = 1.0/sqrt(a3)+ZBoundForce;
         ezmin = -1.0/sqrt(a3)-ZBoundForce;
         izmax = ezmax;
         izmin = ezmin;
     }
-    #endif
-
+    
     // ************************************************** //
 
     // ***** SHRINK CUSTOM ELECTRIC FIELD MAP ACCORDINGLY ***** //
@@ -1947,16 +1968,7 @@ int main(int argc, char* argv[]){
         #endif
 
         #ifdef CUSTOM_POTENTIAL
-        //Note to self: delete max/min checks
-	const std::vector<std::vector<int>> out_of_bounds = this_field_map.get_num_times_outside_domain();
-	std::cout<<"Number of instances outside of custom-defined domain:"
-		<<"\n\t First Dimension:\n\t\tBelow: "<<out_of_bounds[0][0]
-		<< "\n\t\tAbove: "<< out_of_bounds[0][1]
-		<<"\n\t Second Dimension:\n\t\tBelow: "<<out_of_bounds[1][0]
-		<< "\n\t\tAbove: "<< out_of_bounds[1][1]
-		<<"\n\t Third Dimension:\n\t\tBelow: "<<out_of_bounds[2][0]
-		<< "\n\t\tAbove: "<< out_of_bounds[2][1]<<std::endl;
-
+        this_field_map.check_num_times_outside_domain();
         #endif
         #ifdef VARIABLE_CSCALE
         if( j_ThisSave > jmin ){ // Handle no charges captured this save

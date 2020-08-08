@@ -23,7 +23,7 @@
 #define SAVE_TOTALS           //!< Switch: write the total currents
 #define SAVE_REFLECTS       //!< Switch: write the number of reflections
 
-//#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
+#define SPHERICAL_INJECTION //!< Switch: inject particles over sphere
 //#define POINT_INJECTION     //!< Switch: inject particles at single point
 //#define NO_SPHERE           //!< Switch: remove sphere simulation boundary
 //#define DISK                //!< Switch: set boundary as flat circle 
