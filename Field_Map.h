@@ -66,6 +66,7 @@ class Field_Map{
     	std::vector<std::vector<double>> _three_d_value_holder;
 	std::vector<std::vector<int>> _num_times_outside_domain{3, std::vector<int> (2, 0)};
         std::vector<std::vector<double>> _two_D_array;
+        double _eTemp;
         double _debye_length;
         double _dust_radius;
         double _dust_potential;
@@ -320,12 +321,14 @@ class Field_Map{
          void check_text_file_settings();
          bool is_expected_num_data_points_in_line(std::string line, int expected_num_data_points_per_line);
          int find_expected_number_data_points_per_line();
-         double normalise_position_if_necessary(double old_position_value);
          void find_domain_limits();
          int get_shrunk_point(double new_val, double old_val, int dimension, bool are_values_positive);
          bool check_if_vectors_differ(std::vector<int> one, std::vector<int> two);
-         void find_dust_potential_and_dust_radius(double dimpl_pars_dust_potential, double dimpl_pars_dust_radius, double unnormalised_debye_length);
-         double normalise_electric_component_if_necessary(double old_electric_component_value);
+         void find_dust_potential_and_dust_radius(double dimpl_pars_dust_potential, double dimpl_pars_dust_radius);
+         double convert_distance_to_SI(double old_position_value, int dimension);
+         double convert_potential_to_SI(double old_potential);
+         double convert_EField_to_SI(double old_EField);
+         double apply_theta_correction(double old_theta);
     public:
 	/** @name Constructors
 	 *  @brief constructs a Field_Map class using a specfied string detailing the location of a custom Field Map
@@ -340,7 +343,7 @@ class Field_Map{
      *            Calls method to find the relationship between neighbouring Field_Points to create a quadratic fit between them.
      *   @param field_file_name: std::string; the name of the file containing the field details.
      */
-	void construct_in_full(std::string field_file_name, double dimpl_pars_dust_potential, double dimpl_pars_dust_radius, double unnormalised_debye_length, double Potential_Normalisation_Factor, bool is_spherical_injection, bool is_cylindrical_injection, double a1, double a2, double a3);
+	void construct_in_full(std::string field_file_name, double dimpl_pars_dust_potential, double dimpl_pars_dust_radius, double dimpl_pars_debye_length, double dimpl_pars_eTemp, bool is_spherical_injection, bool is_cylindrical_injection, double a1, double a2, double a3);
     ///@}
 	Field_Map();
 

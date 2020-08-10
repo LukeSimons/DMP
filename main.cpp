@@ -560,8 +560,8 @@ threevector ParabolicField(const threevector &Position, double Charge,
  *  \p Position
  */
 #ifdef CUSTOM_POTENTIAL
-threevector CustomField(const threevector &Position, Field_Map &this_field_map){
-    return this_field_map.find_approx_value(Position, false);
+threevector CustomField(const threevector &Position, Field_Map &this_field_map, double Charge_Normalisation, double Distance_Normalisation){
+    return Charge_Normalisation*(this_field_map.find_approx_value(Position*Distance_Normalisation, false));
 }
 #endif
 
@@ -901,19 +901,31 @@ int main(int argc, char* argv[]){
         = this_MASS/(4.0*PI*epsilon0*this_MAGNETIC*this_MAGNETIC*Radius*Radius*Radius);
     // Note to self: check this makes sense
     const double Potential_Normalisation_Factor = Potential_Normalisation*E_Field_Normalisation;
+    // Note to self: implement at efield calc above.
     try
     {
-        this_field_map.construct_in_full(custom_filestring, Potential, Radius, unnormalised_DebyeLength, Potential_Normalisation_Factor, is_spherical_injection, is_cylindrical_injection, 1.0/(a1*a1), 1.0/(a2*a2), 1.0/(a3*a3));
+        // Note eTemp is in eV.
+        // Radius is in m
+        double SI_potential;
+        if( NormVars ){
+            // Potential is in eV p
+            SI_potential = Potential*eTemp;
+        } else {
+            SI_potential = Potential;
+        }
+        double SI_DebyeLength = sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2.0)));
+        this_field_map.construct_in_full(custom_filestring, Potential, Radius, SI_DebyeLength, eTemp, is_spherical_injection, is_cylindrical_injection, Radius/(a1*a1), Radius/(a2*a2), Radius/(a3*a3));
     }
     catch(const std::exception&)
     {
         return EXIT_FAILURE;    
     }
     Radius = this_field_map.get_dust_radius();
-    Potential = this_field_map.get_dust_potential();
+    Potential = this_field_map.get_dust_potential()/(eTemp);
     std::cout<<"Radius: "<<Radius<<std::endl;
     std::cout<<"Potential: "<<Potential<<std::endl;
     std::cout<<"get_debye_length: "<<this_field_map.get_debye_length()<<std::endl;
+    std::cout<<"get_debye_length/Radius: "<<this_field_map.get_debye_length()/Radius<<std::endl;
     
     #endif
     // ************************************************** //
@@ -965,6 +977,13 @@ int main(int argc, char* argv[]){
     double A_Coulomb
         = MASS/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
     std::cout<<"DebyeLength: "<<DebyeLength<<std::endl;
+    #ifdef CUSTOM_POTENTIAL
+    // PotentialNorm/Potential converts charge (initially in eV/eTemp)
+    // A_Coulomb converts to scheme used in DiMPl
+    // Radius since custom EField is found with distance in metres
+    double Charge_Normalisation = (PotentialNorm/Potential)*A_Coulomb*Radius;
+    std::cout<<"Charge_Normalisation: "<<Charge_Normalisation<<std::endl;
+    #endif
 
     #ifdef VARIABLE_CSCALE
     if( ChargeScale == 0.0 ){
@@ -1091,7 +1110,7 @@ int main(int argc, char* argv[]){
     }
     
     #ifdef CUSTOM_POTENTIAL
-    const double field_map_rho_max = this_field_map.get_map_rho_max();
+    const double field_map_rho_max = this_field_map.get_map_rho_max()/Radius;
     // Note to self: should just automatically scale as below?
     //iImpactParameter = 3*(iRhoTherm+DebyeLength);
     //eImpactParameter = 3*(eRhoTherm); 
@@ -1103,7 +1122,7 @@ int main(int argc, char* argv[]){
         //     allow the cylinder to cover a greater z-range  if rho 
         //     limit is small.
         const double new_rho_limit = std::max(iImpactParameter, eImpactParameter);
-        this_field_map.set_new_map_limits(new_rho_limit);
+        this_field_map.set_new_map_limits(new_rho_limit*Radius);
     }
     #endif
 
@@ -1135,8 +1154,8 @@ int main(int argc, char* argv[]){
     izmax += zMaxCoeff*DebyeLength;
     izmin -= zMinCoeff*DebyeLength;
     #elif defined CUSTOM_POTENTIAL
-    ezmax = this_field_map.get_map_z_max();
-    ezmin = this_field_map.get_map_z_min();
+    ezmax = this_field_map.get_map_z_max()/Radius;
+    ezmin = this_field_map.get_map_z_min()/Radius;
     izmax = ezmax;
     izmin = ezmin;
     #else
@@ -1164,7 +1183,7 @@ int main(int argc, char* argv[]){
 
     // ***** SHRINK CUSTOM ELECTRIC FIELD MAP ACCORDINGLY ***** //
     #ifdef CUSTOM_POTENTIAL
-    this_field_map.shrink_map_to_fit(std::min(ezmin, izmin), std::max(ezmax, izmax), std::max(eImpactParameter, iImpactParameter));
+    this_field_map.shrink_map_to_fit(std::min(ezmin, izmin)*Radius, std::max(ezmax, izmax)*Radius, std::max(eImpactParameter, iImpactParameter)*Radius);
     #endif
     // ************************************************** //
 
@@ -1614,7 +1633,7 @@ int main(int argc, char* argv[]){
                         +EField_Background;
                 #endif
                 #ifdef CUSTOM_POTENTIAL
-                    EField = CustomField(Position,this_field_map)
+                    EField = CustomField(Position,this_field_map,Charge_Normalisation,Radius)
                         +EField_Background;
                 #endif
 
@@ -1742,7 +1761,7 @@ int main(int argc, char* argv[]){
                             A_Coulomb)+EField_Background;
                     #endif
                     #ifdef CUSTOM_POTENTIAL
-                        EField = CustomField(Position,this_field_map)
+                        EField = CustomField(Position,this_field_map,Charge_Normalisation,Radius)
                             +EField_Background;
                     #endif
 
