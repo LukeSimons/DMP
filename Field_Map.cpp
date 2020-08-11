@@ -20,9 +20,16 @@ void Field_Map::construct_in_full(std::string field_file_name, double dimpl_pars
     _debye_length = dimpl_pars_debye_length;
     _is_spherical_injection = is_spherical_injection;
     _is_cylindrical_injection = is_cylindrical_injection;
-    _a1 = a1;
-    _a2 = a2;
-    _a3 = a3;
+    if (_is_pos_debye_length_normalised_truth){
+        _a1 = a1*_dust_radius/_debye_length;
+        _a2 = a2*_dust_radius/_debye_length;
+        _a3 = a3*_dust_radius/_debye_length;
+    } else {
+        _a1 = a1;
+        _a2 = a2;
+        _a3 = a3;
+    }
+    
     std::clock_t start;
     double duration;
     start = std::clock();
@@ -314,7 +321,15 @@ void Field_Map::find_dust_potential_and_dust_radius(double dimpl_pars_dust_poten
 	} else{
 	    text_file_normalised_dust_radius = first_line_values[_dimension_val];
 	}
-	_dust_radius = convert_distance_to_SI(text_file_normalised_dust_radius, 1);
+	// Note to self: keep defined as matching that of the text file
+	if (_is_pos_debye_length_normalised_truth){
+	    _dust_radius = text_file_normalised_dust_radius*_debye_length;
+        }
+        else if (_is_pos_dust_radius_normalised_truth) {
+	    // Note to self, the user must have specified this since can't work out otherwise
+	    std::cout<<"WARNING!"<<std::endl;
+            _dust_radius = dimpl_pars_dust_radius;
+        }
     } else {
 	_dust_radius = dimpl_pars_dust_radius;
     }
@@ -328,12 +343,14 @@ double Field_Map::convert_distance_to_SI(double old_position_value, int dimensio
         new_position_value = old_position_value;
     } else {
         if (_is_pos_debye_length_normalised_truth){
-	    new_position_value = old_position_value*_debye_length;
+	    new_position_value = old_position_value*_debye_length/_dust_radius;
         }
         else if (_is_pos_dust_radius_normalised_truth) {
-            new_position_value = old_position_value*_dust_radius;
+            new_position_value = old_position_value;
         }
     }
+    // Note to self: keep the position in the dimensions it was defined.
+    // Note to self: NOT WORKING
     return new_position_value;
 }
 
@@ -341,11 +358,13 @@ double Field_Map::convert_potential_to_SI(double old_potential){
     double new_potential;
     if (_is_potential_normalised_truth){
 	//Note to self: implement the method! 
-	// Note to self: observe not SI but in eV
-	new_potential = old_potential;
+	// Note to self: observe in SI
+	new_potential = old_potential*_eTemp;
     }
     // Currently this is the only normalisation scheme allowed
-    return new_potential;
+    // Note to self: keep the potential in the dimensions it was defined.
+    // Note to self: NOT WORKING
+    return old_potential;
 }
 
 double Field_Map::convert_EField_to_SI(double old_EField){
@@ -353,11 +372,12 @@ double Field_Map::convert_EField_to_SI(double old_EField){
     // Note to self: add in the EField normalisation scheme, adding header line and checks for it being permissible
     if (_is_potential_normalised_truth){
 	// Note select one of these.
-	new_EField = old_EField*_eTemp*_debye_length/echarge;
-	new_EField = old_EField*_eTemp*_dust_radius/echarge;
+	new_EField = old_EField*_eTemp*_debye_length;
+	new_EField = old_EField*_eTemp*_dust_radius;
     }
     // Currently this is the only normalisation scheme allowed
-    return new_EField;
+    // Note to self: NOT WORKING
+    return old_EField;
 }
 
 double Field_Map::apply_theta_correction(double old_theta){
@@ -391,50 +411,50 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 	std::vector<double> line_values = get_values_from_data_string(line, num_data_points_per_line);
         if (_dimension_val==1){
             if (_is_E_Field_defined_truth){
-		_two_D_array[0][i] = convert_EField_to_SI(line_values[0]);
+		_two_D_array[0][i] = line_values[0];
                 _two_D_array[1][i] = 0.0;
                 _two_D_array[2][i] = 0.0;
-		_two_D_array[3][i] = convert_distance_to_SI(line_values[1], 1);
-		_two_D_array[4][i] = apply_theta_correction(0.0);
-                _two_D_array[5][i] = 0.0;
+		_two_D_array[3][i] = convert_distance_to_SI(line_values[1],1);
+		_two_D_array[4][i] = convert_distance_to_SI(apply_theta_correction(0.0),2);
+                _two_D_array[5][i] = convert_distance_to_SI(0.0,3);
             }
             else {
-		_two_D_array[0][i] = convert_potential_to_SI(line_values[0]);
-		_two_D_array[1][i] = convert_distance_to_SI(line_values[1], 1);
-		_two_D_array[2][i] = apply_theta_correction(0.0);
-                _two_D_array[3][i] = 0.0;
+		_two_D_array[0][i] = line_values[0];
+		_two_D_array[1][i] = convert_distance_to_SI(line_values[1],1);
+		_two_D_array[2][i] = convert_distance_to_SI(apply_theta_correction(0.0),2);
+                _two_D_array[3][i] = convert_distance_to_SI(0.0,3);
             }
         }
         if (_dimension_val==2){
             if (_is_E_Field_defined_truth){
-		_two_D_array[0][i] = convert_EField_to_SI(line_values[0]);
-		_two_D_array[1][i] = convert_EField_to_SI(line_values[1]);
+		_two_D_array[0][i] = line_values[0];
+		_two_D_array[1][i] = line_values[1];
                 _two_D_array[2][i] = 0.0;
 		_two_D_array[3][i] = convert_distance_to_SI(line_values[2], 1);
-		_two_D_array[4][i] = apply_theta_correction(convert_distance_to_SI(line_values[3], 2));
-                _two_D_array[5][i] = 0.0;
+		_two_D_array[4][i] = convert_distance_to_SI(apply_theta_correction(line_values[3]),2);
+                _two_D_array[5][i] = convert_distance_to_SI(0.0,3);
             }
             else {
-		_two_D_array[0][i] = convert_potential_to_SI(line_values[0]);
-		_two_D_array[1][i] = convert_distance_to_SI(line_values[1], 1);
-		_two_D_array[2][i] = apply_theta_correction(convert_distance_to_SI(line_values[2], 2));
-                _two_D_array[3][i] = 0.0;
+		_two_D_array[0][i] = line_values[0];
+		_two_D_array[1][i] = convert_distance_to_SI(line_values[1],1);
+		_two_D_array[2][i] = convert_distance_to_SI(apply_theta_correction(line_values[2]),2);
+                _two_D_array[3][i] = convert_distance_to_SI(0.0,3);
             }
         }
         if (_dimension_val==3){
             if (_is_E_Field_defined_truth){
-		_two_D_array[0][i] = convert_EField_to_SI(line_values[0]);
-		_two_D_array[1][i] = convert_EField_to_SI(line_values[1]);
-                _two_D_array[2][i] = convert_EField_to_SI(line_values[2]);
-		_two_D_array[3][i] = convert_distance_to_SI(line_values[3], 1);
-		_two_D_array[4][i] = apply_theta_correction(convert_distance_to_SI(line_values[4], 2));
-                _two_D_array[5][i] = convert_distance_to_SI(line_values[5], 3);
+		_two_D_array[0][i] = line_values[0];
+		_two_D_array[1][i] = line_values[1];
+                _two_D_array[2][i] = line_values[2];
+		_two_D_array[3][i] = convert_distance_to_SI(line_values[3],1);
+		_two_D_array[4][i] = convert_distance_to_SI(apply_theta_correction(line_values[4]),2);
+                _two_D_array[5][i] = convert_distance_to_SI(line_values[5],3);
             }
             else {
-		_two_D_array[0][i] = convert_potential_to_SI(line_values[0]);
-		_two_D_array[1][i] = convert_distance_to_SI(line_values[1], 1);
-		_two_D_array[2][i] = apply_theta_correction(convert_distance_to_SI(line_values[2], 2));
-                _two_D_array[3][i] = convert_distance_to_SI(line_values[3], 3);
+		_two_D_array[0][i] = line_values[0];
+		_two_D_array[1][i] = convert_distance_to_SI(line_values[1],1);
+		_two_D_array[2][i] = convert_distance_to_SI(apply_theta_correction(line_values[2]),2);
+                _two_D_array[3][i] = convert_distance_to_SI(line_values[3],3);
             }
         }
     }
@@ -760,7 +780,7 @@ void Field_Map::add_quadratic_fit_details_to_all_points(){
 	        for (int i=0; i<_total_one_d_count; i++){
 		        int pos[3] = {i,j,k};
 		        std::vector<std::vector<double>> fits = find_fits(pos);
-			if (i==1632){
+			if (i==3770){
 			    std::cout<<"a:" << fits[0][0]<<std::endl;
 			    std::cout<<"b:" << fits[0][1]<<std::endl;
 			    std::cout<<"c:" << fits[0][2]<<std::endl;
@@ -1029,6 +1049,12 @@ std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<i
 threevector Field_Map::find_approx_value(threevector point, bool is_print){
     // Note to self: this entire method needs correcting to ensure that there is no excessive use of if statements and to ensure the distance is logical in spherical and cylindrical contexts.
 
+    //if (_is_pos_debye_length_normalised_truth){
+	//    point = (_dust_radius/_debye_length)*point;
+	  //  if (is_print){
+	    //std::cout<<"Normalising"<<std::endl;}
+    //} //Note to self: otherwise, must be normalised to dust radius already
+    
     //std::cout<<"Started looking for value."<<std::endl;
     std::vector<int> one_d_close_pos(2);
     std::vector<int> two_d_close_pos(2);
@@ -1111,6 +1137,7 @@ threevector Field_Map::find_approx_value(threevector point, bool is_print){
 	    }
 	    else if (_is_spherical) {
 		std::cout<<i<<". Pos:    (r,theta,phi) "<< near_points[i].get_position_r()<<", "<< near_points[i].get_position_theta()<<", "<<near_points[i].get_position_phi()<<std::endl;
+		std::cout<<i<<". Potential: "<< near_points[i].get_value()<<std::endl;
     	        std::cout<<i<<". E field:(r,theta,phi) "<<E_field_values[i].mag3()<<", "<< E_field_values[i].gettheta()<<", "<<E_field_values[i].getphi()<<std::endl;
 	        std::cout<<"--"<<std::endl;
 	    } else if (_is_cylindrical) {
@@ -1156,12 +1183,17 @@ threevector Field_Map::find_approx_value(threevector point, bool is_print){
 	        summed_weighted_values += E_field_values[i]*weights[i];
 	    }
     }
+    threevector approximate_E_Field_val;
     if (is_exact_pos_found){
-        return exact_E_field_val;
+        approximate_E_Field_val = exact_E_field_val;
     }
     else {
-        return threevector(summed_weighted_values.getx()/summed_weight, summed_weighted_values.gety()/summed_weight, summed_weighted_values.getz()/summed_weight);
+        approximate_E_Field_val = threevector(summed_weighted_values.getx()/summed_weight, summed_weighted_values.gety()/summed_weight, summed_weighted_values.getz()/summed_weight);
     }
+    //if (_is_pos_debye_length_normalised_truth){
+    //    approximate_E_Field_val = (_debye_length/_dust_radius)*approximate_E_Field_val;
+    //}
+    return approximate_E_Field_val;
 }
 
 
@@ -1247,6 +1279,10 @@ void Field_Map::set_new_map_limits(double new_rho_limit){
 	// Find the largest cylinder that will fit within sphere
         const double buffer = 1.1;
 	const double map_r = _one_d_value_holder[0][2];
+	//if(_is_pos_debye_length_normalised_truth){
+	    // assume input to be from DiMPl main and so convert from dust-radius normalised to Debye Length normalised
+	 //   new_rho_limit = new_rho_limit*_dust_radius/_debye_length;
+	//}
 	_map_z_max = std::sqrt(map_r*map_r - new_rho_limit*new_rho_limit)/buffer;
 	_map_z_min = -_map_z_max;
 	_map_rho_max = new_rho_limit;
@@ -1378,26 +1414,6 @@ void Field_Map::check_domain(){
            }
        }
    }
-   std::cout<<"rmin: "<<_one_d_value_holder[0][0]<<std::endl;
-   std::cout<<"rmax: "<<_one_d_value_holder[0][2]<<std::endl;
-   std::cout<<"first potential: "<<_Field_Map_Final[_one_d_pos_holder[0][0]][0][0].get_value()<<std::endl;
-   std::cout<<"final potential: "<<_Field_Map_Final[_one_d_pos_holder[0][2]][0][0].get_value()<<std::endl;
-   
-   threevector ipos1(1.1, 0.0000001, 0.0, 's');
-   threevector ipos2(1.1, 2.0000001, 0.0, 's');
-   threevector pos1 =ipos1*_dust_radius;
-   threevector pos2 =ipos2*_dust_radius;
-   std::cout<<"pos1: r, theta, phi: "<<pos1.mag3()<<"; "<<pos1.gettheta()<<"; "<<pos1.getphi()<<std::endl;
-   std::cout<<"pos2: r, theta, phi: "<<pos2.mag3()<<"; "<<pos2.gettheta()<<"; "<<pos2.getphi()<<std::endl;
-   std::cout<<"pos1 potential: "<<_Field_Map_Final[1632][0][0].get_value()<<std::endl;
-   
-   std::cout<<"pos1 E Field: "<<190.389*find_approx_value(pos1, true)<<std::endl;
-   std::cout<<"pos2 E Field: "<<190.389*find_approx_value(pos2, true)<<std::endl;
-   std::cout<<"pos1 E Field: "<<find_approx_value(pos1, false).mag3()<<std::endl;
-   std::cout<<"pos2 E Field: "<<find_approx_value(pos2, false).mag3()<<std::endl;
-   std::cout<<"pos1 E Field: "<<190.389*find_approx_value(pos1, false).mag3()<<std::endl;
-   std::cout<<"pos2 E Field: "<<190.389*find_approx_value(pos2, false).mag3()<<std::endl;
-   
    check_dust_grain_map_coverage();
 }
 
@@ -1445,11 +1461,19 @@ bool Field_Map::check_if_vectors_differ(std::vector<int> one, std::vector<int> t
 }
 
 void Field_Map::shrink_map_to_fit(double z_min, double z_max, double rho_max){
+    //if(_is_pos_debye_length_normalised_truth){
+    //	z_min = z_min*_dust_radius/_debye_length;
+//	z_max = z_max*_dust_radius/_debye_length;
+//	rho_max = rho_max*_dust_radius/_debye_length;
+//    }
     const double buffer = 1.01;
     z_min = z_min*buffer;
     z_max = z_max*buffer;
     rho_max = rho_max*buffer;
     // assign with old
+    std::cout<<"z_min: "<<z_min<<std::endl;
+    std::cout<<"z_max: "<<z_max<<std::endl;
+    std::cout<<"rho_max: "<<rho_max<<std::endl;
     int new_min_dim1_pos = _one_d_pos_holder[0][0];
     int new_max_dim1_pos = _one_d_pos_holder[0][2];
     int new_min_dim2_pos;

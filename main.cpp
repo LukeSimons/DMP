@@ -560,9 +560,14 @@ threevector ParabolicField(const threevector &Position, double Charge,
  *  \p Position
  */
 #ifdef CUSTOM_POTENTIAL
-threevector CustomField(const threevector &Position, Field_Map &this_field_map, double Charge_Normalisation, double Distance_Normalisation){
-    return Charge_Normalisation*(this_field_map.find_approx_value(Position*Distance_Normalisation, false));
+threevector CustomField(const threevector &Position, Field_Map &this_field_map, double Charge, double COULOMB_NORM){
+    return COULOMB_NORM*Charge*(this_field_map.find_approx_value(Position, false));
 }
+    
+//threevector CoulombField(const threevector &Position, double Charge,
+//    double COULOMB_NORM){
+//    return (COULOMB_NORM*Charge/Position.square())*Position.getunit();
+//}
 #endif
 
 /** @brief Main function defining DiMPl program
@@ -908,25 +913,25 @@ int main(int argc, char* argv[]){
         // Radius is in m
         double SI_potential;
         if( NormVars ){
-            // Potential is in eV p
+            // Potential is in V
             SI_potential = Potential*eTemp;
         } else {
             SI_potential = Potential;
         }
         double SI_DebyeLength = sqrt((epsilon0*echarge*eTemp)/(eDensity*pow(echarge,2.0)));
-        this_field_map.construct_in_full(custom_filestring, Potential, Radius, SI_DebyeLength, eTemp, is_spherical_injection, is_cylindrical_injection, Radius/(a1*a1), Radius/(a2*a2), Radius/(a3*a3));
+        this_field_map.construct_in_full(custom_filestring, Potential, Radius, SI_DebyeLength, eTemp, is_spherical_injection, is_cylindrical_injection, 1/(a1*a1), 1/(a2*a2), 1/(a3*a3));
     }
     catch(const std::exception&)
     {
         return EXIT_FAILURE;    
     }
     Radius = this_field_map.get_dust_radius();
-    Potential = this_field_map.get_dust_potential()/(eTemp);
+    Potential = this_field_map.get_dust_potential();
     std::cout<<"Radius: "<<Radius<<std::endl;
     std::cout<<"Potential: "<<Potential<<std::endl;
     std::cout<<"get_debye_length: "<<this_field_map.get_debye_length()<<std::endl;
     std::cout<<"get_debye_length/Radius: "<<this_field_map.get_debye_length()/Radius<<std::endl;
-    
+   
     #endif
     // ************************************************** //
 
@@ -978,11 +983,8 @@ int main(int argc, char* argv[]){
         = MASS/(4.0*PI*epsilon0*MAGNETIC*MAGNETIC*Radius*Radius*Radius);
     std::cout<<"DebyeLength: "<<DebyeLength<<std::endl;
     #ifdef CUSTOM_POTENTIAL
-    // PotentialNorm/Potential converts charge (initially in eV/eTemp)
-    // A_Coulomb converts to scheme used in DiMPl
-    // Radius since custom EField is found with distance in metres
-    double Charge_Normalisation = (PotentialNorm/Potential)*A_Coulomb*Radius;
-    std::cout<<"Charge_Normalisation: "<<Charge_Normalisation<<std::endl;
+    std::cout<<"PotentialNorm: "<<PotentialNorm<<std::endl;
+    std::cout<<"A_Coulomb: "<<A_Coulomb<<std::endl;
     #endif
 
     #ifdef VARIABLE_CSCALE
@@ -1110,7 +1112,7 @@ int main(int argc, char* argv[]){
     }
     
     #ifdef CUSTOM_POTENTIAL
-    const double field_map_rho_max = this_field_map.get_map_rho_max()/Radius;
+    const double field_map_rho_max = this_field_map.get_map_rho_max();
     // Note to self: should just automatically scale as below?
     //iImpactParameter = 3*(iRhoTherm+DebyeLength);
     //eImpactParameter = 3*(eRhoTherm); 
@@ -1122,7 +1124,7 @@ int main(int argc, char* argv[]){
         //     allow the cylinder to cover a greater z-range  if rho 
         //     limit is small.
         const double new_rho_limit = std::max(iImpactParameter, eImpactParameter);
-        this_field_map.set_new_map_limits(new_rho_limit*Radius);
+        this_field_map.set_new_map_limits(new_rho_limit);
     }
     #endif
 
@@ -1154,8 +1156,8 @@ int main(int argc, char* argv[]){
     izmax += zMaxCoeff*DebyeLength;
     izmin -= zMinCoeff*DebyeLength;
     #elif defined CUSTOM_POTENTIAL
-    ezmax = this_field_map.get_map_z_max()/Radius;
-    ezmin = this_field_map.get_map_z_min()/Radius;
+    ezmax = this_field_map.get_map_z_max();
+    ezmin = this_field_map.get_map_z_min();
     izmax = ezmax;
     izmin = ezmin;
     #else
@@ -1169,7 +1171,9 @@ int main(int argc, char* argv[]){
     if( ZBoundForce > 0.0 ){
         #ifdef CUSTOM_POTENTIAL
         if(ZBoundForce>ezmax){
-            std::cerr<<"ERROR: zboundforce provided is larger than the custom field map domain.\n\tPlease redefine the zboundforce or choose a larger coverage of the custom field map."<<std::endl;
+            std::cerr<<"ERROR: zboundforce provided is larger than the custom field map domain."
+            <<"\n\tRequested zboundforce param: "<<ZBoundForce<<"; Available z range: "<<ezmax<<"."
+            <<"\n\tPlease redefine the zboundforce or choose a larger coverage of the custom field map."<<std::endl;
             return EXIT_FAILURE;
         }
         #endif
@@ -1183,7 +1187,7 @@ int main(int argc, char* argv[]){
 
     // ***** SHRINK CUSTOM ELECTRIC FIELD MAP ACCORDINGLY ***** //
     #ifdef CUSTOM_POTENTIAL
-    this_field_map.shrink_map_to_fit(std::min(ezmin, izmin)*Radius, std::max(ezmax, izmax)*Radius, std::max(eImpactParameter, iImpactParameter)*Radius);
+    this_field_map.shrink_map_to_fit(std::min(ezmin, izmin), std::max(ezmax, izmax), std::max(eImpactParameter, iImpactParameter));
     #endif
     // ************************************************** //
 
@@ -1633,8 +1637,32 @@ int main(int argc, char* argv[]){
                         +EField_Background;
                 #endif
                 #ifdef CUSTOM_POTENTIAL
-                    EField = CustomField(Position,this_field_map,Charge_Normalisation,Radius)
+                    EField = CustomField(Position,this_field_map,PotentialNorm/Potential,A_Coulomb)
                         +EField_Background;
+                    /**    
+                    threevector analytical_EField = CoulombField(Position,PotentialNorm,A_Coulomb)
+                        +EField_Background;
+                    double r_diff = EField.mag3() - analytical_EField.mag3();
+                    double theta_diff = EField.gettheta() - analytical_EField.gettheta();
+                    double phi_diff = EField.getphi() - analytical_EField.getphi();
+                    
+                    bool diff = false;
+                    if (std::abs(r_diff)>0.01){
+                            std::cout<<"r Diff: "<< r_diff<<"; Custom r: "<<EField.mag3()<<"; Analytical r: "<<analytical_EField.mag3()<<std::endl;
+                            diff = true;
+                    }
+                    if (std::abs(theta_diff)>0.01){
+                        std::cout<<"theta Diff: "<< theta_diff<<"; Custom theta: "<<EField.gettheta()<<"; Analytical theta: "<<analytical_EField.gettheta()<<std::endl;
+                        diff = true;
+                    }
+                    if (std::abs(phi_diff)>0.01){
+                        std::cout<<"phi Diff: "<< phi_diff<<"; Custom phi: "<<EField.getphi()<<"; Analytical phi: "<<analytical_EField.getphi()<<std::endl;
+                    }
+                    if (diff){
+                        std::cout<<"r: "<<Position.mag3()<<"; theta: "<<Position.gettheta()<<"; phi: "<<Position.getphi()<<std::endl;
+                        std::cout<<"============================="<<std::endl;
+                    }
+                    * */
                 #endif
 
                 UpdateVelocityBoris(SpeciesMass,EField,BField,-0.5*TimeStep,
@@ -1761,8 +1789,51 @@ int main(int argc, char* argv[]){
                             A_Coulomb)+EField_Background;
                     #endif
                     #ifdef CUSTOM_POTENTIAL
-                        EField = CustomField(Position,this_field_map,Charge_Normalisation,Radius)
+                        EField = CustomField(Position,this_field_map,PotentialNorm/Potential,A_Coulomb)
                             +EField_Background;
+                    /**
+                    threevector analytical_EField = CoulombField(Position,PotentialNorm,
+                            A_Coulomb)+EField_Background;
+                    double r_diff = EField.mag3() - analytical_EField.mag3();
+                    double theta_diff = EField.gettheta() - analytical_EField.gettheta();
+                    double phi_diff = EField.getphi() - analytical_EField.getphi();
+                    charge = PotentialNorm/Potential;
+                    
+                    bool diff = false;
+                    if (std::abs(r_diff)>0.01){
+                            std::cout<<"- - - - - - - - - - - - - - - -"<<std::endl;
+                            std::cout<<std::endl;
+                            std::cout<<"PotentialNorm: "<< PotentialNorm<<std::endl;
+                            std::cout<<std::endl;
+                            std::cout<<"A_Coulomb: "<< A_Coulomb<<std::endl;
+                            std::cout<<std::endl;
+                            std::cout<<"E_r: "<<charge*A_Coulomb*this_field_map.find_approx_value(Position, false).mag3()<<std::endl;
+                            std::cout<<std::endl;
+                            std::cout<<"r Diff: "<< r_diff<<"; Custom r: "<<EField.mag3()<<"; Analytical r: "<<analytical_EField.mag3()<<std::endl;
+                            std::cout<<std::endl;
+                            std::cout<<"r: "<< Position.mag3()<<std::endl;
+                            std::cout<<std::endl;
+                            std::cout<<"PotentialNorm*A_Coulomb: "<< PotentialNorm*A_Coulomb<<std::endl;
+                            std::cout<<std::endl;
+                            std::cout<<"E: "<< PotentialNorm*A_Coulomb/(Position.mag3()*Position.mag3())<<std::endl;
+                            std::cout<<std::endl;
+                            diff = true;
+                    }
+                    if (std::abs(theta_diff)>0.01){
+                        std::cout<<"theta Diff: "<< theta_diff<<"; Custom theta: "<<EField.gettheta()<<"; Analytical theta: "<<analytical_EField.gettheta()<<std::endl;
+                            std::cout<<std::endl;
+                        diff = true;
+                    }
+                    if (std::abs(phi_diff)>0.01){
+                        std::cout<<"phi Diff: "<< phi_diff<<"; Custom phi: "<<EField.getphi()<<"; Analytical phi: "<<analytical_EField.getphi()<<std::endl;
+                            std::cout<<std::endl;
+                    }
+                    if (diff){
+                        std::cout<<"r: "<<Position.mag3()<<"; theta: "<<Position.gettheta()<<"; phi: "<<Position.getphi()<<std::endl;
+                            std::cout<<std::endl;
+                        std::cout<<"============================="<<std::endl;
+                    }
+                    * */
                     #endif
 
                     OldPosition = Position;

@@ -358,9 +358,27 @@ class Field_Map{
 	threevector find_approx_value(threevector point, bool is_print);
     ///@}
         void check_num_times_outside_domain();
-	inline double get_map_z_max(){return _map_z_max;};
-	inline double get_map_z_min(){return _map_z_min;};
-	inline double get_map_rho_max(){return _map_rho_max;};
+	inline double get_map_z_max(){
+            double map_z_max = _map_z_max;
+            //if (_is_pos_debye_length_normalised_truth){
+            //    map_z_max = map_z_max*_debye_length/_dust_radius;
+            //}
+            return map_z_max;
+        };
+	inline double get_map_z_min(){
+            double map_z_min = _map_z_min;
+            //if (_is_pos_debye_length_normalised_truth){
+            //    map_z_min = map_z_min*_debye_length/_dust_radius;
+            //}
+            return map_z_min;
+        };
+	inline double get_map_rho_max(){
+            double map_rho_max = _map_rho_max;
+            //if (_is_pos_debye_length_normalised_truth){
+            //    map_rho_max = map_rho_max*_debye_length/_dust_radius;
+            //}
+            return map_rho_max;
+        };
         void shrink_map_to_fit(double z_min, double z_max, double rho);
         void set_new_map_limits(double new_rho_limit);
 	inline double get_debye_length(){return _debye_length;};
