@@ -58,17 +58,37 @@ void Field_Map::construct_in_full(std::string field_file_name, double dimpl_pars
     partition_three_D_grid();
     duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
     if(_DEBUG){std::cout<<"Partitioned three D grid, time: "<< duration<<std::endl;}
-    if (!_is_E_Field_defined_truth){
-        add_quadratic_fit_details_to_all_points();
-        duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-        if(_DEBUG){std::cout<<"Fitted all points with a quadratic fit, time: "<<duration<<std::endl;}
-    }
+    
+    add_quadratic_fit_details_to_all_points();
+    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
+    if(_DEBUG){std::cout<<"Fitted all points with a quadratic fit, time: "<<duration<<std::endl;}
+    print_EField();
     check_domain();
     duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
     if(_DEBUG){std::cout<<"Checked domain, time: "<< duration <<std::endl;}
     find_domain_limits();
     duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
     if(_DEBUG){std::cout<<"Found domain limits, time: "<< duration <<std::endl;}
+}
+
+void Field_Map::print_EField(){
+  std::ofstream myfile;
+  myfile.open ("example.txt");
+  std::string output;
+  double min = 1;
+  double max = 30;
+  int num_points = 100;
+  double step = (max-min)/(num_points-1);
+  for (int i=0; i<num_points;i++){
+      threevector position(min+step*i, 1.57, 0.0, 's');
+      output = output + std::to_string(min+step*i);
+      output = output + "\t";
+      threevector E_Field = find_approx_value(position, false);
+      output = output + std::to_string(E_Field.mag3());
+      output = output + "\n";
+  }
+  myfile << output;
+  myfile.close();
 }
 
 void Field_Map::text_to_string_vector(std::string field_file_name)
@@ -299,7 +319,21 @@ std::vector<double> Field_Map::get_values_from_data_string(std::string line, int
 	int pos = line.find(_data_delim);
 	line_data[j] = line.substr(0, pos);
 	line.erase(0, pos + _data_delim.length());
-	line_values[j] = 0.0 + atof(line_data[j].c_str());
+	//line_values[j] = 0.0 + atof(line_data[j].c_str());
+	//std::stringstream value(line_data[j].c_str());
+	std::stringstream value(line_data[j]);
+	
+	if (value.fail()) {
+            std::string error_string = "Unable to format ";
+            error_string += line_data[j].c_str();
+            error_string += " as a number.";
+            std::cerr<<"ERROR: a value in the Custom Field Map file cannot be interpreted."
+	    <<"\n\t"+error_string
+	    <<"\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	    throw std::exception();
+        }else {
+            value >> line_values[j];
+	}
     }
     return line_values;
 }
@@ -381,18 +415,16 @@ double Field_Map::convert_EField_to_SI(double old_EField){
 }
 
 double Field_Map::apply_theta_correction(double old_theta){
-    double new_theta;
+    double new_theta = old_theta;
     const double delta = 1e-15;
     if (_is_spherical) {
 	if (old_theta==0.0){
-            new_theta = delta;
+            old_theta = delta;
 	} else if (old_theta==PI) {
-            new_theta -= delta;
+            old_theta -= delta;
         }
-    } else {
-        new_theta = old_theta;
     }
-    return new_theta;
+    return old_theta;
 }
 
 void Field_Map::convert_data_line_to_multi_D_array(){
@@ -499,7 +531,7 @@ void Field_Map::convert_data_line_to_multi_D_array(){
                 const int step = i*one_d_count*two_d_count;
 		if (step > _num_data_lines){break;}
                 const double third_d_current_val = _two_D_array[first_dimension_pos+2][step];
-                if (third_d_current_val<memory_holder+1.0e-300){// note occasionally a rounding error hence this tiny shift
+                if (third_d_current_val<memory_holder){
                     break;
                 }
     	        else {
@@ -509,6 +541,7 @@ void Field_Map::convert_data_line_to_multi_D_array(){
             }
         }
     }
+    
     // Sort Out Invalid Situations:
 
     //    1. r is less than or equal to 0
@@ -571,7 +604,21 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     _total_one_d_count = one_d_count-one_d_low_error_count;
     _total_two_d_count = two_d_count-two_d_low_error_count-two_d_high_error_count;
     _total_three_d_count = three_d_count - three_d_low_error_count - three_d_high_error_count;
-
+    
+    if (_total_one_d_count<3){
+	std::cerr<<"ERROR: the custom field does not contain enough valid values in the first dimension.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	throw std::exception();
+    }
+    
+    if (((_dimension_val==2||_dimension_val==3) && _total_two_d_count<3)||(_dimension_val==1 && _total_two_d_count<=0)){
+	std::cerr<<"ERROR: the custom field does not contain enough valid values in the second dimension.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	throw std::exception();
+    }
+    
+    if ((_dimension_val==3 && _total_three_d_count<3)||((_dimension_val==1||_dimension_val==2) && _total_three_d_count<=0)){
+	std::cerr<<"ERROR: the custom field does not contain enough valid values in the third dimension.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	throw std::exception();
+    }
 
     // Populate multi dimensional array
     std::vector<std::vector<std::vector<Field_Point>>> Field_Map_Matrix(one_d_count, std::vector<std::vector<Field_Point>>(two_d_count, std::vector<Field_Point>(three_d_count)));
@@ -778,16 +825,13 @@ void Field_Map::add_quadratic_fit_details_to_all_points(){
     for (int k=0; k<_total_three_d_count; k++){
         for (int j=0; j<_total_two_d_count; j++){
 	        for (int i=0; i<_total_one_d_count; i++){
+		    if (!_is_E_Field_defined_truth){
 		        int pos[3] = {i,j,k};
 		        std::vector<std::vector<double>> fits = find_fits(pos);
-			if (i==3770){
-			    std::cout<<"a:" << fits[0][0]<<std::endl;
-			    std::cout<<"b:" << fits[0][1]<<std::endl;
-			    std::cout<<"c:" << fits[0][2]<<std::endl;
-			}
 		        _Field_Map_Final[i][j][k].add_quadratic_fit(fits);
-		        // Note to self: below needed?
-			//_Field_Map_Final[i][j][k].find_E_field_at_point(_dimension_val, _is_cartesian, _is_spherical, _is_cylindrical);
+		    }
+		    // Note to self: update method name
+		    _Field_Map_Final[i][j][k].find_E_field_at_point(_dimension_val, _is_cartesian, _is_spherical, _is_cylindrical, _is_E_Field_defined_truth);
 	        }
 	    }
     }
@@ -1246,13 +1290,24 @@ void Field_Map::check_coordinate_domain_completeness(int dimension_to_check){
 }
 
 void Field_Map::find_domain_limits(){
-
+    const double MAX = 1e6; // Large value, used for situation where dimension is not defined by custom map.
     if (_is_cartesian){
-        _map_z_min = _three_d_value_holder[0][0];
-        _map_z_max = _three_d_value_holder[0][2];
-        const double limiting_x = std::min(std::abs(_one_d_value_holder[0][0]), _one_d_value_holder[0][2]);
-        const double limiting_y = std::min(std::abs(_two_d_value_holder[0][0]), _two_d_value_holder[0][2]);
-        _map_rho_max = std::sqrt(limiting_x*limiting_x+limiting_y*limiting_y);
+	const double limiting_x = std::min(std::abs(_one_d_value_holder[0][0]), _one_d_value_holder[0][2]);
+	if (_dimension_val==1){
+	    _map_z_min = -MAX;
+            _map_z_max = MAX;
+	    _map_rho_max = limiting_x;
+	} else {
+	    const double limiting_y = std::min(std::abs(_two_d_value_holder[0][0]), _two_d_value_holder[0][2]);
+	    _map_rho_max = std::sqrt(limiting_x*limiting_x+limiting_y*limiting_y);
+	    if (_dimension_val==2){
+	        _map_z_min = -MAX;
+                _map_z_max = MAX;
+	    } else if (_dimension_val==3){
+		_map_z_min = _three_d_value_holder[0][0];
+                _map_z_max = _three_d_value_holder[0][2];
+	    }
+	}
     } else if (_is_spherical) {
         const double map_r = _one_d_value_holder[0][2];
         if (_is_spherical_injection){
@@ -1267,9 +1322,14 @@ void Field_Map::find_domain_limits(){
             _map_rho_max = _map_z_max*std::sqrt(2);
         }
     } else if (_is_cylindrical){
-        _map_z_min = _two_d_value_holder[0][0];
-        _map_z_max = _two_d_value_holder[0][2];
         _map_rho_max = _one_d_value_holder[0][2];
+	if (_dimension_val==1){
+	    _map_z_min = -MAX;
+            _map_z_max = MAX;
+	} else {
+	    _map_z_min = _two_d_value_holder[0][0];
+            _map_z_max = _two_d_value_holder[0][2];
+	}
     }
 }
 
@@ -1461,15 +1521,10 @@ bool Field_Map::check_if_vectors_differ(std::vector<int> one, std::vector<int> t
 }
 
 void Field_Map::shrink_map_to_fit(double z_min, double z_max, double rho_max){
-    //if(_is_pos_debye_length_normalised_truth){
-    //	z_min = z_min*_dust_radius/_debye_length;
-//	z_max = z_max*_dust_radius/_debye_length;
-//	rho_max = rho_max*_dust_radius/_debye_length;
-//    }
-    const double buffer = 1.01;
-    z_min = z_min*buffer;
-    z_max = z_max*buffer;
-    rho_max = rho_max*buffer;
+    const int buffer = 2;
+    z_min = z_min;
+    z_max = z_max;
+    rho_max = rho_max;
     // assign with old
     std::cout<<"z_min: "<<z_min<<std::endl;
     std::cout<<"z_max: "<<z_max<<std::endl;
@@ -1539,9 +1594,10 @@ void Field_Map::shrink_map_to_fit(double z_min, double z_max, double rho_max){
 	is_shrinking_needed = check_if_vectors_differ(old_positions,new_positions);
     }
     if (is_shrinking_needed){
-	int one_d_count = 1 + new_max_dim1_pos - new_min_dim1_pos;
-	int two_d_count = 1 + new_max_dim2_pos - new_min_dim2_pos;
-	int three_d_count = 1 + new_max_dim3_pos - new_min_dim3_pos;
+	int one_d_count = std::min(buffer + new_max_dim1_pos - new_min_dim1_pos,_total_one_d_count);
+	int two_d_count = std::min(buffer + new_max_dim2_pos - new_min_dim2_pos,_total_two_d_count);
+	int three_d_count = std::min(buffer + new_max_dim3_pos - new_min_dim3_pos,_total_three_d_count);
+	if(one_d_count==_total_one_d_count&&two_d_count==_total_two_d_count&&three_d_count==_total_three_d_count){
 	std::vector<std::vector<std::vector<Field_Point>>> New_Field_Map_Matrix(one_d_count, std::vector<std::vector<Field_Point>>(two_d_count, std::vector<Field_Point>(three_d_count)));
 	int i_count = 0;
 	int j_count = 0;
@@ -1565,6 +1621,7 @@ void Field_Map::shrink_map_to_fit(double z_min, double z_max, double rho_max){
         _total_three_d_count = three_d_count;
 	_Field_Map_Final = New_Field_Map_Matrix;
 	partition_three_D_grid();
+    }
     }
 }
 

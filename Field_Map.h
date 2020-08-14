@@ -24,6 +24,9 @@
 #include <math.h> //!< For log 2
 #include <ctime> //!< For timer, Note to self: remove this
 #include <cstdio> //!< For clock time conversion, Note to self: remove this
+#include <sstream> //!< For string to double conversion (istringstream)
+
+#include <fstream>
 
 #include "Constants.h"
 
@@ -329,6 +332,7 @@ class Field_Map{
          double convert_potential_to_SI(double old_potential);
          double convert_EField_to_SI(double old_EField);
          double apply_theta_correction(double old_theta);
+         void print_EField();
     public:
 	/** @name Constructors
 	 *  @brief constructs a Field_Map class using a specfied string detailing the location of a custom Field Map
