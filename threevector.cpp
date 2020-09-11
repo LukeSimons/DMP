@@ -3,14 +3,14 @@
  *
  *  Constructors and printing functions for the threevector class
  *  algebra of vectors with three dimensions.
- *  
+ *
  *  @author Luke Simons (ls5115@ic.ac.uk)
  *  @bug No known bugs.
  */
 
 #include "threevector.h"
 
-threevector::threevector() 
+threevector::threevector()
 {
     xcoord = 0.0; ycoord = 0.0; zcoord = 0.0;
 }
@@ -27,13 +27,7 @@ threevector::threevector(double r, double theta, double phiorz, char type)
         std::cerr << "Error: threevector Polar parameterised constructor.";
         std::cerr << "Polar coordinate r == 0. theat and phiorz badly defined";
 	std::cout<<"\n\t coords: (r,theta,phi) ("<<r<<", "<<theta<<", "<<phiorz<<")"<<std::endl;
-    } //else if ( r < 0.0 ){
-//	std::cerr << "Error: threevector Polar parameterised constructor.";
-//	std::cerr << "Polar coordinate r < 0. phiorz and theta adjusted accordingly.";
-//	r = -r;
-//	theta = PI - theta;
-//	phiorz = PI + phiorz;
-  //  }
+    }
     //! Spherical case
     if(type=='s')
     {
@@ -41,11 +35,6 @@ threevector::threevector(double r, double theta, double phiorz, char type)
         xcoord = r*sin(theta)*cos(phiorz);
         ycoord = r*sin(theta)*sin(phiorz);
         zcoord = r*cos(theta);
-	//if (theta==0.0){
-	//    std::cerr << "Error: threevector Polar parameterised constructor.";
-        //    std::cerr << "Polar coordinate theta == 0. phiorz badly defined";
-	//    std::cout<<"r,theta,phi: "<<r<<", "<<theta<<", "<<phiorz<<std::endl;
-	//}
     }
 
     //! Cylindrical case
@@ -64,7 +53,7 @@ threevector::threevector(double r, double theta, double phiorz, char type)
 
 void threevector::print()
 {
-    std::cout << "(" << xcoord << ", " << ycoord << ", " << zcoord << ")" 
+    std::cout << "(" << xcoord << ", " << ycoord << ", " << zcoord << ")"
                 << std::endl;
 }
 
@@ -78,4 +67,3 @@ std::ostream& operator<<(std::ostream& os, const threevector &v)
     os << v.getx() << " " << v.gety() << " " << v.getz();
     return os;
 }
-

@@ -9,7 +9,7 @@ L. Simons and M. Coppins, Phys. Plasmas 27, 063702 (2020). DOI: https://doi.org/
 
 A detailed look at the dependence of the forces experienced by dust grains in magnetic fields in flowing plasmas is provided in the following paper:
 
-L. James and M. Coppins, Phys. Plasmas (2020). 
+L. James and M. Coppins, Phys. Plasmas (2020).
 
 
 This code calculates the angular and linear momentum transfer to a charged sphere with either a Debye-Huckel or Coulomb electric potential in a constant magnetic field. Output is in files in subdirectory Data. Optional full tracking of particles, including their change in energy and net linear and angular momentum can be calculated by defining the relevant pre-processor directives. Command line input is available with the following options:

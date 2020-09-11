@@ -16,80 +16,45 @@ Field_Map::Field_Map(){}
 
 void Field_Map::construct_in_full(std::string field_file_name, double dimpl_pars_dust_potential, double dimpl_pars_dust_radius, double dimpl_pars_debye_length, double dimpl_pars_eTemp, bool is_spherical_injection, bool is_cylindrical_injection, double a1, double a2, double a3)
 {
+    // assign DiMPl pars to this class
     _eTemp = dimpl_pars_eTemp;
     _debye_length = dimpl_pars_debye_length;
     _is_spherical_injection = is_spherical_injection;
     _is_cylindrical_injection = is_cylindrical_injection;
-    if (_is_pos_debye_length_normalised_truth){
-        _a1 = a1*_dust_radius/_debye_length;
-        _a2 = a2*_dust_radius/_debye_length;
-        _a3 = a3*_dust_radius/_debye_length;
-    } else {
-        _a1 = a1;
-        _a2 = a2;
-        _a3 = a3;
-    }
-    
-    std::clock_t start;
-    double duration;
-    start = std::clock();
-    if(_DEBUG){ std::cout<<"Opened constructor"<<std::endl;}
-    
+    _a1 = a1;
+    _a2 = a2;
+    _a3 = a3;
+    // make subsequent calls to methods for full map construction
+    if(_DEBUG){ std::cout<<"Opened constructor and assigned Parameters."<<std::endl;}
+
     text_to_string_vector(field_file_name);
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    if(_DEBUG){std::cout<<"text to string vector complete, time: "<< duration <<std::endl;}
-    
+    if(_DEBUG){std::cout<<"text to string vector complete."<<std::endl;}
+
     find_header_details();
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    if(_DEBUG){std::cout<<"Header details found, time: "<<duration<<std::endl;}
-    
+    if(_DEBUG){std::cout<<"Header details found."<<std::endl;}
+
     check_text_file_settings();
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    if(_DEBUG){std::cout<<"Checked Text File settings, time: "<<duration<<std::endl;}
-    
+    if(_DEBUG){std::cout<<"Checked Text File settings."<<std::endl;}
+
     find_dust_potential_and_dust_radius(dimpl_pars_dust_potential, dimpl_pars_dust_radius);
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    if(_DEBUG){std::cout<<"Found the Debye Length and Dust Radius, time: "<<duration<<std::endl;}
-    
+    if(_DEBUG){std::cout<<"Found the Debye Length and Dust Radius."<<std::endl;}
+
     convert_data_line_to_multi_D_array();
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    if(_DEBUG){std::cout<<"Convereted data to multi d array, time: "<<duration<<std::endl;}
-    
+    if(_DEBUG){std::cout<<"Convereted data to multi d array."<<std::endl;}
+
     partition_three_D_grid();
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    if(_DEBUG){std::cout<<"Partitioned three D grid, time: "<< duration<<std::endl;}
-    
+    if(_DEBUG){std::cout<<"Partitioned three D grid."<<std::endl;}
+
     add_quadratic_fit_details_to_all_points();
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    if(_DEBUG){std::cout<<"Fitted all points with a quadratic fit, time: "<<duration<<std::endl;}
-    print_EField();
+    if(_DEBUG){std::cout<<"Fitted all points with a quadratic fit."<<std::endl;}
+
     check_domain();
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    if(_DEBUG){std::cout<<"Checked domain, time: "<< duration <<std::endl;}
+    if(_DEBUG){std::cout<<"Checked domain."<< std::endl;}
+
     find_domain_limits();
-    duration = (std::clock() - start)/(double) CLOCKS_PER_SEC;
-    if(_DEBUG){std::cout<<"Found domain limits, time: "<< duration <<std::endl;}
+    if(_DEBUG){std::cout<<"Found domain limits."<<std::endl;}
 }
 
-void Field_Map::print_EField(){
-  std::ofstream myfile;
-  myfile.open ("example.txt");
-  std::string output;
-  double min = 1;
-  double max = 30;
-  int num_points = 100;
-  double step = (max-min)/(num_points-1);
-  for (int i=0; i<num_points;i++){
-      threevector position(min+step*i, 1.57, 0.0, 's');
-      output = output + std::to_string(min+step*i);
-      output = output + "\t";
-      threevector E_Field = find_approx_value(position, false);
-      output = output + std::to_string(E_Field.mag3());
-      output = output + "\n";
-  }
-  myfile << output;
-  myfile.close();
-}
 
 void Field_Map::text_to_string_vector(std::string field_file_name)
 {
@@ -147,9 +112,9 @@ bool Field_Map::string_to_bool(std::string string, std::string delim){
 	        string_as_boolean = true;
 	    }
 	    else {
-	        std::cout<< unknown_boolean_warning <<std::endl;
+	        std::cerr<< unknown_boolean_warning <<std::endl;
 	        string_as_boolean = true;
-		throw std::exception();
+		    throw std::exception();
 	    }
     } else {
         // the text boolean case
@@ -157,11 +122,9 @@ bool Field_Map::string_to_bool(std::string string, std::string delim){
 	    if (string=="true"){string_as_boolean = true;}
 	    else if (string=="false"){string_as_boolean = false;}
         else {
-	        std::cout << unknown_boolean_warning << std::endl;
-		std::cout<<"\tDelimiter stated to be: "<<delim<<std::endl;
-		std::cout<<"\tString stated to be: "<<string<<std::endl;
+	        std::cerr << unknown_boolean_warning << "\tDelimiter stated to be: "<<delim<<"\tString stated to be: "<<string<<std::endl;
 	        string_as_boolean = true;
-		throw std::exception();
+		    throw std::exception();
 	    }
     }
     return string_as_boolean;
@@ -208,28 +171,28 @@ void Field_Map::check_text_file_settings(){
         }
     } else {
         std::cerr<<"ERROR: coordinate system is not recognised.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	throw std::exception();
+	    throw std::exception();
     }
     if (!_ordered_truth){
-	std::cerr<<"ERROR: method only currently works for ordered files.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	    std::cerr<<"ERROR: method only currently works for ordered files.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
 	    throw std::exception();
     }
     // Check that the data is separated by tabs
     const std::string expected_data_line = _line_vector[_num_lines_in_header];
-    const int expected_num_data_points_per_line = find_expected_number_data_points_per_line(); 
+    const int expected_num_data_points_per_line = find_expected_number_data_points_per_line();
     const bool is_expected_data_line_ok = is_expected_num_data_points_in_line(expected_data_line, expected_num_data_points_per_line);
     if (!is_expected_data_line_ok){
-	std::cerr<<"ERROR: the data in the custom file has not been correctly delimited or has an additional line in the header. Tabs should be used between values.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	    std::cerr<<"ERROR: the data in the custom file has not been correctly delimited or has an additional line in the header. Tabs should be used between values.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
 	    throw std::exception();
     }
     // Check that the data starts where it is expected to start
     const std::string unexpected_data_line = _line_vector[_num_lines_in_header-1];
     const bool is_unexpected_data_line_ok = is_expected_num_data_points_in_line(unexpected_data_line, expected_num_data_points_per_line);
     if (is_unexpected_data_line_ok){
-	std::cerr<<"ERROR: the data in the custom file contains an in-complete header. \n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	    std::cerr<<"ERROR: the data in the custom file contains an in-complete header. \n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
 	    throw std::exception();
     }
-    
+
     // Check if there is some valid normalisation for the position values
     if (!_is_pos_dust_radius_normalised_truth && !_is_pos_debye_length_normalised_truth){
         std::cerr<<"ERROR: a valid normalisation scheme for the position data is required. \n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
@@ -241,35 +204,35 @@ void Field_Map::check_text_file_settings(){
     }
     // Check if there is some valid normalisation for the potential values
     if (!_is_potential_normalised_truth){
-	if (_is_E_Field_defined_truth){
-	    std::cerr<<"ERROR: a valid normalisation scheme for the electric field values is required. \n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	    throw std::exception();
-	} else {
-	    std::cerr<<"ERROR: a valid normalisation scheme for the potential values is required. \n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	    throw std::exception();
-	}
+	    if (_is_E_Field_defined_truth){
+	        std::cerr<<"ERROR: a valid normalisation scheme for the electric field values is required. \n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	        throw std::exception();
+	    } else {
+	        std::cerr<<"ERROR: a valid normalisation scheme for the potential values is required. \n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	        throw std::exception();
+	    }
     }
     // Check if the potential is allowed to be found from the text file
     if (_is_initial_dust_pot_truth){
-	if (_is_E_Field_defined_truth){
-	    std::cerr<<"ERROR: the dust grain potential cannot be extracted from the Custom Field Map File when the electric field is being defined.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	    throw std::exception();
-	}
-	if (!_is_spherical) {
-	    std::cerr<<"ERROR: the dust grain potential cannot be extracted from the Custom Field Map File when the geometry is not spherical.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	    throw std::exception();
-	}
+	    if (_is_E_Field_defined_truth){
+	        std::cerr<<"ERROR: the dust grain potential cannot be extracted from the Custom Field Map File when the electric field is being defined.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	        throw std::exception();
+	    }
+	    if (!_is_spherical) {
+	        std::cerr<<"ERROR: the dust grain potential cannot be extracted from the Custom Field Map File when the geometry is not spherical.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	        throw std::exception();
+	    }
     }
     // Check if the dust radius is allowed to be found from the text file
     if (_is_initial_dust_rad_truth){
-	if (!_is_spherical) {
-	    std::cerr<<"ERROR: the dust grain radius cannot be extracted from the Custom Field Map File when the geometry is not spherical.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	    throw std::exception();
-	}
-	if (_is_pos_dust_radius_normalised_truth) {
-	    std::cerr<<"ERROR: the dust grain radius cannot be extracted from the Custom Field Map File since the Field Map values are already normalised to the dust grain radius.\n\tTo proceed, enter the dust grain radius to DiMPl and set `Find Dust Grain Potential from this custom field map' to false in the custom field map text file.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	    throw std::exception();
-	}
+	    if (!_is_spherical) {
+	        std::cerr<<"ERROR: the dust grain radius cannot be extracted from the Custom Field Map File when the geometry is not spherical.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	        throw std::exception();
+	    }
+	    if (_is_pos_dust_radius_normalised_truth) {
+	        std::cerr<<"ERROR: the dust grain radius cannot be extracted from the Custom Field Map File since the Field Map values are already normalised to the dust grain radius.\n\tTo proceed, enter the dust grain radius to DiMPl and set `Find Dust Grain Potential from this custom field map' to false in the custom field map text file.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	        throw std::exception();
+	    }
     }
 }
 
@@ -280,20 +243,20 @@ bool Field_Map::is_expected_num_data_points_in_line(std::string line, int expect
     bool is_at_final = false;
     while (!is_at_final){
         int pos = line.find(_data_delim);
-	if (pos != std::string::npos){
-	    std::string line_data = line.substr(0, pos);
-	    if (!line_data.empty() && line_data.find_first_not_of("0123456789-eE.")!=std::string::npos){
-		is_value_a_number = false;
+	    if (pos != std::string::npos){
+	        std::string line_data = line.substr(0, pos);
+	        if (!line_data.empty() && line_data.find_first_not_of("0123456789-eE.")!=std::string::npos){
+		        is_value_a_number = false;
+	        } else {
+		        true_data_points_count += 1;
+	        }
+	        line.erase(0, pos + _data_delim.length());
 	    } else {
-		true_data_points_count += 1;
+	        if (!line.empty()&&line.find_first_not_of("0123456789-eE.")!=0){
+		        true_data_points_count += 1;
+	        }
+	        is_at_final = true;
 	    }
-	    line.erase(0, pos + _data_delim.length());
-	} else {
-	    if (!line.empty()&&line.find_first_not_of("0123456789-eE.")!=0){
-		true_data_points_count += 1;
-	    }
-	    is_at_final = true;
-	}
     }
     if (true_data_points_count != expected_num_data_points_per_line){
         is_expected_num_data_points = false;
@@ -304,10 +267,10 @@ bool Field_Map::is_expected_num_data_points_in_line(std::string line, int expect
 int Field_Map::find_expected_number_data_points_per_line(){
     int num_data_points_per_line;
     if (_is_E_Field_defined_truth) {
-	num_data_points_per_line=2*_dimension_val;
+	    num_data_points_per_line=2*_dimension_val;
     }
     else {
-	num_data_points_per_line=1+_dimension_val;
+	    num_data_points_per_line=1+_dimension_val;
     }
     return num_data_points_per_line;
 }
@@ -316,115 +279,113 @@ std::vector<double> Field_Map::get_values_from_data_string(std::string line, int
     std::string line_data[num_data_points_per_line];
     std::vector<double> line_values(num_data_points_per_line);
     for (int j=0; j<num_data_points_per_line; j++){
-	int pos = line.find(_data_delim);
-	line_data[j] = line.substr(0, pos);
-	line.erase(0, pos + _data_delim.length());
-	//line_values[j] = 0.0 + atof(line_data[j].c_str());
-	//std::stringstream value(line_data[j].c_str());
-	std::stringstream value(line_data[j]);
-	
-	if (value.fail()) {
+	    int pos = line.find(_data_delim);
+	    line_data[j] = line.substr(0, pos);
+	    line.erase(0, pos + _data_delim.length());
+        std::stringstream value(line_data[j]);
+
+	    if (value.fail()) {
             std::string error_string = "Unable to format ";
             error_string += line_data[j].c_str();
             error_string += " as a number.";
             std::cerr<<"ERROR: a value in the Custom Field Map file cannot be interpreted."
-	    <<"\n\t"+error_string
-	    <<"\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	    throw std::exception();
-        }else {
+	        <<"\n\t"+error_string
+	        <<"\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	        throw std::exception();
+        } else {
             value >> line_values[j];
-	}
+	    }
     }
     return line_values;
 }
 
 void Field_Map::find_dust_potential_and_dust_radius(double dimpl_pars_dust_potential, double dimpl_pars_dust_radius){
+    // get the first data line from the file
     std::string first_line = _line_vector[_num_lines_in_header];
     const int num_data_points_per_line = find_expected_number_data_points_per_line();
     std::vector<double> first_line_values = get_values_from_data_string(first_line, num_data_points_per_line);
-    
+
     if(_is_initial_dust_pot_truth){
-	_dust_potential = convert_potential_to_SI(first_line_values[0]);
+	    _dust_potential = normalise_potential_to_dimpl_scheme(first_line_values[0]);
     } else {
-	_dust_potential = dimpl_pars_dust_potential;
+	    _dust_potential = dimpl_pars_dust_potential;
     }
     if(_is_initial_dust_rad_truth){
-	double text_file_normalised_dust_radius;
-	if(_is_E_Field_defined_truth){
-	    text_file_normalised_dust_radius = first_line_values[1];
-	} else{
-	    text_file_normalised_dust_radius = first_line_values[_dimension_val];
-	}
-	// Note to self: keep defined as matching that of the text file
-	if (_is_pos_debye_length_normalised_truth){
-	    _dust_radius = text_file_normalised_dust_radius*_debye_length;
-        }
-        else if (_is_pos_dust_radius_normalised_truth) {
-	    // Note to self, the user must have specified this since can't work out otherwise
-	    std::cout<<"WARNING!"<<std::endl;
+	    double text_file_normalised_dust_radius;
+	    if(_is_E_Field_defined_truth){
+	        text_file_normalised_dust_radius = first_line_values[1];
+	    } else{
+	        text_file_normalised_dust_radius = first_line_values[_dimension_val];
+	    }
+	    if (_is_pos_debye_length_normalised_truth){
+	        _dust_radius = text_file_normalised_dust_radius*_debye_length;
+        } else if (_is_pos_dust_radius_normalised_truth) {
+	        std::cerr<<"WARNING! The text file is normalised to dust radius so the dust radius cannot be correctly determined from it."<<std::endl;
             _dust_radius = dimpl_pars_dust_radius;
+            throw std::exception();
         }
     } else {
-	_dust_radius = dimpl_pars_dust_radius;
+	    _dust_radius = dimpl_pars_dust_radius;
     }
 }
 
-double Field_Map::convert_distance_to_SI(double old_position_value, int dimension){
+double Field_Map::normalise_distance_to_dust_radius(double old_position_value, int dimension){
     // If angular, assume in radians
-    // Note to self: highlight this in the README
     double new_position_value;
     if ( (_is_spherical && dimension == 2) || (_is_spherical && dimension == 3 ) || (_is_cylindrical && dimension == 3)){
         new_position_value = old_position_value;
-    } else {
+    }
+    // If not angular, normalise if not already in normalised scheme
+    else {
         if (_is_pos_debye_length_normalised_truth){
-	    new_position_value = old_position_value*_debye_length/_dust_radius;
+	        new_position_value = old_position_value*_debye_length/_dust_radius;
         }
         else if (_is_pos_dust_radius_normalised_truth) {
             new_position_value = old_position_value;
         }
     }
-    // Note to self: keep the position in the dimensions it was defined.
-    // Note to self: NOT WORKING
     return new_position_value;
 }
 
-double Field_Map::convert_potential_to_SI(double old_potential){
+double Field_Map::normalise_potential_to_dimpl_scheme(double old_potential){
     double new_potential;
     if (_is_potential_normalised_truth){
-	//Note to self: implement the method! 
-	// Note to self: observe in SI
-	new_potential = old_potential*_eTemp;
+	    new_potential = old_potential;
     }
-    // Currently this is the only normalisation scheme allowed
-    // Note to self: keep the potential in the dimensions it was defined.
-    // Note to self: NOT WORKING
-    return old_potential;
+    // Currently this is the only normalisation scheme allowed, so below should not be called
+    else {
+        std::cerr<<"WARNING! The text file uses an unknown potential normalisation scheme. Please implement the correct method in normalise_potential_to_dimpl_scheme of Field_Map.cpp. Proceeding using standard normalisation scheme for now."<<std::endl;
+        throw std::exception();
+        new_potential = old_potential;
+    }
+    return new_potential;
 }
 
-double Field_Map::convert_EField_to_SI(double old_EField){
+double Field_Map::normalise_E_Field_to_dimpl_scheme(double old_EField){
     double new_EField;
-    // Note to self: add in the EField normalisation scheme, adding header line and checks for it being permissible
     if (_is_potential_normalised_truth){
-	// Note select one of these.
-	new_EField = old_EField*_eTemp*_debye_length;
-	new_EField = old_EField*_eTemp*_dust_radius;
+	    new_EField = old_EField;
     }
-    // Currently this is the only normalisation scheme allowed
-    // Note to self: NOT WORKING
-    return old_EField;
+    // Currently this is the only normalisation scheme allowed, so below should not be called
+    else {
+        std::cerr<<"WARNING! The text file uses an unknown electric field normalisation scheme. Please implement the correct method in normalise_E_Field_to_dimpl_scheme of Field_Map.cpp. Proceeding using standard normalisation scheme for now."<<std::endl;
+        throw std::exception();
+        new_potential = old_potential;
+    }
+    return new_EField;
 }
 
 double Field_Map::apply_theta_correction(double old_theta){
     double new_theta = old_theta;
     const double delta = 1e-15;
     if (_is_spherical) {
-	if (old_theta==0.0){
-            old_theta = delta;
-	} else if (old_theta==PI) {
-            old_theta -= delta;
+	    if (old_theta==0.0){
+            new_theta = delta;
+	    } else if (old_theta==PI) {
+            new_theta -= delta;
         }
     }
-    return old_theta;
+    return new_theta;
 }
 
 void Field_Map::convert_data_line_to_multi_D_array(){
@@ -434,68 +395,66 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     const int num_data_points_per_line = find_expected_number_data_points_per_line();
     if (_is_E_Field_defined_truth) {two_d_array_width=6;}
     else {two_d_array_width=4;}
-
     _num_data_lines = _line_vector.size() - _num_lines_in_header;
-
+    // Create array of correct shape
     _two_D_array = std::vector<std::vector<double>>(two_d_array_width, std::vector<double>(_num_data_lines));
+    // Fill array with data points from text file.
+    // Ensure data points are normalised to necessary scheme
     for (int i=0; i<_num_data_lines; i++){
-	std::string line = _line_vector[i+_num_lines_in_header];
-	std::vector<double> line_values = get_values_from_data_string(line, num_data_points_per_line);
+	    std::string line = _line_vector[i+_num_lines_in_header];
+	    std::vector<double> line_values = get_values_from_data_string(line, num_data_points_per_line);
         if (_dimension_val==1){
             if (_is_E_Field_defined_truth){
-		_two_D_array[0][i] = line_values[0];
-                _two_D_array[1][i] = 0.0;
-                _two_D_array[2][i] = 0.0;
-		_two_D_array[3][i] = convert_distance_to_SI(line_values[1],1);
-		_two_D_array[4][i] = convert_distance_to_SI(apply_theta_correction(0.0),2);
-                _two_D_array[5][i] = convert_distance_to_SI(0.0,3);
+		        _two_D_array[0][i] = normalise_E_Field_to_dimpl_scheme(line_values[0]);
+                _two_D_array[1][i] = normalise_E_Field_to_dimpl_scheme(apply_theta_correction(0.0));
+                _two_D_array[2][i] = normalise_E_Field_to_dimpl_scheme(0.0);
+		        _two_D_array[3][i] = normalise_distance_to_dust_radius(line_values[1],1);
+		        _two_D_array[4][i] = normalise_distance_to_dust_radius(apply_theta_correction(0.0),2);
+                _two_D_array[5][i] = normalise_distance_to_dust_radius(0.0,3);
             }
             else {
-		_two_D_array[0][i] = line_values[0];
-		_two_D_array[1][i] = convert_distance_to_SI(line_values[1],1);
-		_two_D_array[2][i] = convert_distance_to_SI(apply_theta_correction(0.0),2);
-                _two_D_array[3][i] = convert_distance_to_SI(0.0,3);
+		        _two_D_array[0][i] = normalise_potential_to_dimpl_scheme(line_values[0]);
+		        _two_D_array[1][i] = normalise_distance_to_dust_radius(line_values[1],1);
+		        _two_D_array[2][i] = normalise_distance_to_dust_radius(apply_theta_correction(0.0),2);
+                _two_D_array[3][i] = normalise_distance_to_dust_radius(0.0,3);
             }
         }
         if (_dimension_val==2){
             if (_is_E_Field_defined_truth){
-		_two_D_array[0][i] = line_values[0];
-		_two_D_array[1][i] = line_values[1];
-                _two_D_array[2][i] = 0.0;
-		_two_D_array[3][i] = convert_distance_to_SI(line_values[2], 1);
-		_two_D_array[4][i] = convert_distance_to_SI(apply_theta_correction(line_values[3]),2);
-                _two_D_array[5][i] = convert_distance_to_SI(0.0,3);
+		        _two_D_array[0][i] = normalise_E_Field_to_dimpl_scheme(line_values[0]);
+		        _two_D_array[1][i] = normalise_E_Field_to_dimpl_scheme(apply_theta_correction(line_values[1]));
+                _two_D_array[2][i] = normalise_E_Field_to_dimpl_scheme(0.0);
+		        _two_D_array[3][i] = normalise_distance_to_dust_radius(line_values[2], 1);
+		        _two_D_array[4][i] = normalise_distance_to_dust_radius(apply_theta_correction(line_values[3]),2);
+                _two_D_array[5][i] = normalise_distance_to_dust_radius(0.0,3);
             }
             else {
-		_two_D_array[0][i] = line_values[0];
-		_two_D_array[1][i] = convert_distance_to_SI(line_values[1],1);
-		_two_D_array[2][i] = convert_distance_to_SI(apply_theta_correction(line_values[2]),2);
-                _two_D_array[3][i] = convert_distance_to_SI(0.0,3);
+		        _two_D_array[0][i] = normalise_potential_to_dimpl_scheme(line_values[0]);
+		        _two_D_array[1][i] = normalise_distance_to_dust_radius(line_values[1],1);
+		        _two_D_array[2][i] = normalise_distance_to_dust_radius(apply_theta_correction(line_values[2]),2);
+                _two_D_array[3][i] = normalise_distance_to_dust_radius(0.0,3);
             }
         }
         if (_dimension_val==3){
             if (_is_E_Field_defined_truth){
-		_two_D_array[0][i] = line_values[0];
-		_two_D_array[1][i] = line_values[1];
-                _two_D_array[2][i] = line_values[2];
-		_two_D_array[3][i] = convert_distance_to_SI(line_values[3],1);
-		_two_D_array[4][i] = convert_distance_to_SI(apply_theta_correction(line_values[4]),2);
-                _two_D_array[5][i] = convert_distance_to_SI(line_values[5],3);
+		        _two_D_array[0][i] = normalise_E_Field_to_dimpl_scheme(line_values[0]);
+		        _two_D_array[1][i] = normalise_E_Field_to_dimpl_scheme(apply_theta_correction(line_values[1]));
+                _two_D_array[2][i] = normalise_E_Field_to_dimpl_scheme(line_values[2]);
+		        _two_D_array[3][i] = normalise_distance_to_dust_radius(line_values[3],1);
+		        _two_D_array[4][i] = normalise_distance_to_dust_radius(apply_theta_correction(line_values[4]),2);
+                _two_D_array[5][i] = normalise_distance_to_dust_radius(line_values[5],3);
             }
             else {
-		_two_D_array[0][i] = line_values[0];
-		_two_D_array[1][i] = convert_distance_to_SI(line_values[1],1);
-		_two_D_array[2][i] = convert_distance_to_SI(apply_theta_correction(line_values[2]),2);
-                _two_D_array[3][i] = convert_distance_to_SI(line_values[3],3);
+		        _two_D_array[0][i] = normalise_potential_to_dimpl_scheme(line_values[0]);
+		        _two_D_array[1][i] = normalise_distance_to_dust_radius(line_values[1],1);
+		        _two_D_array[2][i] = normalise_distance_to_dust_radius(apply_theta_correction(line_values[2]),2);
+                _two_D_array[3][i] = normalise_distance_to_dust_radius(line_values[3],3);
             }
         }
     }
-    
-    // Check for correct text file settings
-    
-    
+
+
     // Convert grid representation to multi dimensional array of Field Points
-    //
     // Begin by finding number of points in each dimension
     int one_d_count = 1;
     int two_d_count = 1;
@@ -503,7 +462,7 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     int first_dimension_pos = 1;
     if (_is_E_Field_defined_truth){first_dimension_pos = 3;}
     double memory_holder = _two_D_array[first_dimension_pos][0]; // start off with the first value in the first dimension
-    
+
     for (int i=1; i< _num_data_lines+1; i++){
         const double first_d_current_val = _two_D_array[first_dimension_pos][i];
         if ( first_d_current_val < memory_holder){
@@ -541,7 +500,7 @@ void Field_Map::convert_data_line_to_multi_D_array(){
             }
         }
     }
-    
+
     // Sort Out Invalid Situations:
 
     //    1. r is less than or equal to 0
@@ -557,67 +516,67 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     if (_is_spherical || _is_cylindrical){
         // Make a Memory of position values in each dimension
         for (int i=0; i<one_d_count; i++){
-	    if (_two_D_array[first_dimension_pos][i] <= 0.0){
-	        one_d_low_error_count+=1;
-	    }
-	}
-       	if (_dimension_val ==2||_dimension_val==3){
-	    const double TWO_PI = 2*PI;
-            if (_is_spherical){
-	    for (int i=0; i<two_d_count; i++){
-	        double two_d_pos = _two_D_array[first_dimension_pos+1][i*one_d_count];
-		if (two_d_pos <= 0.0){
-		    two_d_low_error_count+=1;
-		} else if (two_d_pos >=PI){
-		    two_d_high_error_count += 1;
-		}
-	    }
-	    }
-	    if (_dimension_val==3){
-                for (int i=0; i<three_d_count; i++){
-	            double three_d_pos = _two_D_array[first_dimension_pos+2][i*one_d_count*two_d_count];
-		    if (three_d_pos < 0.0){
-		        three_d_low_error_count+=1;
-		    } else if (three_d_pos >TWO_PI){
-		        three_d_high_error_count += 1;
-		    }
+	        if (_two_D_array[first_dimension_pos][i] <= 0.0){
+	            one_d_low_error_count+=1;
 	        }
 	    }
+       	if (_dimension_val ==2||_dimension_val==3){
+	        const double TWO_PI = 2*PI;
+            if (_is_spherical){
+	            for (int i=0; i<two_d_count; i++){
+	                double two_d_pos = _two_D_array[first_dimension_pos+1][i*one_d_count];
+		            if (two_d_pos <= 0.0){
+		                two_d_low_error_count+=1;
+		            } else if (two_d_pos >=PI){
+		                two_d_high_error_count += 1;
+		            }
+	            }
+	        }
+	        if (_dimension_val==3){
+                for (int i=0; i<three_d_count; i++){
+	                double three_d_pos = _two_D_array[first_dimension_pos+2][i*one_d_count*two_d_count];
+		            if (three_d_pos < 0.0){
+		                three_d_low_error_count+=1;
+		            } else if (three_d_pos >TWO_PI){
+		                three_d_high_error_count += 1;
+		            }
+	            }
+	        }
         }
-	if (one_d_low_error_count != 0){
-	    std::cout<<"WARNING: There was a field defined at r/rho values below 0. These have been removed but caution should be taken."<<std::endl;
-	}
-	if (two_d_low_error_count != 0){
-	    std::cout<<"WARNING: There was a field defined at theta values below 0. These have been removed but caution should be taken."<<std::endl;
-	}
-	if (two_d_high_error_count != 0){
-	    std::cout<<"WARNING: There was a field defined at theta values above pi. These have been removed but caution should be taken."<<std::endl;
-	}
-	if (three_d_low_error_count != 0){
-	    std::cout<<"WARNING: There was a field defined at phi values below 0. These have been removed but caution should be taken."<<std::endl;
-	}
-	if (three_d_high_error_count != 0){
-	    std::cout<<"WARNING: There was a field defined at phi values above 2pi. These have been removed but caution should be taken."<<std::endl;
-	}
+	    if (one_d_low_error_count != 0){
+	        std::cout<<"WARNING: There was a field defined at r/rho values below 0. These have been removed but caution should be taken."<<std::endl;
+	    }
+	    if (two_d_low_error_count != 0){
+	        std::cout<<"WARNING: There was a field defined at theta values below 0. These have been removed but caution should be taken."<<std::endl;
+	    }
+	    if (two_d_high_error_count != 0){
+	        std::cout<<"WARNING: There was a field defined at theta values above pi. These have been removed but caution should be taken."<<std::endl;
+	    }
+	    if (three_d_low_error_count != 0){
+	        std::cout<<"WARNING: There was a field defined at phi values below 0. These have been removed but caution should be taken."<<std::endl;
+	    }
+	    if (three_d_high_error_count != 0){
+	        std::cout<<"WARNING: There was a field defined at phi values above 2pi. These have been removed but caution should be taken."<<std::endl;
+	    }
     }
 
     _total_one_d_count = one_d_count-one_d_low_error_count;
     _total_two_d_count = two_d_count-two_d_low_error_count-two_d_high_error_count;
     _total_three_d_count = three_d_count - three_d_low_error_count - three_d_high_error_count;
-    
+
     if (_total_one_d_count<3){
-	std::cerr<<"ERROR: the custom field does not contain enough valid values in the first dimension.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	throw std::exception();
+	    std::cerr<<"ERROR: the custom field does not contain enough valid values in the first dimension.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	    throw std::exception();
     }
-    
+
     if (((_dimension_val==2||_dimension_val==3) && _total_two_d_count<3)||(_dimension_val==1 && _total_two_d_count<=0)){
-	std::cerr<<"ERROR: the custom field does not contain enough valid values in the second dimension.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	throw std::exception();
+	    std::cerr<<"ERROR: the custom field does not contain enough valid values in the second dimension.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	    throw std::exception();
     }
-    
+
     if ((_dimension_val==3 && _total_three_d_count<3)||((_dimension_val==1||_dimension_val==2) && _total_three_d_count<=0)){
-	std::cerr<<"ERROR: the custom field does not contain enough valid values in the third dimension.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
-	throw std::exception();
+	    std::cerr<<"ERROR: the custom field does not contain enough valid values in the third dimension.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	    throw std::exception();
     }
 
     // Populate multi dimensional array
@@ -625,9 +584,6 @@ void Field_Map::convert_data_line_to_multi_D_array(){
     int i_count = 0;
     int j_count = 0;
     int k_count = 0;
-    bool is_theta_zero_found = false;
-    //threevector E_Field;
-    //threevector pos;
     for (int i_true=one_d_low_error_count; i_true<one_d_count; i_true++){
         for (int j_true=two_d_low_error_count; j_true<two_d_count-two_d_high_error_count; j_true++) {
 	        for (int k_true=three_d_low_error_count; k_true<three_d_count-three_d_high_error_count; k_true++){
@@ -640,42 +596,31 @@ void Field_Map::convert_data_line_to_multi_D_array(){
                     }
                 }
                 else if (_is_spherical) {
-		    // Note spherical defined in text file as r,theta,phi
-		    // Threevector in order: r, theta, phi
-
+		        // Note spherical defined in text file as r,theta,phi
+		        // Threevector in order: r, theta, phi
                     if (_is_E_Field_defined_truth) {
-			// Check if theta is 0 (in this case phi would be badly defined so shift theta by delta)
-			// Note to self: is this still necessary?
-			double E_field_theta = _two_D_array[1][two_d_array_pos];
-			double pos_theta = _two_D_array[4][two_d_array_pos];
-		        if ( E_field_theta == 0.0) {is_theta_zero_found = true; E_field_theta+=delta;}
-		        if ( pos_theta == 0.0) {is_theta_zero_found = true; pos_theta+=delta;}
-
-                        Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], E_field_theta, _two_D_array[2][two_d_array_pos], threevector(_two_D_array[3][two_d_array_pos], pos_theta, _two_D_array[5][two_d_array_pos], 's'), _is_cartesian, _is_spherical, _is_cylindrical);
+                        Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], _two_D_array[1][two_d_array_pos], _two_D_array[2][two_d_array_pos], threevector(_two_D_array[3][two_d_array_pos], _two_D_array[4][two_d_array_pos], _two_D_array[5][two_d_array_pos], 's'), _is_cartesian, _is_spherical, _is_cylindrical);
                     } else {
-			double pos_theta = _two_D_array[2][two_d_array_pos];
-		        if ( pos_theta == 0.0) {is_theta_zero_found = true; pos_theta+=delta;}
-                        Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], threevector(_two_D_array[1][two_d_array_pos], pos_theta, _two_D_array[3][two_d_array_pos], 's'));
+                        Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], threevector(_two_D_array[1][two_d_array_pos], _two_D_array[2][two_d_array_pos], _two_D_array[3][two_d_array_pos], 's'));
                     }
                 }
                 else if (_is_cylindrical) {
-		    // Note cylindrical defined in text file as rho, z, phi;
-		    // Threevector in order: rho, phi, z
+		            // Note cylindrical defined in text file as rho, z, phi;
+		            // Threevector in order: rho, phi, z
                     if (_is_E_Field_defined_truth) {
                         Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], _two_D_array[1][two_d_array_pos], _two_D_array[2][two_d_array_pos], threevector(_two_D_array[3][two_d_array_pos], _two_D_array[5][two_d_array_pos], _two_D_array[4][two_d_array_pos], 'c'), _is_cartesian, _is_spherical, _is_cylindrical);
                     } else {
                         Field_Map_Matrix[i_count][j_count][k_count] = Field_Point(_two_D_array[0][two_d_array_pos], threevector(_two_D_array[1][two_d_array_pos], _two_D_array[3][two_d_array_pos], _two_D_array[2][two_d_array_pos], 'c'));
                     }
                 }
-		k_count+=1;
+		        k_count+=1;
 	        }
 	        j_count+=1;
-		k_count=0;
+		    k_count=0;
 	    }
         i_count+=1;
-	j_count=0;
+	    j_count=0;
     }
-    if (is_theta_zero_found){std::cout<<"WARNING: A provided theta value was 0 which would cause a badly defined phi.\n\t Theta has been shifted by "<<delta<<" to accomodate this, but caution should be taken."<<std::endl;}
 
     _Field_Map_Final = Field_Map_Matrix;
 
@@ -685,8 +630,6 @@ void Field_Map::convert_data_line_to_multi_D_array(){
 }
 
 void Field_Map::partition_three_D_grid(){
-    // Note to self: check how many dimensions are required
-    // vector of vectors, in one direction the partition values, in the other direction additional granularity
     const std::vector<std::vector<int>> base_pos_holder= {{0}};
     const std::vector<std::vector<double>> base_value_holder= {{0.0}};
     if (_dimension_val==3){
@@ -710,11 +653,11 @@ void Field_Map::partition_three_D_grid(){
 }
 
 void Field_Map::find_per_dimension(int dimension){
-    int count=1;//initialise with meaningless value
-    const std::string warning = "WARNING: invalid dimension provided";
-    if(dimension==1){
+    int count=1;//initialise with meaningless value since will be replaced
+    const std::string warning = "WARNING: invalid dimension provided when seeking to partition grid using find_per_dimension method in Field_Map.cpp";
+    if (dimension==1){
         count =_total_one_d_count;
-    }else if (dimension==2){
+    } else if (dimension==2){
         count = _total_two_d_count;
     } else if (dimension==3){
         count = _total_three_d_count;
@@ -773,7 +716,8 @@ void Field_Map::find_per_dimension(int dimension){
         _three_d_pos_holder = pos_holder;
 	    _three_d_value_holder = value_holder;
     } else{
-        std::cout<<warning<<std::endl;
+        std::cerr<<warning<<std::endl;
+    	throw std::exception();
     }
 }
 
@@ -817,21 +761,21 @@ double Field_Map::find_val_from_field_point(int index, int dimension){
 }
 
 void Field_Map::add_quadratic_fit_details_to_all_points(){
-    // Check properly defined
+    // The below should already be accounted for
     const std::string error_message = "ERROR: Not enough points provided for dimension to be properly defined. Please provide at least 3 points along each dimension.";
     if (_dimension_val == 1 && _total_one_d_count < 3){std::cout<<error_message;}
     if (_dimension_val == 2  && (_total_one_d_count < 3 || _total_two_d_count<3)){std::cout<<error_message;}
     if (_dimension_val == 3  && (_total_one_d_count < 3 || _total_two_d_count<3 ||_total_three_d_count<3)){std::cout<<error_message;}
+
     for (int k=0; k<_total_three_d_count; k++){
         for (int j=0; j<_total_two_d_count; j++){
 	        for (int i=0; i<_total_one_d_count; i++){
-		    if (!_is_E_Field_defined_truth){
-		        int pos[3] = {i,j,k};
-		        std::vector<std::vector<double>> fits = find_fits(pos);
-		        _Field_Map_Final[i][j][k].add_quadratic_fit(fits);
-		    }
-		    // Note to self: update method name
-		    _Field_Map_Final[i][j][k].find_E_field_at_point(_dimension_val, _is_cartesian, _is_spherical, _is_cylindrical, _is_E_Field_defined_truth);
+		        if (!_is_E_Field_defined_truth){
+		            int pos[3] = {i,j,k};
+		            std::vector<std::vector<double>> fits = find_fits(pos);
+		            _Field_Map_Final[i][j][k].add_quadratic_fit(fits);
+		        }
+		        _Field_Map_Final[i][j][k].find_E_field_at_point(_dimension_val, _is_cartesian, _is_spherical, _is_cylindrical, _is_E_Field_defined_truth);
 	        }
 	    }
     }
@@ -839,7 +783,7 @@ void Field_Map::add_quadratic_fit_details_to_all_points(){
 
 std::vector<std::vector<double>> Field_Map::find_fits(int position[3]){
     std::vector<std::vector<double>> abc_s;
-    // Check dimensionality
+    // Check dimensionality to ensure correct neighbours are being located
     if (_dimension_val == 1){
         Field_Point points[3];
         int central_pos = position[0];
@@ -1038,79 +982,70 @@ double Field_Map::two_by_two_mat_det(double upper_left, double upper_right, doub
 
 std::vector<int> Field_Map::find_closest(double value, std::vector<std::vector<int>> pos_holder, std::vector<std::vector<double>> value_holder, int dimension){
     std::vector<int> closest_positions(2);
-
     if (value<value_holder[0][0]){
-	// out of low bound: state edge but with warning
+	// out of low bound: state edge position as closest and record out of domain
         closest_positions[0]=0;
-	closest_positions[1]=0;
+	    closest_positions[1]=0;
         _num_times_outside_domain[dimension-1][0]+=1;
     } else if (value>value_holder[0][2]){
-	// out of high bound: state edge but with warning
+	//out of high bound: state edge position as closest and record out of domain
         closest_positions[0]=pos_holder[0][2];
-	closest_positions[1]=pos_holder[0][2];
-	_num_times_outside_domain[dimension-1][1]+=1;
+	    closest_positions[1]=pos_holder[0][2];
+	    _num_times_outside_domain[dimension-1][1]+=1;
     } else{
-    int test_point = 1;
-    int num_secs = pos_holder.size();
-    //std::cout<<"Num Secs: "<<num_secs<<std::endl;
-    for (int i=0; i<num_secs-2; i++){
-	      if (value > value_holder[i][test_point]){
-                  test_point=2*test_point+1; // for the next line, the test point is shifted
-	      } else {
-	          test_point=2*test_point-1;
-	      }
-    }
-    // Penultimate line:
-    //     check partition above or below depending on
-
-    if (value < value_holder[num_secs-2][test_point]){
-        test_point -= 1;
-    }
-    // check diff to this value, diff to next value etc. until buffer
-    int num_to_check = 1+pos_holder[num_secs-2][test_point+1] - pos_holder[num_secs-2][test_point];
-	int index_of_test_point = pos_holder[num_secs-2][test_point];
-    int closest_pos = index_of_test_point;
-	double closest_diff = value-value_holder[num_secs-2][test_point];
-	int second_closest_pos = index_of_test_point+1;
-	for (int i=1; i<num_to_check;i++){
-	    double this_diff = value-value_holder[num_secs-1][index_of_test_point+i];
-	    if (std::abs(this_diff)<std::abs(closest_diff)){
-	        if(this_diff>0){
-		    second_closest_pos = closest_pos+2;
-		} else {
-		    second_closest_pos = closest_pos;
-		}
-		closest_pos = index_of_test_point + i;
-		closest_diff = this_diff;
+        int test_point = 1;
+        int num_secs = pos_holder.size();
+        for (int i=0; i<num_secs-2; i++){
+	        if (value > value_holder[i][test_point]){
+                test_point=2*test_point+1; // for the next line, the test point is shifted
+	        } else {
+	            test_point=2*test_point-1;
+	        }
+        }
+        // Penultimate line:
+        //     check partition above or below depending on
+        if (value < value_holder[num_secs-2][test_point]){
+            test_point -= 1;
+        }
+        // check diff to this value, diff to next value etc. until buffer
+        int num_to_check = 1+pos_holder[num_secs-2][test_point+1] - pos_holder[num_secs-2][test_point];
+	    int index_of_test_point = pos_holder[num_secs-2][test_point];
+        int closest_pos = index_of_test_point;
+	    double closest_diff = value-value_holder[num_secs-2][test_point];
+	    int second_closest_pos = index_of_test_point+1;
+	    for (int i=1; i<num_to_check;i++){
+	        double this_diff = value-value_holder[num_secs-1][index_of_test_point+i];
+	        if (std::abs(this_diff)<std::abs(closest_diff)){
+	            if(this_diff>0){
+		            second_closest_pos = closest_pos+2;
+		        } else {
+		            second_closest_pos = closest_pos;
+		        }
+		        closest_pos = index_of_test_point + i;
+		        closest_diff = this_diff;
+	        }
 	    }
-	}
-    closest_positions[0] = closest_pos;
-	closest_positions[1] = second_closest_pos;
+        closest_positions[0] = closest_pos;
+	    closest_positions[1] = second_closest_pos;
     }
     return closest_positions;
 }
 
-threevector Field_Map::find_approx_value(threevector point, bool is_print){
-    // Note to self: this entire method needs correcting to ensure that there is no excessive use of if statements and to ensure the distance is logical in spherical and cylindrical contexts.
-
-    //if (_is_pos_debye_length_normalised_truth){
-	//    point = (_dust_radius/_debye_length)*point;
-	  //  if (is_print){
-	    //std::cout<<"Normalising"<<std::endl;}
-    //} //Note to self: otherwise, must be normalised to dust radius already
-    
-    //std::cout<<"Started looking for value."<<std::endl;
+threevector Field_Map::find_approx_value(threevector point){
+    // Begin by finding the close points in each dimension
+    // Store the position indexes of the near points
     std::vector<int> one_d_close_pos(2);
     std::vector<int> two_d_close_pos(2);
     std::vector<int> three_d_close_pos(2);
     // number of points for 1 dimension = 2; 2d=4;3d=8
     const int num_near_points= std::pow(2, _dimension_val);
+    // Store the actual field points of the near points
     Field_Point near_points[num_near_points];
     if(_dimension_val==1){
          if (_is_cartesian){
              one_d_close_pos = find_closest(point.getx(), _one_d_pos_holder, _one_d_value_holder, 1);
          } else if (_is_spherical){
-	     one_d_close_pos = find_closest(point.mag3(), _one_d_pos_holder, _one_d_value_holder, 1);
+	         one_d_close_pos = find_closest(point.mag3(), _one_d_pos_holder, _one_d_value_holder, 1);
          } else if (_is_cylindrical){
              one_d_close_pos = find_closest(point.getrho(), _one_d_pos_holder, _one_d_value_holder, 1);
          }
@@ -1136,9 +1071,6 @@ threevector Field_Map::find_approx_value(threevector point, bool is_print){
             one_d_close_pos = find_closest(point.getx(), _one_d_pos_holder, _one_d_value_holder, 1);
             two_d_close_pos = find_closest(point.gety(), _two_d_pos_holder, _two_d_value_holder, 2);
             three_d_close_pos = find_closest(point.getz(), _three_d_pos_holder, _three_d_value_holder, 3);
-	    //std::cout<<"1D low: "<<one_d_close_pos[0]<<", 1D High: "<<one_d_close_pos[1]<<std::endl;
-	    //std::cout<<"2D low: "<<two_d_close_pos[0]<<", 2D High: "<<two_d_close_pos[1]<<std::endl;
-	    //std::cout<<"3D low: "<<three_d_close_pos[0]<<", 3D High: "<<three_d_close_pos[1]<<std::endl;
         } else if (_is_spherical){
             one_d_close_pos = find_closest(point.mag3(), _one_d_pos_holder, _one_d_value_holder, 1);
             two_d_close_pos = find_closest(point.gettheta(), _two_d_pos_holder, _two_d_value_holder, 2);
@@ -1158,7 +1090,7 @@ threevector Field_Map::find_approx_value(threevector point, bool is_print){
         near_points[7] = _Field_Map_Final[one_d_close_pos[1]][two_d_close_pos[1]][three_d_close_pos[1]];
     } else {std::cout<<"WARNING: unknown dimension number"<<std::endl;}
 
-    //for averaging, linear but the closer the better
+    // Now the closest field points are found, find and average the electric field at each point
     double summed_weight = 0;
     threevector E_field_values[num_near_points];
     double weights[num_near_points];
@@ -1167,29 +1099,12 @@ threevector Field_Map::find_approx_value(threevector point, bool is_print){
     threevector exact_E_field_val;
     for (int i=0;i<num_near_points;i++){
         if (_is_E_Field_defined_truth || !_CALCULATE_NEARBY_E_FIELD_ON_CURVES) {
-	    //E_field_values[i] = near_points[i].get_electric_field_at_point();
-	    //Note to self: below not working
-            E_field_values[i] = near_points[i].get_nearby_E_field(point, _dimension_val, _is_cartesian, _is_spherical, _is_cylindrical, _is_E_Field_defined_truth);
+            E_field_values[i] = near_points[i].get_electric_field_at_point();
         } else {
             E_field_values[i] = near_points[i].get_nearby_E_field(point, _dimension_val, _is_cartesian, _is_spherical, _is_cylindrical, _is_E_Field_defined_truth);
         }
-	if (is_print){
-	    if (_is_cartesian) {
-		std::cout<<i<<". Pos:    (x,y,z) "<< near_points[i].get_position_x()<<", "<< near_points[i].get_position_y()<<", "<<near_points[i].get_position_z()<<std::endl;
-    	        std::cout<<i<<". E field:(x,y,z) "<<E_field_values[i].getx()<<", "<< E_field_values[i].gety()<<", "<<E_field_values[i].getz()<<std::endl;
-	        std::cout<<"--"<<std::endl;
-	    }
-	    else if (_is_spherical) {
-		std::cout<<i<<". Pos:    (r,theta,phi) "<< near_points[i].get_position_r()<<", "<< near_points[i].get_position_theta()<<", "<<near_points[i].get_position_phi()<<std::endl;
-		std::cout<<i<<". Potential: "<< near_points[i].get_value()<<std::endl;
-    	        std::cout<<i<<". E field:(r,theta,phi) "<<E_field_values[i].mag3()<<", "<< E_field_values[i].gettheta()<<", "<<E_field_values[i].getphi()<<std::endl;
-	        std::cout<<"--"<<std::endl;
-	    } else if (_is_cylindrical) {
-		std::cout<<i<<". Pos:    (rho,z,phi) "<< near_points[i].get_position_rho()<<", "<< near_points[i].get_position_z()<<", "<<near_points[i].get_position_phi()<<std::endl;
-    	        std::cout<<i<<". E field:(rho,z,phi) "<<E_field_values[i].getrho()<<", "<< E_field_values[i].getz()<<", "<<E_field_values[i].getphi()<<std::endl;
-	        std::cout<<"--"<<std::endl;
-	    }
-	}
+        // For averaging, see how far the nearby field point is from the desired
+        //     true position
         double distance_squared;
         if (_dimension_val==1){
             if (_is_cartesian){
@@ -1234,9 +1149,6 @@ threevector Field_Map::find_approx_value(threevector point, bool is_print){
     else {
         approximate_E_Field_val = threevector(summed_weighted_values.getx()/summed_weight, summed_weighted_values.gety()/summed_weight, summed_weighted_values.getz()/summed_weight);
     }
-    //if (_is_pos_debye_length_normalised_truth){
-    //    approximate_E_Field_val = (_debye_length/_dust_radius)*approximate_E_Field_val;
-    //}
     return approximate_E_Field_val;
 }
 
@@ -1273,41 +1185,41 @@ void Field_Map::check_coordinate_domain_completeness(int dimension_to_check){
         max = _two_d_value_holder[0][2];
         if (min > delta){
             std::cout<<symmetric_warning_message<<"\n\tDefined lower limit: "<<min<<std::endl;
-	}
-	if (max < PI-delta){
+	    }
+	    if (max < PI-delta){
             std::cout<<symmetric_warning_message<<"\n\tDefined upper limit: "<<max<<std::endl;
-	}
+	    }
     } else if (dimension_to_check == 3){
         min = _three_d_value_holder[0][0];
         max = _three_d_value_holder[0][2];
         if (min > delta){
             std::cout<<symmetric_warning_message<<"\n\tDefined lower limit: "<<min<<std::endl;
-	}
+	    }
 	if (max < 2*PI-delta){
             std::cout<<symmetric_warning_message<<"\n\tDefined upper limit: "<<max<<std::endl;
-	}
+	    }
     }
 }
 
 void Field_Map::find_domain_limits(){
     const double MAX = 1e6; // Large value, used for situation where dimension is not defined by custom map.
     if (_is_cartesian){
-	const double limiting_x = std::min(std::abs(_one_d_value_holder[0][0]), _one_d_value_holder[0][2]);
-	if (_dimension_val==1){
-	    _map_z_min = -MAX;
-            _map_z_max = MAX;
-	    _map_rho_max = limiting_x;
-	} else {
-	    const double limiting_y = std::min(std::abs(_two_d_value_holder[0][0]), _two_d_value_holder[0][2]);
-	    _map_rho_max = std::sqrt(limiting_x*limiting_x+limiting_y*limiting_y);
-	    if (_dimension_val==2){
+	    const double limiting_x = std::min(std::abs(_one_d_value_holder[0][0]), _one_d_value_holder[0][2]);
+	    if (_dimension_val==1){
 	        _map_z_min = -MAX;
+            _map_z_max = MAX;
+	        _map_rho_max = limiting_x;
+	    } else {
+	        const double limiting_y = std::min(std::abs(_two_d_value_holder[0][0]), _two_d_value_holder[0][2]);
+	        _map_rho_max = std::sqrt(limiting_x*limiting_x+limiting_y*limiting_y);
+	        if (_dimension_val==2){
+	            _map_z_min = -MAX;
                 _map_z_max = MAX;
-	    } else if (_dimension_val==3){
-		_map_z_min = _three_d_value_holder[0][0];
+	        } else if (_dimension_val==3){
+		        _map_z_min = _three_d_value_holder[0][0];
                 _map_z_max = _three_d_value_holder[0][2];
+	        }
 	    }
-	}
     } else if (_is_spherical) {
         const double map_r = _one_d_value_holder[0][2];
         if (_is_spherical_injection){
@@ -1316,94 +1228,40 @@ void Field_Map::find_domain_limits(){
             _map_rho_max = map_r;
         }
         if (_is_cylindrical_injection){
-	    // Find the largest cylinder that will fit within sphere
-	    _map_z_max = map_r/std::sqrt(3);
-	    _map_z_min = -_map_z_max;
+	       // Find the largest cylinder that will fit within sphere
+	        _map_z_max = map_r/std::sqrt(3);
+	        _map_z_min = -_map_z_max;
             _map_rho_max = _map_z_max*std::sqrt(2);
         }
     } else if (_is_cylindrical){
         _map_rho_max = _one_d_value_holder[0][2];
-	if (_dimension_val==1){
-	    _map_z_min = -MAX;
+	    if (_dimension_val==1){
+	        _map_z_min = -MAX;
             _map_z_max = MAX;
-	} else {
-	    _map_z_min = _two_d_value_holder[0][0];
+	    } else {
+	        _map_z_min = _two_d_value_holder[0][0];
             _map_z_max = _two_d_value_holder[0][2];
-	}
+	    }
     }
 }
 
 
 void Field_Map::set_new_map_limits(double new_rho_limit){
     if (_is_spherical && _is_cylindrical_injection){
-	// Find the largest cylinder that will fit within sphere
+	    // Find the largest cylinder that will fit within sphere
         const double buffer = 1.1;
-	const double map_r = _one_d_value_holder[0][2];
-	//if(_is_pos_debye_length_normalised_truth){
-	    // assume input to be from DiMPl main and so convert from dust-radius normalised to Debye Length normalised
-	 //   new_rho_limit = new_rho_limit*_dust_radius/_debye_length;
-	//}
-	_map_z_max = std::sqrt(map_r*map_r - new_rho_limit*new_rho_limit)/buffer;
-	_map_z_min = -_map_z_max;
-	_map_rho_max = new_rho_limit;
+	    const double map_r = _one_d_value_holder[0][2];
+	    _map_z_max = std::sqrt(map_r*map_r - new_rho_limit*new_rho_limit)/buffer;
+	    _map_z_min = -_map_z_max;
+	    _map_rho_max = new_rho_limit;
     }
 }
 
-/**    
- *     std::string species_name;
-    std::string species_name_short;
-    if (is_electron){
-	species_name = "electron";
-	species_name_short = "e";
-    } else {
-	species_name = "ion";
-	species_name_short = "i";
-    }
-    double map_z_min;
-    double map_z_max;
-    double new_z_min;
-    double new_z_max;
-    std::string limit_warning_message = "\nWarning! The user-defined custom potential map does not cover the full range of the inputted DiMPl pars for the "+species_name+". \n\tThe limits of the DiMPl pars shall be altered to maximise the coverage according to the limit of the custom potential map.";
-
-    double map_rho_max;
-    double new_rho_max;bool print_warning_message = false;
-
-    if (map_z_min > z_min_dimpl_pars){
-	print_warning_message = true;
-        limit_warning_message = limit_warning_message+"\n\tOld z lower bound (zmincoeff*Debye Length): "+std::to_string(z_min_dimpl_pars)+"\n\tNew z lower bound ("+species_name_short+"zmin): "+std::to_string(map_z_min);
-        new_z_min = map_z_min;
-    } else {
-        new_z_min = z_min_dimpl_pars; // keep old value
-    }
-    if (map_z_max < z_max_dimpl_pars){
-	print_warning_message = true;
-        limit_warning_message = limit_warning_message+"\n\tOld z Upper bound (zmaxcoeff*Debye Length): "+std::to_string(z_max_dimpl_pars)+"\n\tNew z upper bound ("+species_name_short+"zmax): "+std::to_string(map_z_max);
-        new_z_max = map_z_max;
-    } else {
-        new_z_max = z_max_dimpl_pars; // keep old value
-    }
-
-    if (map_rho_max < max_radius_dimpl_pars){
-	print_warning_message = true;
-        limit_warning_message = limit_warning_message+"\n\tOld radial limit (impactpar*("+species_name+" thermal GyroRadius+Debye Length)): "+std::to_string(max_radius_dimpl_pars)+"\n\tNew radial limit  ("+species_name_short+"ImpactParameter): "+std::to_string(map_rho_max);
-        new_rho_max = map_rho_max;
-    } else {
-        new_rho_max  = max_radius_dimpl_pars; // keep old value
-    }
-    if(print_warning_message){
-        std::cout<<limit_warning_message<<std::endl;
-    }
-
-    std::vector<double> new_lim_vals = {new_z_min, new_z_max, new_rho_max};
-    return new_lim_vals;
-}*/
-
 void Field_Map::check_dust_grain_map_coverage(){
-    // Cartesian should be fine, so long as it is symmetric and covers dimpl domain which is checked elsewhere.
+    // Just check spherical and cylindrical since Cartesian should be fine, so long as it is symmetric and covers dimpl domain which is checked elsewhere.
     if (_is_spherical || _is_cylindrical) {
         const double limiting_a = std::min(std::min(_a1, _a2), _a3);
         const double map_r_min = _one_d_value_holder[0][0];
-
         if (limiting_a < map_r_min){
             const std::string limiting_a_string = std::to_string(limiting_a);
             const std::string map_r_min_string = std::to_string(map_r_min);
@@ -1480,32 +1338,33 @@ void Field_Map::check_domain(){
 
 int Field_Map::get_shrunk_point(double new_val, double old_val, int dimension, bool are_values_positive){
     int new_pos;
+    // Find the appropriate position and value holders for this dimension
     std::vector<std::vector<int>> pos_holder;
     std::vector<std::vector<double>> value_holder;
     if (dimension == 1){
         pos_holder = _one_d_pos_holder;
-	value_holder = _one_d_value_holder;
+	    value_holder = _one_d_value_holder;
     } else if (dimension == 2){
         pos_holder = _two_d_pos_holder;
-	value_holder = _two_d_value_holder;
+	    value_holder = _two_d_value_holder;
     } else if (dimension == 3){
         pos_holder = _three_d_pos_holder;
-	value_holder = _three_d_value_holder;
+	    value_holder = _three_d_value_holder;
     }
     if (are_values_positive){
         if (new_val < old_val){
-	    std::vector<int> close_pos= find_closest(new_val, pos_holder, value_holder, dimension);
-	    new_pos = std::max(close_pos[0], close_pos[1]);
-	} else {
-	    new_pos = pos_holder[0][2];
-	} 
+	        std::vector<int> close_pos= find_closest(new_val, pos_holder, value_holder, dimension);
+	        new_pos = std::max(close_pos[0], close_pos[1]);
+	    } else {
+	        new_pos = pos_holder[0][2];
+	    }
     } else {
         if (new_val > old_val){
-	    std::vector<int> close_pos= find_closest(new_val, pos_holder, value_holder, dimension);
-	    new_pos = std::min(close_pos[0], close_pos[1]);
-	} else {
-	    new_pos = pos_holder[0][0];
-	} 
+	        std::vector<int> close_pos= find_closest(new_val, pos_holder, value_holder, dimension);
+	        new_pos = std::min(close_pos[0], close_pos[1]);
+	    } else {
+	        new_pos = pos_holder[0][0];
+	    }
     }
     return new_pos;
 }
@@ -1514,21 +1373,15 @@ bool Field_Map::check_if_vectors_differ(std::vector<int> one, std::vector<int> t
     bool is_different = false;
     while (!is_different){
         for (int i=0; i<one.size(); i++){
-	    if (one[i]!=two[i]){is_different = true;}
-	}
+	        if (one[i]!=two[i]){is_different = true;}
+	    }
     }
     return is_different;
 }
 
 void Field_Map::shrink_map_to_fit(double z_min, double z_max, double rho_max){
-    const int buffer = 2;
-    z_min = z_min;
-    z_max = z_max;
-    rho_max = rho_max;
+    const int buffer = 2; // add a buffer to ensure that the new domain fully fits within the shrunk map
     // assign with old
-    std::cout<<"z_min: "<<z_min<<std::endl;
-    std::cout<<"z_max: "<<z_max<<std::endl;
-    std::cout<<"rho_max: "<<rho_max<<std::endl;
     int new_min_dim1_pos = _one_d_pos_holder[0][0];
     int new_max_dim1_pos = _one_d_pos_holder[0][2];
     int new_min_dim2_pos;
@@ -1543,85 +1396,91 @@ void Field_Map::shrink_map_to_fit(double z_min, double z_max, double rho_max){
     } else {
         new_min_dim2_pos = _two_d_pos_holder[0][0];
         new_max_dim2_pos = _two_d_pos_holder[0][2];
-	if (_dimension_val==2){
-	    new_min_dim3_pos = 0;
+	    if (_dimension_val==2){
+	        new_min_dim3_pos = 0;
             new_max_dim3_pos = 0;
-	} else {
-	    new_min_dim3_pos = _three_d_pos_holder[0][0];
+	    } else {
+	        new_min_dim3_pos = _three_d_pos_holder[0][0];
             new_max_dim3_pos = _three_d_pos_holder[0][2];
-	}
+	    }
     }
     bool is_shrinking_needed;
+    // Find new points at which the limits would be encapsulated
     if(_is_cartesian){
-	new_min_dim1_pos = get_shrunk_point(-rho_max, _one_d_value_holder[0][0], 1, false);
-	new_max_dim1_pos = get_shrunk_point(rho_max, _one_d_value_holder[0][2], 1, true);
-	if (_dimension_val==2 || _dimension_val==3){
-	    new_min_dim2_pos = get_shrunk_point(-rho_max, _two_d_value_holder[0][0], 2, false);
-	    new_max_dim2_pos = get_shrunk_point(rho_max, _two_d_value_holder[0][2], 2, true);
-	    if (_dimension_val==3){
-		new_min_dim3_pos = get_shrunk_point(z_min, _map_z_min, 3, false);
-	        new_max_dim3_pos = get_shrunk_point(z_max, _map_z_max, 3, true);
-	    }
-	}
-    } else if(_is_spherical){
-	double limiting_new_val;
-	const double limiting_z = std::max(-z_min, z_max);
-	if (_is_spherical_injection){
-	    limiting_new_val = std::max(limiting_z, rho_max);
-	} else if (_is_cylindrical_injection){
-	    limiting_new_val = std::sqrt(limiting_z*limiting_z + rho_max*rho_max);
-	}
-	new_max_dim1_pos = get_shrunk_point(limiting_new_val, _one_d_value_holder[0][2], 1, true);
-    } else if(_is_cylindrical){
-	const double limiting_new_val = std::max(std::max(-z_min, z_max), rho_max);
+	    new_min_dim1_pos = get_shrunk_point(-rho_max, _one_d_value_holder[0][0], 1, false);
 	    new_max_dim1_pos = get_shrunk_point(rho_max, _one_d_value_holder[0][2], 1, true);
-	if (_dimension_val==2 || _dimension_val==3){
-	    new_min_dim2_pos = get_shrunk_point(z_min, _two_d_value_holder[0][0], 2, false);
-	    new_max_dim2_pos = get_shrunk_point(z_max, _two_d_value_holder[0][2], 2, true);
-	}
+	    if (_dimension_val==2 || _dimension_val==3){
+	        new_min_dim2_pos = get_shrunk_point(-rho_max, _two_d_value_holder[0][0], 2, false);
+	        new_max_dim2_pos = get_shrunk_point(rho_max, _two_d_value_holder[0][2], 2, true);
+	        if (_dimension_val==3){
+		        new_min_dim3_pos = get_shrunk_point(z_min, _map_z_min, 3, false);
+	            new_max_dim3_pos = get_shrunk_point(z_max, _map_z_max, 3, true);
+	        }
+	    }
+    } else if(_is_spherical){
+	    double limiting_new_val;
+	    const double limiting_z = std::max(-z_min, z_max);
+	    if (_is_spherical_injection){
+	        limiting_new_val = std::max(limiting_z, rho_max);
+	    } else if (_is_cylindrical_injection){
+	        limiting_new_val = std::sqrt(limiting_z*limiting_z + rho_max*rho_max);
+	    }
+	    new_max_dim1_pos = get_shrunk_point(limiting_new_val, _one_d_value_holder[0][2], 1, true);
+    } else if(_is_cylindrical){
+	    const double limiting_new_val = std::max(std::max(-z_min, z_max), rho_max);
+	    new_max_dim1_pos = get_shrunk_point(rho_max, _one_d_value_holder[0][2], 1, true);
+	    if (_dimension_val==2 || _dimension_val==3){
+	        new_min_dim2_pos = get_shrunk_point(z_min, _two_d_value_holder[0][0], 2, false);
+	        new_max_dim2_pos = get_shrunk_point(z_max, _two_d_value_holder[0][2], 2, true);
+	    }
     }
+    // Check if the new positions differ to the old positions and state shrinking required if they are
     if (_dimension_val==1){
-	std::vector<int> old_positions = {_one_d_pos_holder[0][0], _one_d_pos_holder[0][2]};
-	std::vector<int> new_positions = {new_min_dim1_pos, new_max_dim1_pos};
-	is_shrinking_needed = check_if_vectors_differ(old_positions,new_positions);
+	    std::vector<int> old_positions = {_one_d_pos_holder[0][0], _one_d_pos_holder[0][2]};
+	    std::vector<int> new_positions = {new_min_dim1_pos, new_max_dim1_pos};
+	    is_shrinking_needed = check_if_vectors_differ(old_positions,new_positions);
     } else if (_dimension_val==2){
-	std::vector<int> old_positions = {_one_d_pos_holder[0][0], _one_d_pos_holder[0][2], _two_d_pos_holder[0][0], _two_d_pos_holder[0][2]};
-	std::vector<int> new_positions = {new_min_dim1_pos, new_max_dim1_pos, new_min_dim2_pos, new_max_dim2_pos};
-	is_shrinking_needed = check_if_vectors_differ(old_positions,new_positions);
+	    std::vector<int> old_positions = {_one_d_pos_holder[0][0], _one_d_pos_holder[0][2], _two_d_pos_holder[0][0], _two_d_pos_holder[0][2]};
+	    std::vector<int> new_positions = {new_min_dim1_pos, new_max_dim1_pos, new_min_dim2_pos, new_max_dim2_pos};
+	    is_shrinking_needed = check_if_vectors_differ(old_positions,new_positions);
     } else if (_dimension_val==3){
-	std::vector<int> old_positions = {_one_d_pos_holder[0][0], _one_d_pos_holder[0][2], _two_d_pos_holder[0][0], _two_d_pos_holder[0][2], _three_d_pos_holder[0][0], _three_d_pos_holder[0][2]};
-	std::vector<int> new_positions = {new_min_dim1_pos, new_max_dim1_pos, new_min_dim2_pos, new_max_dim2_pos, new_min_dim3_pos, new_max_dim3_pos};
-	is_shrinking_needed = check_if_vectors_differ(old_positions,new_positions);
+	    std::vector<int> old_positions = {_one_d_pos_holder[0][0], _one_d_pos_holder[0][2], _two_d_pos_holder[0][0], _two_d_pos_holder[0][2], _three_d_pos_holder[0][0], _three_d_pos_holder[0][2]};
+	    std::vector<int> new_positions = {new_min_dim1_pos, new_max_dim1_pos, new_min_dim2_pos, new_max_dim2_pos, new_min_dim3_pos, new_max_dim3_pos};
+	    is_shrinking_needed = check_if_vectors_differ(old_positions,new_positions);
     }
     if (is_shrinking_needed){
-	int one_d_count = std::min(buffer + new_max_dim1_pos - new_min_dim1_pos,_total_one_d_count);
-	int two_d_count = std::min(buffer + new_max_dim2_pos - new_min_dim2_pos,_total_two_d_count);
-	int three_d_count = std::min(buffer + new_max_dim3_pos - new_min_dim3_pos,_total_three_d_count);
-	if(one_d_count==_total_one_d_count&&two_d_count==_total_two_d_count&&three_d_count==_total_three_d_count){
-	std::vector<std::vector<std::vector<Field_Point>>> New_Field_Map_Matrix(one_d_count, std::vector<std::vector<Field_Point>>(two_d_count, std::vector<Field_Point>(three_d_count)));
-	int i_count = 0;
-	int j_count = 0;
-	int k_count = 0;
-	for (int i=new_min_dim1_pos; i<new_max_dim1_pos+1; i++){
-	    for (int j=new_min_dim2_pos; j<new_max_dim2_pos+1; j++){
-		for (int k=new_min_dim3_pos; k<new_max_dim3_pos+1; k++){
-		    New_Field_Map_Matrix[i_count][j_count][k_count] = _Field_Map_Final[i][j][k];
-		    k_count += 1;
-		}
-		j_count += 1;
-		k_count = 0;
-	    }
-	    i_count += 1;
-	    j_count = 0;
-	    k_count = 0;
-	}
-	// Update accordingly
-        _total_one_d_count = one_d_count;
-        _total_two_d_count = two_d_count;
-        _total_three_d_count = three_d_count;
-	_Field_Map_Final = New_Field_Map_Matrix;
-	partition_three_D_grid();
-    }
+        // Find the new counts
+	    int one_d_count = std::min(buffer + new_max_dim1_pos - new_min_dim1_pos,_total_one_d_count);
+	    int two_d_count = std::min(buffer + new_max_dim2_pos - new_min_dim2_pos,_total_two_d_count);
+	    int three_d_count = std::min(buffer + new_max_dim3_pos - new_min_dim3_pos,_total_three_d_count);
+        // if the buffer takes it past the count, then no need to shrink
+	    if(!(one_d_count==_total_one_d_count && two_d_count==_total_two_d_count && three_d_count==_total_three_d_count)){
+	        std::vector<std::vector<std::vector<Field_Point>>> New_Field_Map_Matrix(one_d_count, std::vector<std::vector<Field_Point>>(two_d_count, std::vector<Field_Point>(three_d_count)));
+	        int i_count = 0;
+	        int j_count = 0;
+	        int k_count = 0;
+	        for (int i=new_min_dim1_pos; i<new_max_dim1_pos+1; i++){
+	            for (int j=new_min_dim2_pos; j<new_max_dim2_pos+1; j++){
+		            for (int k=new_min_dim3_pos; k<new_max_dim3_pos+1; k++){
+		                New_Field_Map_Matrix[i_count][j_count][k_count] = _Field_Map_Final[i][j][k];
+		                k_count += 1;
+		            }
+		            j_count += 1;
+		            k_count = 0;
+	            }
+	            i_count += 1;
+	            j_count = 0;
+	            k_count = 0;
+	        }
+	        // Update accordingly
+            _total_one_d_count = one_d_count;
+            _total_two_d_count = two_d_count;
+            _total_three_d_count = three_d_count;
+	        _Field_Map_Final = New_Field_Map_Matrix;
+	        partition_three_D_grid();
+            check_domain();
+            find_domain_limits();
+        }
     }
 }
 
