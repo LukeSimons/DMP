@@ -29,10 +29,10 @@
 //#define DISK                //!< Switch: set boundary as flat circle 
 //#define COLLISIONS          //!< Switch: Turn neutral Collisions on or off
 
-//#define COULOMB_POTENTIAL   //!< Switch: Coulomb potential for E field
+#define COULOMB_POTENTIAL   //!< Switch: Coulomb potential for E field
 //#define DEBYE_POTENTIAL       //!< Switch: Debye-Huckel potential for E field
 //#define PARABOLIC_POTENTIAL //!< Switch: Parabolic potential for E field
-#define CUSTOM_POTENTIAL    //!< Switch: Custom potential for E field
+//#define CUSTOM_POTENTIAL    //!< Switch: Custom potential for E field
 //#define BOLTZMANN_DENSITY   //!< Switch: alter injection surface densities
 
 //#define TEST_VELPOSDIST     //!< Print initial velocity and position
