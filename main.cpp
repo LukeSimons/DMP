@@ -1183,7 +1183,8 @@ int main(int argc, char* argv[]){
 
     // ***** SHRINK CUSTOM ELECTRIC FIELD MAP ACCORDINGLY ***** //
     #ifdef CUSTOM_POTENTIAL
-    this_field_map.shrink_map_to_fit(std::min(ezmin, izmin), std::max(ezmax, izmax), std::max(eImpactParameter, iImpactParameter));
+    // Note this method is not currently working.
+    //this_field_map.shrink_map_to_fit(std::min(ezmin, izmin), std::max(ezmax, izmax), std::max(eImpactParameter, iImpactParameter));
     #endif
     // ************************************************** //
 

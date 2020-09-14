@@ -88,7 +88,8 @@ std::string Field_Map::split_after_delim(std::string delim, std::string str_to_s
     const int delim_length = delim.length();
     const int delim_pos = str_to_split.find(delim);
     const int start_index = delim_pos + delim_length;
-    if (end_delim_pos<=0 || delim_pos<0 || start_index>=str_to_split.length()){
+    const int str_to_split_length = str_to_split.length();
+    if (end_delim_pos<=0 || delim_pos<0 || start_index>=str_to_split_length){
 	std::cerr<<"ERROR: the header line has not been correctly interpreted."
 	<<"\n\tCheck that the header delimiters are correctly spelled."
 	<<"\n\t\tExpected header delimiter: '"<<delim<<"'"
@@ -243,7 +244,8 @@ bool Field_Map::is_expected_num_data_points_in_line(std::string line, int expect
     bool is_at_final = false;
     while (!is_at_final){
         int pos = line.find(_data_delim);
-	    if (pos != std::string::npos){
+	int comparison_string_pos = std::string::npos;
+	    if (pos != comparison_string_pos){
 	        std::string line_data = line.substr(0, pos);
 	        if (!line_data.empty() && line_data.find_first_not_of("0123456789-eE.")!=std::string::npos){
 		        is_value_a_number = false;
@@ -370,7 +372,7 @@ double Field_Map::normalise_E_Field_to_dimpl_scheme(double old_EField){
     else {
         std::cerr<<"WARNING! The text file uses an unknown electric field normalisation scheme. Please implement the correct method in normalise_E_Field_to_dimpl_scheme of Field_Map.cpp. Proceeding using standard normalisation scheme for now."<<std::endl;
         throw std::exception();
-        new_potential = old_potential;
+        new_EField = old_EField;
     }
     return new_EField;
 }
@@ -389,7 +391,6 @@ double Field_Map::apply_theta_correction(double old_theta){
 }
 
 void Field_Map::convert_data_line_to_multi_D_array(){
-    const double delta = 1e-15;
     // Begin by finding the size
     double two_d_array_width;
     const int num_data_points_per_line = find_expected_number_data_points_per_line();
@@ -1372,7 +1373,8 @@ int Field_Map::get_shrunk_point(double new_val, double old_val, int dimension, b
 bool Field_Map::check_if_vectors_differ(std::vector<int> one, std::vector<int> two){
     bool is_different = false;
     while (!is_different){
-        for (int i=0; i<one.size(); i++){
+        int vec_one_size = one.size();
+	for (int i=0; i<vec_one_size; i++){
 	        if (one[i]!=two[i]){is_different = true;}
 	    }
     }
@@ -1427,7 +1429,6 @@ void Field_Map::shrink_map_to_fit(double z_min, double z_max, double rho_max){
 	    }
 	    new_max_dim1_pos = get_shrunk_point(limiting_new_val, _one_d_value_holder[0][2], 1, true);
     } else if(_is_cylindrical){
-	    const double limiting_new_val = std::max(std::max(-z_min, z_max), rho_max);
 	    new_max_dim1_pos = get_shrunk_point(rho_max, _one_d_value_holder[0][2], 1, true);
 	    if (_dimension_val==2 || _dimension_val==3){
 	        new_min_dim2_pos = get_shrunk_point(z_min, _two_d_value_holder[0][0], 2, false);
@@ -1454,6 +1455,7 @@ void Field_Map::shrink_map_to_fit(double z_min, double z_max, double rho_max){
 	    int two_d_count = std::min(buffer + new_max_dim2_pos - new_min_dim2_pos,_total_two_d_count);
 	    int three_d_count = std::min(buffer + new_max_dim3_pos - new_min_dim3_pos,_total_three_d_count);
         // if the buffer takes it past the count, then no need to shrink
+	// NOTE: below is not working
 	    if(!(one_d_count==_total_one_d_count && two_d_count==_total_two_d_count && three_d_count==_total_three_d_count)){
 	        std::vector<std::vector<std::vector<Field_Point>>> New_Field_Map_Matrix(one_d_count, std::vector<std::vector<Field_Point>>(two_d_count, std::vector<Field_Point>(three_d_count)));
 	        int i_count = 0;

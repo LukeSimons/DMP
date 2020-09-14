@@ -92,6 +92,7 @@ class Field_Point{
 	    /** @name Member Methods
 	     *  @brief Private methods utilised when defining field points
 	     *
+	     */
         ///@{
         /** @name calculate_electric_field
          *  @brief used to calculate the electric field

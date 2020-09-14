@@ -5,7 +5,7 @@
  *  @author Daniel Greenhouse (dg2020@ic.ac.uk (until 01.09.2020), dmgreenhouse@outlook.com (thereafter))
  *      Written immitating the style of main DiMPl author Luke Simons (ls5115@ic.ac.uk)
  *
- *  @bugs No known bugs.
+ *  @bug shrink_map_to_fit is not working, results in a segmentation fault
  */
 
 #ifndef __FIELD_MAP_H_INCLUDED__
@@ -119,7 +119,7 @@ class Field_Map{
          *  @var _a3: the dust radius 1/(semiz^2) paramater used by DiMPl (in
          *      units of the dust radius)
          */
-        const bool _DEBUG = true;
+        const bool _DEBUG = false;
         const bool _CALCULATE_NEARBY_E_FIELD_ON_CURVES = true;
 	    std::vector<std::string> _line_vector;
     	std::vector<std::vector<std::vector<Field_Point>>> _Field_Map_Final;
