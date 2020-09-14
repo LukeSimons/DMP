@@ -9,7 +9,7 @@ L. Simons and M. Coppins, Phys. Plasmas 27, 063702 (2020). DOI: https://doi.org/
 
 A detailed look at the dependence of the forces experienced by dust grains in magnetic fields in flowing plasmas is provided in the following paper:
 
-L. James and M. Coppins, Phys. Plasmas (2020). 
+L. James and M. Coppins, Phys. Plasmas (2020).
 
 
 This code calculates the angular and linear momentum transfer to a charged sphere with either a Debye-Huckel or Coulomb electric potential in a constant magnetic field. Output is in files in subdirectory Data. Optional full tracking of particles, including their change in energy and net linear and angular momentum can be calculated by defining the relevant pre-processor directives. Command line input is available with the following options:
@@ -26,10 +26,10 @@ Options:
 	-a1,--semix SEMIX		(arb), Specify the semi-axis for x in dust radii
 		a1(=1) DEFAULT,			By Default, simulate perfect sphere
 
-	-a2,--semiy SEMIZ		(arb), Specify the semi-axis for y in dust radii
+	-a2,--semiy SEMIY		(arb), Specify the semi-axis for y in dust radii
 		a2(=1) DEFAULT,			By Default, simulate perfect sphere
 
-	-a3,--semiz SEMIY		(arb), Specify the semi-axis for z in dust radii
+	-a3,--semiz SEMIZ		(arb), Specify the semi-axis for z in dust radii
 		a3(=1) DEFAULT,			By Default, simulate perfect sphere
 
 	-d,--density DENSITY		(kgm^-^3), Specify density of Dust grain
@@ -54,6 +54,9 @@ Options:
 	-ne,--edensity EDENSITY		(m^-^3), Specify the plasma electron density
 		eDensity(=1e18m^-^3) DEFAULT,	Tokamak density
 
+	-mi,--imass IMASS		(u), Specify the mass of Ions in Daltons
+		iMass(=1u) DEFAULT,
+
 	-ti,--itemp ITEMP		(eV), Specify the temperature of Ions
 		iTemp(=1eV) DEFAULT,
 
@@ -64,16 +67,16 @@ Options:
 		iChance(=-0.5) DEFAULT,	Ficticious ion generation probability: i.e Self-consistently generate ions & electrons
 
 	-u,--zmaxcoeff ZMAXCOEFF	(double), The upper limit of simulation domain as number of Coulomb Interaction lengths
-		zMaxCoeff(=1.0) DEFAULT,	Number of Interaction distances from (0,0,Radius) plane to max of simulation domain
+		zMaxCoeff(=1.0) DEFAULT,	Distance from (0,0,Radius) plane to max of simulation domain in dust radii
 
 	-l,--zmincoeff ZMINCOEFF	(double), The lower limit of simulation domain as number of Coulomb Interaction lengths
-		zMaxCoeff(=1.0) DEFAULT,	Number of Interaction distances from (0,0,Radius) plane to min of simulation domain
+		zMaxCoeff(=1.0) DEFAULT,	Distance from (0,0,Radius) plane to min of simulation domain in dust radii
 
 	-z,--zboundforce ZBOUNDFORCE	(double), Force the absolute value of simulation domain upper and lower boundaries
 		ZBoundForce(=0.0) DEFAULT,	By Default, use -u and -l to determine height of injection plane
 
-	-b,--impactpar IMPACTPAR	(double), Specify the radial limit of simulation domain as number of distances
-		ImpactPar(=2.0) DEFAULT,	By Default, Radial extent of injection is three gyro-radii from centre
+	-b,--impactpar IMPACTPAR	(double), Specify the radial limit of simulation domain as multiple of gyro-radii and debye lengths
+		ImpactPar(=2.0) DEFAULT,	By Default, Radial extent of injection is two gyro-radii plus two debye lengths from dust
 
 	-f,--forceimppar FORCEIMPPAR	(double), Force the absolute value of simulation radial distance
 		ForceImpPar(=0.0) DEFAULT,	By Default, use -b to determine radial extent of injection plane
@@ -109,8 +112,21 @@ Options:
 
 
 Additional Options from VARIABLE_CSCALE!
+	-cs,--chargescale CHARGESCALE			((double), Specify the scale of the charging
+		ChargeScale(=0) DEFAULT,		By Default, charging scale is calculated from Potential~1
+
+
+
+
+Additional Options from VARIABLE_CSCALE OR VARIABLE_ASCALE!
 	-jm,--jmin JMIN			(int), Specify the number of particles to be collected before dynamic saving
 		jmin(=20) DEFAULT,		By Default, re-assess dynamic scale after collecting 20 particles
 
 	-jf,--jfin JMIN			(int), Specify the number of particles to be collected in final save
 		jfin(=100) DEFAULT,		By Default, collect 100 particles in the final save
+
+
+
+Additional Options from CUSTOM_POTENTIAL
+    -cf, --customfield CUSTOMFIELD			(string), Specify the Custom Field file name to be used
+        custom electric potential file name(='Custom_Fields/Default_Field.txt') DEFAULT, 	By Default, Load file Custom_Fields/Default_Field.txt

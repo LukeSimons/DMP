@@ -80,7 +80,7 @@ int main(int argc, char* argv[]){
 		std::vector<double> zpos, vz;
 		double zmin=-10;
 		double zmax=10;
-		double DriftNorm=0;
+		//double DriftNorm=0;
 		double ThermalVel=1;
 		std::mt19937 mt(Seed);
 		double ProbUpper = 0.5;
