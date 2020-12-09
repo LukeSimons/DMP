@@ -56,7 +56,7 @@
 #endif
 
 #ifdef SAVE_MISSED_MOM
-#define DECLARE_MOM()   std::ofstream MomentumDataFile;
+#define DECLARE_MOM()   std::ofstream MomentumDataFile; 
 #define OPEN_MOM()  MomentumDataFile.open("Data/DiMPl_Momentum"+suffix);
 #define REOPEN_MOM()    MomentumDataFile.close(); MomentumDataFile.clear(); MomentumDataFile.open("Data/DiMPl_Momentum"+suffix, std::fstream::app); 
 #define HEAD_MOM()  MomentumDataFile << "#Collect num\tSimulated num\tPx\tPy\tPz\tLx\tLy\tLz";
@@ -128,7 +128,7 @@
 #endif 
 
 #ifdef SAVE_LINEAR_MOM
-#define DECLARE_LMOM()  std::ofstream LinearDataFile;
+#define DECLARE_LMOM()  std::ofstream LinearDataFile; LinearDataFile.precision(10);
 #define OPEN_LMOM() LinearDataFile.open("Data/DiMPl_LinMom"+suffix);
 #define REOPEN_LMOM()   LinearDataFile.close(); LinearDataFile.clear(); LinearDataFile.open("Data/DiMPl_LinMom"+suffix, std::fstream::app);
 #define HEAD_LMOM()	LinearDataFile << "#Collect num\tSimulated num\tPx_ic\tPy_ic\tPz_ic\tPx_im\tPy_im\tPz_im\tPx_l\tPy_l\tPz_l";
