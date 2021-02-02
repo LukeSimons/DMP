@@ -286,8 +286,8 @@ void nrv_pair(double sd, double* nrv1, double* nrv2, std::mt19937 &mt)
  */
 double thetaPDF(double theta, double u, double sigma)
 {
-    return sin(theta)*(1.0+erf(-1*u/(tan(theta)*sigma
-        *sqrt(2.0+2/(tan(theta)*tan(theta))))));
+    return (sigma/sqrt(2*PI)*exp(-0.5*u*cos(theta)*u*cos(theta)/(sigma*sigma)) 
+        + 0.5*u*cos(theta)*(1+erf(u*cos(theta)/(sqrt(2.0)*sigma))))*sin(theta);
 }
 
 /** @brief find the maximum value of the theta probability distribution
@@ -390,13 +390,13 @@ void GenerateOrbit(threevector &Position, threevector &Velocity,
             v[0] = -v[0];
         }
 */
-
-        double invel = rand_mwts(0.0,ThermalVel,mt);
-        std::normal_distribution<double> Gaussdist(0.0,ThermalVel);
+        double invel = rand_mwts(DriftNorm*cos(theta_pos),ThermalVel,mt);
+        std::normal_distribution<double> GaussdistP(0.0,ThermalVel);
+        std::normal_distribution<double> GaussdistT(DriftNorm*sin(theta_pos),ThermalVel);
         double v[3], v_temp[3];
         v[0]= -invel;
-        v[1]= Gaussdist(mt);
-        v[2]= Gaussdist(mt);
+        v[1]= GaussdistP(mt);
+        v[2]= GaussdistT(mt);
 
         /* Translate the injection velocity in spherical coordinates into
            the desired Cartesian coordinates. Luckily I already had this
@@ -406,13 +406,13 @@ void GenerateOrbit(threevector &Position, threevector &Velocity,
 
         Velocity.setx(v_temp[0]);
         Velocity.sety(v_temp[1]);
-        Velocity.setz(v_temp[2]+DriftNorm);
+        Velocity.setz(v_temp[2]);
 
         //!< For case of flow, if the injected particle is
         //!< expected to leave the simulation domain immediately,
         //!< reflect the position
-        if( Velocity.getz()*Position.getz() > 0.0 )
-            Position.setz(-1.0*Position.getz());
+        //if( Velocity.getz()*Position.getz() > 0.0 )
+        //    Position.setz(-1.0*Position.getz());
 
     #elif defined(POINT_INJECTION)
         // ***** INJECT AT SINGLE POINT WITH DRIFT VELOCITY ***** //
