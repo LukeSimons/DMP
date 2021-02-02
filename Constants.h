@@ -56,7 +56,7 @@
 #endif
 
 #ifdef SAVE_MISSED_MOM
-#define DECLARE_MOM()   std::ofstream MomentumDataFile;
+#define DECLARE_MOM()   std::ofstream MomentumDataFile; 
 #define OPEN_MOM()  MomentumDataFile.open("Data/DiMPl_Momentum"+suffix);
 #define REOPEN_MOM()    MomentumDataFile.close(); MomentumDataFile.clear(); MomentumDataFile.open("Data/DiMPl_Momentum"+suffix, std::fstream::app); 
 #define HEAD_MOM()  MomentumDataFile << "#Collect num\tSimulated num\tPx\tPy\tPz\tLx\tLy\tLz";
