@@ -128,7 +128,7 @@
 #endif 
 
 #ifdef SAVE_LINEAR_MOM
-#define DECLARE_LMOM()  std::ofstream LinearDataFile;
+#define DECLARE_LMOM()  std::ofstream LinearDataFile; LinearDataFile.precision(10);
 #define OPEN_LMOM() LinearDataFile.open("Data/DiMPl_LinMom"+suffix);
 #define REOPEN_LMOM()   LinearDataFile.close(); LinearDataFile.clear(); LinearDataFile.open("Data/DiMPl_LinMom"+suffix, std::fstream::app);
 #define HEAD_LMOM()	LinearDataFile << "#Collect num\tSimulated num\tPx_ic\tPy_ic\tPz_ic\tPx_im\tPy_im\tPz_im\tPx_l\tPy_l\tPz_l";

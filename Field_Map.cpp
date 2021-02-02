@@ -183,7 +183,7 @@ void Field_Map::check_text_file_settings(){
     const int expected_num_data_points_per_line = find_expected_number_data_points_per_line();
     const bool is_expected_data_line_ok = is_expected_num_data_points_in_line(expected_data_line, expected_num_data_points_per_line);
     if (!is_expected_data_line_ok){
-	    std::cerr<<"ERROR: the data in the custom file has not been correctly delimited or has an additional line in the header. Tabs should be used between values.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl;
+	    std::cerr<<"ERROR: the data in the custom file has not been correctly delimited or has an additional line in the header. Tabs should be used between values.\n\tPlease correct the Custom Field Text File and see the README for help."<<std::endl << expected_data_line << std::endl;
 	    throw std::exception();
     }
     // Check that the data starts where it is expected to start
@@ -247,14 +247,14 @@ bool Field_Map::is_expected_num_data_points_in_line(std::string line, int expect
 	int comparison_string_pos = std::string::npos;
 	    if (pos != comparison_string_pos){
 	        std::string line_data = line.substr(0, pos);
-	        if (!line_data.empty() && line_data.find_first_not_of("0123456789-eE.")!=std::string::npos){
+	        if (!line_data.empty() && line_data.find_first_not_of("0123456789-+eE.")!=std::string::npos){
 		        is_value_a_number = false;
 	        } else {
 		        true_data_points_count += 1;
 	        }
 	        line.erase(0, pos + _data_delim.length());
 	    } else {
-	        if (!line.empty()&&line.find_first_not_of("0123456789-eE.")!=0){
+	        if (!line.empty()&&line.find_first_not_of("0123456789-+eE.")!=0){
 		        true_data_points_count += 1;
 	        }
 	        is_at_final = true;
@@ -352,7 +352,7 @@ double Field_Map::normalise_distance_to_dust_radius(double old_position_value, i
 double Field_Map::normalise_potential_to_dimpl_scheme(double old_potential){
     double new_potential;
     if (_is_potential_normalised_truth){
-	    new_potential = old_potential;
+	    new_potential = -old_potential;
     }
     // Currently this is the only normalisation scheme allowed, so below should not be called
     else {
@@ -366,7 +366,7 @@ double Field_Map::normalise_potential_to_dimpl_scheme(double old_potential){
 double Field_Map::normalise_E_Field_to_dimpl_scheme(double old_EField){
     double new_EField;
     if (_is_potential_normalised_truth){
-	    new_EField = old_EField;
+	    new_EField = -old_EField;
     }
     // Currently this is the only normalisation scheme allowed, so below should not be called
     else {
