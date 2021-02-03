@@ -1255,46 +1255,83 @@ int main(int argc, char* argv[]){
         double BoltzmanniDensity = iDensity;
     #endif
 
-    double PosFluxi
-        = BoltzmanniDensity*((iThermalVel/sqrt(2.0*PI))
-        *exp(-0.5*DriftNorm*DriftNorm/(iThermalVel*iThermalVel))
-        +DriftNorm*0.5*(1.0+erf(DriftNorm/(sqrt(2.0)*iThermalVel))))
-        *pow(iImpactParameter,2);
-    double NegFluxi
-        = BoltzmanniDensity*((iThermalVel/sqrt(2.0*PI))
-        *exp(-0.5*DriftNorm*DriftNorm/(iThermalVel*iThermalVel))
-        -DriftNorm*0.5*(1.0+erf(-DriftNorm/(sqrt(2.0)*iThermalVel))))
-        *pow(iImpactParameter,2);
-    double PosFluxe
-        = BoltzmanneDensity*((eThermalVel/sqrt(2.0*PI))
-        *exp(-0.5*DriftNorm*DriftNorm/(eThermalVel*eThermalVel))
-        +DriftNorm*0.5*(1.0+erf(DriftNorm/(sqrt(2.0)*eThermalVel))))
-        *pow(eImpactParameter,2);
-    double NegFluxe
-        = BoltzmanneDensity*((eThermalVel/sqrt(2.0*PI))
-        *exp(-0.5*DriftNorm*DriftNorm/(eThermalVel*eThermalVel))
-        -DriftNorm*0.5*(1.0+erf(-DriftNorm/(sqrt(2.0)*eThermalVel))))
-        *pow(eImpactParameter,2);
+    #ifdef SPHERICAL_INJECTION
+        double PosFluxi = 0.0;
+        double PosFluxe = 0.0;
+        for (int i = 0; i < 1000; i++)
+        {
+            PosFluxi += thetaPDF(i*PI/1000, DriftNorm, iThermalVel);
+            PosFluxe += thetaPDF(i*PI/1000, DriftNorm, eThermalVel);
+        }
 
-    double TotalFluxProbability = PosFluxi + NegFluxi + PosFluxe + NegFluxe;
+        PosFluxi *= 2*PI*BoltzmanniDensity*(PI/1000)*pow(iImpactParameter,2);
+        PosFluxe *= 2*PI*BoltzmanneDensity*(PI/1000)*pow(eImpactParameter,2);
 
-    double ProbOfPosFluxe = PosFluxe / TotalFluxProbability;
-    double ProbOfNegFluxe = NegFluxe / TotalFluxProbability;
-    double ProbOfPosFluxi = PosFluxi / TotalFluxProbability;
-    double ProbOfNegFluxi = NegFluxi / TotalFluxProbability;
+        double NegFluxi = 0.0;
+        double NegFluxe = 0.0;
 
-    double ProbabilityOfIon = ProbOfPosFluxi+ProbOfNegFluxi;
-    if( iChance >= 0.0 && iChance <= 1.0 ){
-        ProbabilityOfIon = iChance;
-        TotalFluxProbability
-            = ProbabilityOfIon*(PosFluxi + NegFluxi)
-            + (1.0-ProbabilityOfIon)*(PosFluxe + NegFluxe);
+        double TotalFluxProbability = PosFluxi + PosFluxe;
 
-        ProbOfPosFluxe = (1.0-ProbabilityOfIon)*PosFluxe / TotalFluxProbability;
-        ProbOfNegFluxe = (1.0-ProbabilityOfIon)*NegFluxe / TotalFluxProbability;
-        ProbOfPosFluxi = ProbabilityOfIon*PosFluxi / TotalFluxProbability;
-        ProbOfNegFluxi = ProbabilityOfIon*NegFluxi / TotalFluxProbability;
-    }
+        double ProbOfPosFluxe = PosFluxe / TotalFluxProbability;
+        double ProbOfNegFluxe = 0.0;
+        double ProbOfPosFluxi = PosFluxi / TotalFluxProbability;
+        double ProbOfNegFluxi = 0.0;
+
+        double ProbabilityOfIon = ProbOfPosFluxi;
+
+        if( iChance >= 0.0 && iChance <= 1.0 ){
+            ProbabilityOfIon = iChance;
+            TotalFluxProbability
+                = ProbabilityOfIon*(PosFluxi)
+                + (1.0-ProbabilityOfIon)*(PosFluxe );
+
+            ProbOfPosFluxe = (1.0-ProbabilityOfIon)*PosFluxe / TotalFluxProbability;
+            ProbOfNegFluxe = 0.0;
+            ProbOfPosFluxi = ProbabilityOfIon*PosFluxi / TotalFluxProbability;
+            ProbOfNegFluxi = 0.0;
+        }
+    #else
+        double PosFluxi
+            = BoltzmanniDensity*((iThermalVel/sqrt(2.0*PI))
+            *exp(-0.5*DriftNorm*DriftNorm/(iThermalVel*iThermalVel))
+            +DriftNorm*0.5*(1.0+erf(DriftNorm/(sqrt(2.0)*iThermalVel))))
+            *pow(iImpactParameter,2);
+        double NegFluxi
+            = BoltzmanniDensity*((iThermalVel/sqrt(2.0*PI))
+            *exp(-0.5*DriftNorm*DriftNorm/(iThermalVel*iThermalVel))
+            -DriftNorm*0.5*(1.0+erf(-DriftNorm/(sqrt(2.0)*iThermalVel))))
+            *pow(iImpactParameter,2);
+        double PosFluxe
+            = BoltzmanneDensity*((eThermalVel/sqrt(2.0*PI))
+            *exp(-0.5*DriftNorm*DriftNorm/(eThermalVel*eThermalVel))
+            +DriftNorm*0.5*(1.0+erf(DriftNorm/(sqrt(2.0)*eThermalVel))))
+            *pow(eImpactParameter,2);
+        double NegFluxe
+            = BoltzmanneDensity*((eThermalVel/sqrt(2.0*PI))
+            *exp(-0.5*DriftNorm*DriftNorm/(eThermalVel*eThermalVel))
+            -DriftNorm*0.5*(1.0+erf(-DriftNorm/(sqrt(2.0)*eThermalVel))))
+            *pow(eImpactParameter,2);
+
+        double TotalFluxProbability = PosFluxi + NegFluxi + PosFluxe + NegFluxe;
+
+        double ProbOfPosFluxe = PosFluxe / TotalFluxProbability;
+        double ProbOfNegFluxe = NegFluxe / TotalFluxProbability;
+        double ProbOfPosFluxi = PosFluxi / TotalFluxProbability;
+        double ProbOfNegFluxi = NegFluxi / TotalFluxProbability;
+
+        double ProbabilityOfIon = ProbOfPosFluxi+ProbOfNegFluxi;
+        if( iChance >= 0.0 && iChance <= 1.0 ){
+            ProbabilityOfIon = iChance;
+            TotalFluxProbability
+                = ProbabilityOfIon*(PosFluxi + NegFluxi)
+                + (1.0-ProbabilityOfIon)*(PosFluxe + NegFluxe);
+
+            ProbOfPosFluxe = (1.0-ProbabilityOfIon)*PosFluxe / TotalFluxProbability;
+            ProbOfNegFluxe = (1.0-ProbabilityOfIon)*NegFluxe / TotalFluxProbability;
+            ProbOfPosFluxi = ProbabilityOfIon*PosFluxi / TotalFluxProbability;
+            ProbOfNegFluxi = ProbabilityOfIon*NegFluxi / TotalFluxProbability;
+        }
+    #endif
 
     // ************************************************** //
 
