@@ -1020,8 +1020,8 @@ int main(int argc, char* argv[]){
     double iRhoTherm = 0.0;  // Ion gyro-radii are zero by Default
     double eRhoTherm = 0.0;  // Electron gyro-radii are zero by Default
 
-    double TimeStepe = TimeStepFactor;
-    double TimeStepi = TimeStepFactor;
+    double TimeStepe = TimeStepFactor/eThermalVel;
+    double TimeStepi = TimeStepFactor/iThermalVel;
     if( BMag == 0.0 && Potential == 0.0 ){
         TimeStepi = 0.01/iThermalVel;
         TimeStepe = 0.01/eThermalVel;
